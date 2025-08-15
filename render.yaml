@@ -1,22 +1,22 @@
 services:
-  - type: web
-    name: mriya-backend
-    runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
-    autoDeployTrigger: commit
-    rootDir: backend
-    
-  - type: web
-    runtime: static
-    name: mriya-frontend
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: frontend/dist
-    autoDeployTrigger: commit
-    rootDir: frontend
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: mriya-backend
-          type: web
-          property: url
+- type: web
+  name: test-mr
+  runtime: python
+  plan: free
+  region: oregon
+  rootDir: backend
+  buildCommand: pip install -r requirements.txt
+  startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+  autoDeployTrigger: commit
+
+- type: web
+  name: test-mr-fr
+  runtime: static
+  envVars:
+    - key: VITE_API_URL
+      value: https://test-mr-3aty.onrender.com
+  buildCommand: npm install && npm run build
+  staticPublishPath: dist
+  autoDeployTrigger: commit
+  rootDir: frontend
+version: "1"
