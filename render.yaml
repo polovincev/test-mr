@@ -2,21 +2,20 @@ services:
   - type: web
     name: mriya-backend
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
-    autoDeployTrigger: commit
     rootDir: backend
-    
-  - type: web
-    runtime: static
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: static_site
     name: mriya-frontend
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: frontend/dist
-    autoDeployTrigger: commit
     rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
           name: mriya-backend
           type: web
           property: url
+    autoDeploy: true
