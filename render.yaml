@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mriya-backend
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
+
+  - type: static
+    name: mriya-frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: mriya-backend
+          type: web
+          property: url        # Render сам подставит https://<backend>.onrender.com
