@@ -1,0 +1,68 @@
+# macOS
+.DS_Store
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Python tooling
+pip-wheel-metadata/
+*.manifest
+*.spec
+htmlcov/
+coverage.xml
+*.cover
+*.coverage
+*.coverage.*
+.cache/
+.mypy_cache/
+pytest_cache/
+.tox/
+
+# Virtual environments & env files
+.env
+.env.*
+.venv
+venv/
+ENV/
+venv.bak/
+
+# Node artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Frontend build output
+frontend/dist/
+dist/
+build/
+
+# Vite cache
+.vite/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System files
+Thumbs.db
+Desktop.ini
+
+# Git merge conflict files
+*.orig
