@@ -1,0 +1,157 @@
+.home {
+  background-color: #161324;
+  min-height: 100vh;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.home::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1900px;
+  height: 1200px;
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(92, 84, 255, 0.6) 0%,
+    rgba(92, 84, 255, 0.35) 35%,
+    rgba(92, 84, 255, 0.15) 60%,
+    rgba(22, 19, 36, 0) 75%
+  );
+  filter: blur(100px);
+  pointer-events: none;
+}
+
+.home > * {
+  position: relative;
+  z-index: 1;
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: calc(100vh - 300px);
+}
+
+.inputContainer {
+  position: relative;
+  width: 70%;
+}
+
+.actionsContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: none;
+  font-family: "Inter";
+  font-weight: 100;
+  box-shadow: 0px 1px 2px 0px #120E2791;
+  backdrop-filter: blur(11px);
+}
+
+
+.textarea::placeholder {
+  color: #ffffff;
+}
+
+.sendButton {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background: rgba(80, 58, 224, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sendButton:hover {
+  background: rgba(80, 58, 224, 1);
+}
+
+.sendIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.actionsContainer {
+  width: 70%;
+  margin-top: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.actionButton {
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: rgba(159, 146, 247, 0.1);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  height: 40px;
+  backdrop-filter: blur(11px);
+}
+
+.actionButton:hover {
+  background: rgba(159, 146, 247, 0.2);
+}
+
+.contentContainer {
+  width: 100%;
+  background: rgba(245, 245, 247, 1);
+  color: #161324;
+  border-radius: 24px 24px 0 0;
+  padding: 24px 3%;
+  min-height: 60vh;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.actionButton {
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: rgba(159, 146, 247, 0.1);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  height: 40px;
+  backdrop-filter: blur(11px);
+}
+
+.actionButton:hover {
+  background: rgba(159, 146, 247, 0.24);
+}
+
+

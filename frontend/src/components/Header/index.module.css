@@ -1,0 +1,23 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 104px;
+  padding: 0 3%;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.profile {
+  height: 56px;
+  width: 56px;
+  border-radius: 30%;
+  object-fit: cover;
+  display: block;
+}
+
+
