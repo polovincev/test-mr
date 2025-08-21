@@ -1,46 +1,37 @@
 .home {
   background-color: #161324;
-  min-height: 100vh;
-  color: #ffffff;
+  min-height: calc(100vh - 150px);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .home::before {
   content: "";
   position: absolute;
-  top: -40%;
+  top: -50%;
   left: 50%;
   transform: translateX(-50%);
   width: 1900px;
-  height: 1200px;
-  background: radial-gradient(
-    50% 50% at 50% 50%,
-    rgba(92, 84, 255, 0.6) 0%,
-    rgba(92, 84, 255, 0.35) 35%,
-    rgba(92, 84, 255, 0.15) 60%,
-    rgba(22, 19, 36, 0) 75%
-  );
+  height: 1500px;
+  background: radial-gradient(50% 50% at 50% 50%,
+      rgba(92, 84, 255, 0.6) 0%,
+      rgba(92, 84, 255, 0.35) 35%,
+      rgba(92, 84, 255, 0.15) 60%,
+      rgba(22, 19, 36, 0) 75%);
   filter: blur(100px);
   pointer-events: none;
 }
 
-.home > * {
+.home>* {
   position: relative;
   z-index: 1;
 }
 
-.main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  min-height: calc(100vh - 300px);
-}
-
 .inputContainer {
   position: relative;
-  width: 70%;
+  max-width: 800px;
 }
 
 .actionsContainer {
@@ -54,21 +45,21 @@
   border: none;
   outline: none;
   background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.7);
   border-radius: 16px;
   padding: 12px 20px;
   font-size: 16px;
   line-height: 1.5;
   resize: none;
-  font-family: "Inter";
-  font-weight: 100;
+  font-family: "Onest";
+  font-weight: 400;
   box-shadow: 0px 1px 2px 0px #120E2791;
   backdrop-filter: blur(11px);
 }
 
 
 .textarea::placeholder {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .sendButton {
@@ -94,41 +85,58 @@
 .sendIcon {
   width: 24px;
   height: 24px;
+  cursor: pointer;
 }
 
 .actionsContainer {
-  width: 70%;
   margin-top: 12px;
 }
 
-.actions {
-  display: flex;
-  gap: 12px;
-}
-
-.actionButton {
-  padding: 8px 16px;
-  border-radius: 24px;
-  background: rgba(159, 146, 247, 0.1);
-  color: #ffffff;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  height: 40px;
-  backdrop-filter: blur(11px);
-}
-
-.actionButton:hover {
-  background: rgba(159, 146, 247, 0.2);
-}
-
 .contentContainer {
-  width: 100%;
   background: rgba(245, 245, 247, 1);
   color: #161324;
   border-radius: 24px 24px 0 0;
-  padding: 24px 3%;
-  min-height: 60vh;
+  padding: 80px 0;
+}
+
+.contentContainerFluid {
+  width: 100%;
+  background-color: #161324;
+}
+
+.contentBlock {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0px 2px 12px 0px rgba(10, 13, 25, 0.04);
+  /* Add bottom margin between blocks on small screens */
+  margin-bottom: 20px;
+  height: 320px;
+}
+
+/* Remove extra margin on large screens where blocks are side by side */
+@media (min-width: 992px) {
+  .contentBlock {
+    margin-bottom: 0;
+  }
+}
+
+.contentTitle {
+  font-size: 24px;
+  font-weight: 600;
+  font-family: "Onest";
+}
+
+.contentBlockDescription {
+  padding-top: 8px;
+  font-size: 16px;
+  color: #656C94;
+  font-weight: 300;
+  font-family: "Onest";
+  width: 70%;
+  line-height: 1.6;
 }
 
 .actions {
@@ -142,10 +150,12 @@
   padding: 8px 16px;
   border-radius: 24px;
   background: rgba(159, 146, 247, 0.1);
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.7);
   border: none;
   cursor: pointer;
   font-size: 14px;
+  font-family: "Onest";
+  font-weight: 400;
   height: 40px;
   backdrop-filter: blur(11px);
 }
@@ -154,4 +164,92 @@
   background: rgba(159, 146, 247, 0.24);
 }
 
+.goalImage {
+  position: absolute;
+  bottom: -65px;
+  right: -75px;
+  width: 340px;
+  height: auto;
+  rotate: 10deg;
+  pointer-events: none;
+}
 
+.setGoalButton {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  background: #503AE0;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: "Onest";
+  font-weight: 300;
+  height: 40px;
+}
+
+.setGoalButton:hover {
+  background: #4632c6;
+}
+
+.factBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.factBadge {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 24px;
+  border: 1px solid #93E2FA;
+  color: #19A4CF;
+  font-size: 12px;
+  font-weight: 400;
+  font-family: "Onest";
+}
+
+.factTitle {
+  margin-top: auto;
+  margin-bottom: 72px; /* keep distance from bottom-left button */
+  color: #2C2D3A;
+  font-size: 20px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-family: "Onest";
+}
+
+.factContent {
+  margin-top: 12px; /* appear directly under the badge */
+  margin-bottom: 0;
+  color: #2C2D3A;
+  font-size: 20px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-family: "Onest";
+}
+
+.factButton {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  background: #F5F6FF;
+  color: #161A33;
+  border: none;
+  border-radius: 12px;
+  height: 40px;
+  padding: 0 24px;
+  font-size: 14px;
+  font-family: "Onest";
+  cursor: pointer;
+}
+
+.factButton:hover {
+  background: #E4E6F7;
+}
+
+/* Loading state for fact button */
+.loading {
+  opacity: 0.7;
+}

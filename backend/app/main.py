@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes.message import router as message_router
+from .routes.fact import router as fact_router
 
 app = FastAPI(title="Mriya API")
 
@@ -15,6 +16,7 @@ app.add_middleware(
 )
 
 app.include_router(message_router)
+app.include_router(fact_router)
 
 # Точка входа для запуска через `python -m backend.app.main`
 if __name__ == "__main__":

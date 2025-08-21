@@ -1,8 +1,7 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   height: 104px;
+  display: flex;
+  align-items: center;
   padding: 0 3%;
 }
 
@@ -19,5 +18,3 @@
   object-fit: cover;
   display: block;
 }
-
-

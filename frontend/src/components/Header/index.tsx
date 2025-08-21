@@ -6,11 +6,15 @@ const profile = new URL("../../icon/profile.png", import.meta.url).href;
 const Header = () => {
   return (
     <header className={styles.header}>
-      <div>
-        <img src={logo} alt="Logo" className={styles.logo} />
-      </div>
-      <div>
-        <img src={profile} alt="Profile" className={styles.profile} />
+      <div className="container-fluid">
+        <div className="row align-items-center justify-content-between">
+          <div className="col-auto">
+            <img src={logo} alt="Logo" className={styles.logo} />
+          </div>
+          <div className="col-auto">
+            <img src={profile} alt="Profile" className={styles.profile} />
+          </div>
+        </div>
       </div>
     </header>
   );
