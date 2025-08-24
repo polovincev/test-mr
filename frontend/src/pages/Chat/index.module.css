@@ -1,0 +1,174 @@
+.rowFullHeight {
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    background: #F5F6FF;
+}
+
+.leftPaneContainer {
+    background: #F5F5F7;
+    padding: 16px;
+    min-width: 320px;
+    height: 100%;
+}
+
+.leftPane {
+    background: #E5E5E7;
+    height: 100%;
+    border-radius: 20px;
+    padding: 12px;
+}
+
+.leftHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+}
+
+.leftHeaderLogo {
+    width: 32px;
+    height: 32px;
+}
+
+.leftHeaderTitle {
+    padding-left: 10px;
+    font-family: "Onest";
+    font-size: 16px;
+    font-weight: 500;
+    color: #161A33;
+}
+
+
+.rightPane {
+    width: 100%;
+    background: #F5F5F7;
+    padding: 16px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+}
+
+.rightPaneContainer {
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    /* row height minus paddings (approx) */
+}
+
+.messagesContainer {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    scroll-behavior: smooth;
+    /* Hide scrollbar but keep scrolling */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.messagesContainer::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.spacer {
+    flex: 1 0 auto;
+}
+
+.messagesInner {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.dateDivider {
+    text-align: center;
+    color: #9399BD;
+    font-size: 14px;
+    font-weight: 200;
+    font-family: "Onest";
+    margin: 12px 0;
+}
+
+.rightInner {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 8px;
+}
+
+.disclaimer {
+    text-align: center;
+    color: #8382A1;
+    font-size: 14px;
+    font-family: "Onest";
+    font-weight: 200;
+    margin-bottom: 40px;
+}
+
+.closeButton {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 20px;
+    background: #FFFFFF;
+    color: #161A33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+}
+
+.closeButton:hover {
+    background: #F0F1F6;
+}
+
+.chatInput {
+    border: 1px solid #E4E6F7;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: "Onest";
+    font-size: 14px;
+    color: #2C2D3A;
+    outline: none;
+}
+
+.messageRow {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+.leftRow {
+    justify-content: flex-start;
+}
+
+.rightRow {
+    justify-content: flex-end;
+    color: #161A33;
+}
+
+.message {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border-bottom-right-radius: 8px;
+    font-family: "Onest";
+    font-size: 16px;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    margin-bottom: 12px;
+}
+
+.user {
+    background: #FFFFFF;
+}

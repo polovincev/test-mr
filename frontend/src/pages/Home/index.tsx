@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getMessage, getFact } from "../../services/api";
 import styles from "./index.module.css";
 import Header from "../../components/Header";
@@ -7,6 +8,7 @@ const Home = () => {
   const [message, setMessage] = useState<string>("");
   const [fact, setFact] = useState<string>("");
   const [isFactLoading, setIsFactLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   const handleClick = async () => {
     try {
@@ -50,7 +52,7 @@ const Home = () => {
                     }
                   }}
                 />
-                <button className={styles.sendButton} onClick={handleClick}>
+                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>
                   <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
                 </button>
               </div>
@@ -58,8 +60,8 @@ const Home = () => {
             <div className="col-12 col-lg-8 mx-auto">
               <div className={styles.actionsContainer}>
                 <div className={styles.actions}>
-                  <button className={styles.actionButton}>Рассказать о себе</button>
-                  <button className={styles.actionButton}>Как поставить цель моего обучения</button>
+                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Рассказать о себе</button>
+                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Как поставить цель моего обучения</button>
                 </div>
               </div>
             </div>
@@ -74,7 +76,7 @@ const Home = () => {
                 <div className={styles.contentBlock}>
                   <div className={styles.contentTitle}>Твоя цель</div>
                   <div className={styles.contentBlockDescription}>Давай поставим цель, и будем отслеживать прогресс, чтобы видеть, насколько ты приблизился к желаемому результату</div>
-                  <button className={styles.setGoalButton}>Поставить</button>
+                  <button className={styles.setGoalButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Поставить</button>
                   <img src={new URL("../../icon/goal.png", import.meta.url).href} alt="Goal" className={styles.goalImage} />
                 </div>
               </div>

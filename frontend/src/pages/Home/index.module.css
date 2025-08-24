@@ -71,7 +71,7 @@
   border-radius: 8px;
   border: none;
   outline: none;
-  background: rgba(80, 58, 224, 0.9);
+  background: #503AE0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,7 +79,7 @@
 }
 
 .sendButton:hover {
-  background: rgba(80, 58, 224, 1);
+  background: #3014BA;
 }
 
 .sendIcon {
