@@ -13,6 +13,10 @@ body {
   box-sizing: border-box !important;
 }
 
+/* Hide scrollbars but keep scroll functionality across the app */
+*::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Ensure all buttons show pointer cursor across the app */
 button {
   cursor: pointer;

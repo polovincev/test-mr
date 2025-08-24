@@ -228,18 +228,24 @@ const Chat = () => {
             )}
           </div>
           <div className={styles.rightInner}>
-            <input
-              className={styles.chatInput}
-              placeholder="Чем тебе помочь?"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void onSend();
-                }
-              }}
-            />
+            <div className={styles.chatInputContainer}>
+              <textarea
+                className={styles.chatInput}
+                placeholder="Введите сообщение"
+                rows={4}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void onSend();
+                  }
+                }}
+              />
+              <button className={styles.sendButton} onClick={() => void onSend()}>
+                <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
+              </button>
+            </div>
             <div className={styles.disclaimer}>Обрати внимание: ИИ-помощник может допускать ошибки</div>
           </div>
         </div>
