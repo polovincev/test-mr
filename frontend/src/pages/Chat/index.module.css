@@ -9,6 +9,7 @@
     background: #F5F5F7;
     padding: 16px;
     min-width: 320px;
+    max-width: 320px;
     height: 100%;
 }
 
@@ -137,9 +138,17 @@
     border-radius: 12px;
     padding: 12px 16px;
     font-family: "Onest";
+    font-weight: 400;
     font-size: 14px;
-    color: #2C2D3A;
+    color: #9399BD;
     outline: none;
+}
+
+.chatInput::placeholder {
+    font-family: "Onest";
+    font-weight: 400;
+    font-size: 14px;
+    color: #9399BD;
 }
 
 .messageRow {
@@ -171,4 +180,43 @@
 
 .user {
     background: #FFFFFF;
+}
+
+.chatItemActive {
+    background: #F5F6FF !important;
+}
+
+.chatItemBtn {
+    width: 100%;
+    text-align: left;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 14px;
+    height: 44px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-family: "Onest";
+    color: #161A33;
+    background: #E5E5E7;
+}
+
+.chatItemBtn:hover {
+    background: #F5F6FFB2;
+}
+
+.chatListContainer {
+    margin-top: 72px;
+}
+
+.chatListTitle {
+    margin-top: 24px;
+    padding-left: 12px;
+    font-family: "Onest";
+    font-size: 14px;
+    font-weight: 400;
+    color: rgb(22, 26, 51, 0.5);
+}
+
+.chatList {
+    margin-top: 12px;
 }

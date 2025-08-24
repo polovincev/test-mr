@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMessage, getFact } from "../../services/api";
 import styles from "./index.module.css";
@@ -33,6 +33,11 @@ const Home = () => {
       setIsFactLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Ignore any previously saved active chat to force new chat creation
+    localStorage.removeItem("activeChatId");
+  }, []);
 
   return (
     <>

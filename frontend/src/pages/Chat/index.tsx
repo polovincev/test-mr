@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
-import { Chat as ChatModel, createChat, sendMessage, getChat } from "../../services/api";
+import { Chat as ChatModel, createChat, sendMessage, getChat, listChats, ChatSummary } from "../../services/api";
 
 const ACTIVE_ID_KEY = "activeChatId";
 
@@ -12,35 +12,68 @@ const Chat = () => {
   const didInitRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const [chats, setChats] = useState<ChatSummary[]>([]);
 
   useEffect(() => {
     const init = async () => {
       try {
         if (didInitRef.current) return; // prevent double-run in React StrictMode
         didInitRef.current = true;
-        // Detect hard reload: if reload, ignore any navigation state
-        const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
-        const isReload = navEntries.length > 0 ? navEntries[0].type === "reload" : (performance as any).navigation?.type === 1;
-        const state = (isReload ? null : (location.state as { createNew?: boolean } | null));
-        const shouldCreateNew = Boolean(state?.createNew);
-        if (shouldCreateNew) {
+        const state = location.state as { createNew?: boolean } | null;
+
+        // Always load history first
+        let history: ChatSummary[] = [];
+        try {
+          history = await listChats();
+          setChats(history);
+        } catch {
+          history = [];
+        }
+
+        if (state?.createNew) {
+          // 1) Coming from Home: create new chat, then reload history and open it
           const created = await createChat("Новый чат");
           setChat(created);
           localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
+          try {
+            const updated = await listChats();
+            setChats(updated);
+          } catch { }
           // Clear consumed navigation state so refresh won't recreate
           window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
           return;
         }
+
+        // 2) Page reload or direct open: open previously selected chat if present
         const savedIdRaw = localStorage.getItem(ACTIVE_ID_KEY);
-        const savedId = savedIdRaw ? Number(savedIdRaw) : null;
-        if (savedId && Number.isFinite(savedId)) {
-          const existing = await getChat(savedId);
-          setChat(existing);
-          return;
+        const savedId = savedIdRaw ? Number(savedIdRaw) : NaN;
+        if (Number.isFinite(savedId)) {
+          try {
+            const existing = await getChat(savedId);
+            setChat(existing);
+            return;
+          } catch { }
         }
+
+        // If nothing saved, but we have history, open the last one
+        if (history.length > 0) {
+          const latest = history[history.length - 1];
+          try {
+            const opened = await getChat(latest.id);
+            setChat(opened);
+            localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
+            return;
+          } catch { }
+        }
+
+        // If still nothing, create the first chat
         const created = await createChat("Новый чат");
         setChat(created);
         localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
+        try {
+          const updated = await listChats();
+          setChats(updated);
+        } catch { }
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error(e);
@@ -107,6 +140,9 @@ const Chat = () => {
     return result;
   };
 
+  const activeId = chat?.id ?? null;
+  const latestChat = chats.length > 0 ? [...chats].sort((a, b) => b.id - a.id)[0] : null;
+
   return (
     <div className={`${styles.rowFullHeight}`}>
       <div className={`${styles.leftPaneContainer}`}>
@@ -114,6 +150,55 @@ const Chat = () => {
           <div className={styles.leftHeader}>
             <img className={styles.leftHeaderLogo} src={new URL("../../icon/ii.svg", import.meta.url).href} alt="ИИ" />
             <span className={styles.leftHeaderTitle}>ИИ-помощник</span>
+          </div>
+          <div className={styles.chatListContainer}>
+            {latestChat && (
+              <>
+                <div className={styles.chatList}>
+                  <button
+                    key={latestChat.id}
+                    className={`${styles.chatItemBtn} ${activeId === latestChat.id ? styles.chatItemActive : ""}`}
+                    onClick={async () => {
+                      try {
+                        const opened = await getChat(latestChat.id);
+                        setChat(opened);
+                        localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
+                      } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error(e);
+                      }
+                    }}
+                  >
+                    {latestChat.title} #{latestChat.id}
+                  </button>
+                </div>
+              </>
+            )}
+            <div className={styles.chatListTitle}>История</div>
+            <div className={styles.chatList}>
+              {chats
+                .filter((c) => latestChat && c.id === latestChat.id ? false : true)
+                .slice()
+                .sort((a, b) => b.id - a.id) // newest first
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    className={`${styles.chatItemBtn} ${activeId === c.id ? styles.chatItemActive : ""}`}
+                    onClick={async () => {
+                      try {
+                        const opened = await getChat(c.id);
+                        setChat(opened);
+                        localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
+                      } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error(e);
+                      }
+                    }}
+                  >
+                    {c.title} #{c.id}
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +230,7 @@ const Chat = () => {
           <div className={styles.rightInner}>
             <input
               className={styles.chatInput}
-              placeholder="Введите сообщение"
+              placeholder="Чем тебе помочь?"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
