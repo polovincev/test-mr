@@ -13,6 +13,9 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
@@ -28,6 +31,8 @@ const Chat = () => {
           setChats(history);
         } catch {
           history = [];
+        } finally {
+          setIsHistoryLoading(false);
         }
 
         if (state?.createNew) {
@@ -35,6 +40,7 @@ const Chat = () => {
           const created = await createChat("Новый чат");
           setChat(created);
           localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
+          setIsChatLoading(false);
           try {
             const updated = await listChats();
             setChats(updated);
@@ -51,6 +57,7 @@ const Chat = () => {
           try {
             const existing = await getChat(savedId);
             setChat(existing);
+            setIsChatLoading(false);
             return;
           } catch { }
         }
@@ -62,6 +69,7 @@ const Chat = () => {
             const opened = await getChat(latest.id);
             setChat(opened);
             localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
+            setIsChatLoading(false);
             return;
           } catch { }
         }
@@ -70,6 +78,7 @@ const Chat = () => {
         const created = await createChat("Новый чат");
         setChat(created);
         localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
+        setIsChatLoading(false);
         try {
           const updated = await listChats();
           setChats(updated);
@@ -83,14 +92,32 @@ const Chat = () => {
   }, []);
 
   const onSend = async () => {
-    if (!chat || !input.trim()) return;
+    if (!chat || !input.trim() || isSending) return;
+    const messageContent = input.trim();
+    const optimistic: ChatModel = {
+      ...chat,
+      messages: [
+        ...chat.messages,
+        { role: "user", content: messageContent, timestamp: new Date().toISOString() },
+      ],
+    };
+    setChat(optimistic);
+    setInput("");
     try {
-      const updated = await sendMessage(chat.id, input.trim(), "user");
+      setIsSending(true);
+      const updated = await sendMessage(chat.id, messageContent, "user");
       setChat(updated);
-      setInput("");
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(e);
+      try {
+        const fallback = await getChat(chat.id);
+        setChat(fallback);
+      } catch {
+        // no-op
+      }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -152,53 +179,74 @@ const Chat = () => {
             <span className={styles.leftHeaderTitle}>ИИ-помощник</span>
           </div>
           <div className={styles.chatListContainer}>
-            {latestChat && (
+            {isHistoryLoading ? (
               <>
+                <div className={styles.skelTitle}></div>
                 <div className={styles.chatList}>
-                  <button
-                    key={latestChat.id}
-                    className={`${styles.chatItemBtn} ${activeId === latestChat.id ? styles.chatItemActive : ""}`}
-                    onClick={async () => {
-                      try {
-                        const opened = await getChat(latestChat.id);
-                        setChat(opened);
-                        localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
-                      } catch (e) {
-                        // eslint-disable-next-line no-console
-                        console.error(e);
-                      }
-                    }}
-                  >
-                    {latestChat.title} #{latestChat.id}
-                  </button>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className={styles.skelItem}></div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {latestChat && (
+                  <>
+                    <div className={styles.chatList}>
+                      <button
+                        key={latestChat.id}
+                        className={`${styles.chatItemBtn} ${activeId === latestChat.id ? styles.chatItemActive : ""}`}
+                        onClick={async () => {
+                          try {
+                            setIsChatLoading(true);
+                            setChat({ id: latestChat.id, title: latestChat.title, messages: [] });
+                            localStorage.setItem(ACTIVE_ID_KEY, String(latestChat.id));
+                            const opened = await getChat(latestChat.id);
+                            setChat(opened);
+                          } catch (e) {
+                            // eslint-disable-next-line no-console
+                            console.error(e);
+                          } finally {
+                            setIsChatLoading(false);
+                          }
+                        }}
+                      >
+                        {latestChat.title} #{latestChat.id}
+                      </button>
+                    </div>
+                  </>
+                )}
+                <div className={styles.chatListTitle}>История</div>
+                <div className={styles.chatList}>
+                  {chats
+                    .filter((c) => latestChat && c.id === latestChat.id ? false : true)
+                    .slice()
+                    .sort((a, b) => b.id - a.id) // newest first
+                    .map((c) => (
+                      <button
+                        key={c.id}
+                        className={`${styles.chatItemBtn} ${activeId === c.id ? styles.chatItemActive : ""}`}
+                        onClick={async () => {
+                          try {
+                            setIsChatLoading(true);
+                            setChat({ id: c.id, title: c.title, messages: [] });
+                            localStorage.setItem(ACTIVE_ID_KEY, String(c.id));
+                            const opened = await getChat(c.id);
+                            setChat(opened);
+                          } catch (e) {
+                            // eslint-disable-next-line no-console
+                            console.error(e);
+                          } finally {
+                            setIsChatLoading(false);
+                          }
+                        }}
+                      >
+                        {c.title} #{c.id}
+                      </button>
+                    ))}
                 </div>
               </>
             )}
-            <div className={styles.chatListTitle}>История</div>
-            <div className={styles.chatList}>
-              {chats
-                .filter((c) => latestChat && c.id === latestChat.id ? false : true)
-                .slice()
-                .sort((a, b) => b.id - a.id) // newest first
-                .map((c) => (
-                  <button
-                    key={c.id}
-                    className={`${styles.chatItemBtn} ${activeId === c.id ? styles.chatItemActive : ""}`}
-                    onClick={async () => {
-                      try {
-                        const opened = await getChat(c.id);
-                        setChat(opened);
-                        localStorage.setItem(ACTIVE_ID_KEY, String(opened.id));
-                      } catch (e) {
-                        // eslint-disable-next-line no-console
-                        console.error(e);
-                      }
-                    }}
-                  >
-                    {c.title} #{c.id}
-                  </button>
-                ))}
-            </div>
           </div>
         </div>
       </div>
@@ -210,18 +258,37 @@ const Chat = () => {
               <div className={styles.messagesContainer}>
                 <div className={styles.spacer} />
                 <div className={styles.messagesInner}>
-                  {groupMessagesByDate().map((group) => (
-                    <div key={group.dateKey}>
-                      <div className={styles.dateDivider}>{group.label}</div>
-                      {group.items.map((m, idx) => (
-                        <div key={`${group.dateKey}-${idx}`} className={`${styles.messageRow} ${m.role === "assistant" ? styles.leftRow : styles.rightRow}`}>
-                          <div className={`${styles.message} ${m.role === "assistant" ? styles.assistant : styles.user}`}>
-                            {m.content}
-                          </div>
+                  {isChatLoading ? (
+                    <div className={styles.loadingContainer}>
+                      <div className={styles.spinner}></div>
+                    </div>
+                  ) : (
+                    <>
+                      {groupMessagesByDate().map((group) => (
+                        <div key={group.dateKey}>
+                          <div className={styles.dateDivider}>{group.label}</div>
+                          {group.items.map((m, idx) => (
+                            <div key={`${group.dateKey}-${idx}`} className={`${styles.messageRow} ${m.role === "assistant" ? styles.leftRow : styles.rightRow}`}>
+                              <div className={`${styles.message} ${m.role === "assistant" ? styles.assistant : styles.user}`}>
+                                {m.content}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ))}
-                    </div>
-                  ))}
+                      {isSending && (
+                        <div className={`${styles.messageRow} ${styles.leftRow}`}>
+                          <div className={`${styles.message} ${styles.assistant}`}>
+                            <div className={styles.typing}>
+                              <span className={styles.dot}></span>
+                              <span className={styles.dot}></span>
+                              <span className={styles.dot}></span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
               </div>
@@ -242,7 +309,7 @@ const Chat = () => {
                   }
                 }}
               />
-              <button className={styles.sendButton} onClick={() => void onSend()}>
+              <button className={styles.sendButton} onClick={() => void onSend()} disabled={isSending}>
                 <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
               </button>
             </div>
