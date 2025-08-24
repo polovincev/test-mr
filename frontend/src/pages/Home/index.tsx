@@ -65,6 +65,7 @@ const Home = () => {
             <div className="col-12 col-lg-8 mx-auto">
               <div className={styles.actionsContainer}>
                 <div className={styles.actions}>
+                  <button className={styles.actionButton} onClick={() => navigate("/trajectory")}>Траектория</button>
                   <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Рассказать о себе</button>
                   <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Как поставить цель моего обучения</button>
                 </div>
