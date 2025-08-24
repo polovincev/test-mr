@@ -31,13 +31,14 @@
 
 .inputContainer {
   position: relative;
-  max-width: 800px;
+  max-width: var(--content-width);
 }
 
 .actionsContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 12px;
 }
 
 .textarea {
@@ -68,10 +69,10 @@
   bottom: 12px;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: none;
   outline: none;
-  background: #503AE0;
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,17 +80,13 @@
 }
 
 .sendButton:hover {
-  background: #3014BA;
+  background: var(--color-primary-hover);
 }
 
 .sendIcon {
   width: 24px;
   height: 24px;
   cursor: pointer;
-}
-
-.actionsContainer {
-  margin-top: 12px;
 }
 
 .contentContainer {

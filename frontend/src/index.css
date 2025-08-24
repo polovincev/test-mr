@@ -1,5 +1,19 @@
 @import "../node_modules/bootstrap/dist/css/bootstrap-grid.min.css";
 
+:root {
+  --content-width: 800px;
+  --color-bg-app: #F5F6FF;
+  --color-bg-panel: #F5F5F7;
+  --color-panel: #E5E5E7;
+  --color-text: #161A33;
+  --color-muted: #9399BD;
+  --color-primary: #503AE0;
+  --color-primary-hover: #3014BA;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
 html,
 body {
   margin: 0;
