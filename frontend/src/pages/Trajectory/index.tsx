@@ -69,8 +69,8 @@ const Trajectory = () => {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(228, 230, 247, 1)";
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(216, 219, 240, 1)";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
@@ -82,13 +82,19 @@ const Trajectory = () => {
         const aRect = a.getBoundingClientRect();
         const bRect = b.getBoundingClientRect();
         const startX = aRect.right - containerRect.left + container.scrollLeft;
-        const startY = aRect.top - containerRect.top + container.scrollTop + aRect.height / 1.5;
+        const startY = aRect.top - containerRect.top + container.scrollTop + aRect.height / 1.35;
         const endX = bRect.left - containerRect.left + container.scrollLeft + bRect.width / 3;
         const endY = bRect.top - containerRect.top + container.scrollTop - 4;
         const midX = startX - (startX - endX); // horizontal offset
+        const radius = 40;
+        const hDir = endX > startX ? 1 : -1;
+        const vDir = endY > startY ? 1 : -1;
+        const beforeCornerX = midX - hDir * radius;
+        const afterCornerY = startY + vDir * radius;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        ctx.lineTo(midX, startY);
+        ctx.lineTo(beforeCornerX, startY);
+        ctx.quadraticCurveTo(midX, startY, midX, afterCornerY);
         ctx.lineTo(midX, endY);
         ctx.lineTo(endX, endY);
         ctx.stroke();
