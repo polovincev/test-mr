@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 
@@ -10,7 +10,7 @@ const Trajectory = () => {
       description:
         "Узнаешь основы генетики через механизмы передачи признаков от родителей к потомству",
       image:
-        "https://images.unsplash.com/photo-1617635142686-6d8df2aefc58?q=80&w=1400&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
     },
     {
       id: 2,
@@ -24,14 +24,14 @@ const Trajectory = () => {
       title: "Эволюционное учение",
       description: "Поймёшь механизмы эволюции и естественного отбора",
       image:
-        "https://images.unsplash.com/photo-1590241581453-e67d862a4d99?q=80&w=1400&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
     },
     {
       id: 4,
       title: "Экосистемы и биосфера",
       description: "Разберёшься в структуре экосистем и глобальных циклах",
       image:
-        "https://images.unsplash.com/photo-1465145782865-09532f760e0a?q=80&w=1400&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
     },
     {
       id: 5,
@@ -51,6 +51,12 @@ const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const levels = [
+    { title: "Базовый 👌", meta: "4 задания", text: "Основы генетики: ключевые понятия и типы изменчивости" },
+    { title: "Уверенный 👍", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
+    { title: "Продвинутый 🤘", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
+  ];
 
   useEffect(() => {
     const draw = () => {
@@ -99,6 +105,33 @@ const Trajectory = () => {
         ctx.lineTo(endX, endY);
         ctx.stroke();
       }
+      // second pattern: from right card (odd index) to next left card (odd->even)
+      for (let i = 1; i < cardRefs.current.length - 1; i += 2) {
+        const a = cardRefs.current[i];
+        const b = cardRefs.current[i + 1];
+        if (!a || !b) continue;
+        const aRect = a.getBoundingClientRect();
+        const bRect = b.getBoundingClientRect();
+        const startX = aRect.left - containerRect.left + container.scrollLeft; // left edge of right card
+        const startY = aRect.top - containerRect.top + container.scrollTop + aRect.height / 1.4;
+        const endX = bRect.left - containerRect.left + container.scrollLeft + bRect.width / 1.5;
+        const endY = bRect.top - containerRect.top + container.scrollTop - 4;
+        const horOffset = startX - endX;
+        const midX = startX - horOffset; // current elbow X
+        const radius = 40;
+        const vDir = endY > startY ? 1 : -1;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        // horizontal segment to before the corner
+        ctx.lineTo(midX + radius, startY);
+        // rounded corner into vertical
+        ctx.quadraticCurveTo(midX, startY, midX, startY + vDir * radius);
+        // vertical to end level
+        ctx.lineTo(midX, endY);
+        // final horizontal to the target X
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
     };
 
     const onResize = () => draw();
@@ -120,27 +153,50 @@ const Trajectory = () => {
       <div className={styles.layout}>
         <div className={styles.left}>
           <div className={styles.trContainer} ref={containerRef}>
+            <div className={styles.header} style={{ height: "20px", padding: "50px" }}>elementddd</div>
             <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
             <div className={styles.cards}>
               {topics.map((t, idx) => {
                 const alignLeft = idx % 2 === 0;
                 const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
-                const offset = pairIndex === 0 ? 40 : 60; // 1-2:80px, 3-4:96px, then repeat
+                const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
                 const style = alignLeft ? { marginLeft: `${offset}px` } : { marginRight: `${offset}px` };
+                const faded = hoverIndex !== null && hoverIndex !== idx;
                 return (
-                <div
-                  key={t.id}
-                  className={`${styles.card} ${alignLeft ? styles.cardLeft : styles.cardRight}`}
-                  style={style}
-                  ref={(el) => (cardRefs.current[idx] = el)}
-                >
-                  <img className={styles.cardImage} src={t.image} alt="" />
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardTitle}>{t.title}</div>
-                    <div className={styles.cardText}>{t.description}</div>
+                  <div
+                    key={t.id}
+                    className={`${styles.card} ${alignLeft ? styles.cardLeft : styles.cardRight} ${faded ? styles.faded : ""}`}
+                    style={style}
+                    ref={(el) => (cardRefs.current[idx] = el)}
+                    onMouseEnter={() => setHoverIndex(idx)}
+                    onMouseLeave={() => setHoverIndex((v) => (v === idx ? null : v))}
+                  >
+                    <img className={styles.cardImage} src={t.image} alt="" />
+                    <div className={styles.cardBody}>
+                      <div className={styles.cardTitle}>{t.title}</div>
+                      <div className={styles.cardText}>{t.description}</div>
+                    </div>
+                    {hoverIndex === idx && (
+                      <div className={styles.overlay} style={{ left: 210 }}>
+                        {levels.map((lv, i) => (
+                          <div
+                            key={i}
+                            className={styles.levelCard}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }}
+                          >
+                            <div className={styles.levelTitle}>{lv.title}</div>
+                            <div className={styles.levelMeta}>{lv.meta}</div>
+                            <div className={styles.levelText}>{lv.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );})}
+                );
+              })}
             </div>
           </div>
         </div>
