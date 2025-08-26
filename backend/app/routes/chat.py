@@ -45,10 +45,10 @@ async def list_chats(repo: ChatRepository = Depends(get_chat_repo)) -> List[Chat
 
 @router.post("/", response_model=Chat)
 async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_chat_repo)) -> Chat:
-    chat = await repo.create_chat(title=data.title)
+    chat = await repo.create_chat(title=data.title, mode=data.mode)
 
-    if data.mode == "goal":
-        # Стартовое приветствие от ассистента
+    if data.mode in ("goal", "profile_goal"):
+        # Стартовое приветствие от ассистента под единый промпт
         try:
             import os
             from openai import OpenAI  # type: ignore
@@ -59,16 +59,27 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 raise RuntimeError("OPENAI_API_KEY not set")
 
             client = OpenAI(api_key=api_key)
-            system_prompt = load_prompt("smart_goal_system")
+            system_prompt = load_prompt("goal_system")
+
+            order_text = (
+                "Сначала выполни функцию GOAL, затем PROFILE."
+                if data.mode == "goal"
+                else "Сначала выполни функцию PROFILE, затем GOAL."
+            )
+
+            user_instruction = (
+                "Начни диалог приветствием и предложением помочь сформулировать учебную цель, дальше веди диалог используя системный промпт, в приветствии добавляй имя Дарья."
+                + order_text
+                if data.mode == "goal"
+                else "Начни диалог приветствием и предложением рассказать о себе, дальше веди диалог используя системный промпт, в приветствии добавляй имя Дарья."
+                + order_text
+            )
 
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": "Начни диалог приветствием и предложением помочь сформулировать учебную цель, дальше веди диалог используя системный промпт, в приветствии добавляй имя Дарья",
-                    },
+                    {"role": "user", "content": user_instruction},
                 ],
             )
 
@@ -82,51 +93,18 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
 
         except Exception as e:
             print("Error generating first chat message", e)
-            assistant_start = "Максим, привет! Давай определимся с твоей учебной целью. Что ты хочешь сделать?"
-
-        await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start))
-
-    elif data.mode == "profile_goal":
-        # Режим "рассказать о себе": приветствие и предложение рассказать о себе (профиль)
-        try:
-            import os
-            from openai import OpenAI  # type: ignore
-            from app.prompts.loader import load_prompt  # type: ignore
-
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise RuntimeError("OPENAI_API_KEY not set")
-
-            client = OpenAI(api_key=api_key)
-            system_prompt = load_prompt("profile_system")
-
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": "Начни диалог приветствием и предложением рассказать о себе, дальше веди диалог используя системный промпт, в приветствии добавляй имя Дарья",
-                    },
-                ],
-            )
-
             assistant_start = (
-                completion.choices[0].message.content.strip()
-                if completion.choices and completion.choices[0].message.content
-                else None
+                "Максим, привет! Давай определимся с твоей учебной целью. Что ты хочешь сделать?"
+                if data.mode == "goal"
+                else "Привет! Давай познакомимся. Расскажи немного о себе, интересах и учебных целях."
             )
-            if not assistant_start:
-                raise RuntimeError("empty completion")
-
-        except Exception as e:
-            print("Error generating profile start", e)
-            assistant_start = "Привет! Давай познакомимся. Расскажи немного о себе, интересах и учебных целях."
 
         await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start))
 
     elif data.mode == "direct" and data.first_user_prompt:
-        # Первое сообщение от пользователя, затем ответ ассистента с системным промтом
+        # Первое сообщение от пользователя, потом 2 ответа ассистента:
+        # 1) подробный ответ на запрос без запуска функций
+        # 2) старт работы по единому промту (GOAL -> PROFILE)
         await repo.add_message(chat.id, ChatMessage(role="user", content=data.first_user_prompt))
         try:
             import os
@@ -138,24 +116,54 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 raise RuntimeError("OPENAI_API_KEY not set")
 
             client = OpenAI(api_key=api_key)
-            system_prompt = load_prompt("smart_goal_system")
-            completion = client.chat.completions.create(
+
+            # 1) Подробный ответ на пользовательский запрос без запуска функций
+            first_completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "system",
+                        "content": "Ты полезный ассистент. Ответь подробно на первое сообщение пользователя. Не начинай функции GOAL и PROFILE и не добавляй технические теги, в приветствии добавляй имя Дарья.",
+                    },
                     {"role": "user", "content": data.first_user_prompt},
                 ],
             )
-            assistant_reply = (
-                completion.choices[0].message.content.strip()
-                if completion.choices and completion.choices[0].message.content
+            first_reply = (
+                first_completion.choices[0].message.content.strip()
+                if first_completion.choices and first_completion.choices[0].message.content
                 else None
             )
-            if not assistant_reply:
-                raise RuntimeError("empty completion")
-            await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_reply))
+            if not first_reply:
+                raise RuntimeError("empty completion (first reply)")
+            await repo.add_message(chat.id, ChatMessage(role="assistant", content=first_reply))
+
+            # 2) Старт работы по системному промту c порядком GOAL -> PROFILE
+            system_prompt = load_prompt("goal_system")
+            order_text = "Сначала выполни функцию GOAL, затем PROFILE."
+
+            updated_chat = await repo.get_chat(chat.id)
+            assert updated_chat is not None
+            updated_history = [
+                {"role": m.role, "content": m.content} for m in updated_chat.messages
+            ]
+
+            second_completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": "Теперь начни вести диалог согласно системному промту. " + order_text},
+                ]
+                + updated_history,
+            )
+            second_reply = (
+                second_completion.choices[0].message.content.strip()
+                if second_completion.choices and second_completion.choices[0].message.content
+                else None
+            )
+            if second_reply:
+                await repo.add_message(chat.id, ChatMessage(role="assistant", content=second_reply))
         except Exception as e:
-            print("Error generating direct response", e)
+            print("Error handling direct mode two-step flow", e)
             await repo.add_message(chat.id, ChatMessage(role="assistant", content="Понял ваш запрос. Давайте теперь сформулируем вашу учебную цель!"))
 
     chat_full = await repo.get_chat(chat.id)
@@ -187,16 +195,29 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         chat_full = await repo.get_chat(chat_id)
         assert chat_full is not None
 
+        # Единый системный промт + указание порядка функций через пользовательскую инструкцию
+        from app.prompts.loader import load_prompt  # type: ignore
+
+        system_prompt = load_prompt("goal_system")
+        mode = chat_full.mode
+        order_text = (
+            "Сначала выполни функцию GOAL, затем PROFILE."
+            if mode in ("goal", "direct")
+            else "Сначала выполни функцию PROFILE, затем GOAL."
+        )
+
         # Преобразуем историю в формат OpenAI messages
         history_messages = [
             {"role": m.role, "content": m.content} for m in chat_full.messages
         ]
 
-        system_prompt = load_prompt("smart_goal_system")
-
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "system", "content": system_prompt}] + history_messages
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": order_text},
+            ]
+            + history_messages,
         )
         assistant_reply = (
             completion.choices[0].message.content.strip()
@@ -211,7 +232,11 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         print("Error generating chat response", e)
         assistant_reply = "Принято. Давай продолжим!"
 
+    # 1) Добавляем первичный ответ ассистента
     await repo.add_message(chat_id, ChatMessage(role="assistant", content=assistant_reply))
+
+    # 2) Дополнительная генерация больше не требуется, единый промт обрабатывает теги внутри диалога
+
     chat = await repo.get_chat(chat_id)
     assert chat is not None
     return chat

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal
 
 from ..entities.chat import Chat, ChatMessage
 from .chat_repository import ChatRepository
@@ -14,8 +14,8 @@ class InMemoryChatRepository(ChatRepository):
     async def list_chats(self) -> List[Chat]:
         return list(self._chats)
 
-    async def create_chat(self, title: str) -> Chat:
-        chat = Chat(id=self._next_id, title=title)
+    async def create_chat(self, title: str, mode: Literal["goal", "direct", "profile_goal"] = "goal") -> Chat:
+        chat = Chat(id=self._next_id, title=title, mode=mode)
         self._next_id += 1
         self._chats.append(chat)
         # Keep only the last 10 chats to save memory

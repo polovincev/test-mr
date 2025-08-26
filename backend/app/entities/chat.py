@@ -15,6 +15,7 @@ class ChatMessage(BaseModel):
 class Chat(BaseModel):
     id: int
     title: str
+    mode: Literal["goal", "direct", "profile_goal"] = "goal"
     messages: List[ChatMessage] = Field(default_factory=list)
 
 
