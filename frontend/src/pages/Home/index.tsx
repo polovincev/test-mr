@@ -51,13 +51,15 @@ const Home = () => {
                   className={styles.textarea}
                   rows={5}
                   placeholder="Например, объясни, как решать квадратные уравнения"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                       void handleClick();
                     }
                   }}
                 />
-                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>
+                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "direct", firstUserPrompt: message.trim() || undefined } })}>
                   <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
                 </button>
               </div>
@@ -66,8 +68,8 @@ const Home = () => {
               <div className={styles.actionsContainer}>
                 <div className={styles.actions}>
                   <button className={styles.actionButton} onClick={() => navigate("/trajectory")}>Траектория</button>
-                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Рассказать о себе</button>
-                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Как поставить цель моего обучения</button>
+                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "profile_goal" } })}>Рассказать о себе</button>
+                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal" } })}>Как поставить цель моего обучения</button>
                 </div>
               </div>
             </div>
@@ -82,7 +84,7 @@ const Home = () => {
                 <div className={styles.contentBlock}>
                   <div className={styles.contentTitle}>Твоя цель</div>
                   <div className={styles.contentBlockDescription}>Давай поставим цель, и будем отслеживать прогресс, чтобы видеть, насколько ты приблизился к желаемому результату</div>
-                  <button className={styles.setGoalButton} onClick={() => navigate("/chat", { state: { createNew: true } })}>Поставить</button>
+                  <button className={styles.setGoalButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal" } })}>Поставить</button>
                   <img src={new URL("../../icon/goal.png", import.meta.url).href} alt="Goal" className={styles.goalImage} />
                 </div>
               </div>

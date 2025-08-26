@@ -42,11 +42,11 @@ export interface ChatSummary {
   title: string;
 }
 
-export async function createChat(title: string): Promise<Chat> {
+export async function createChat(title: string, mode: "goal" | "direct" | "profile_goal" = "goal", firstUserPrompt?: string): Promise<Chat> {
   const res = await fetch(`${API_URL}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, mode, first_user_prompt: firstUserPrompt }),
   });
   if (!res.ok) throw new Error("Failed to create chat");
   return (await res.json()) as Chat;

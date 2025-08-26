@@ -23,7 +23,7 @@ const Chat = () => {
       try {
         if (didInitRef.current) return; // prevent double-run in React StrictMode
         didInitRef.current = true;
-        const state = location.state as { createNew?: boolean } | null;
+        const state = location.state as { createNew?: boolean; mode?: "goal" | "direct" | "profile_goal"; firstUserPrompt?: string } | null;
 
         // Always load history first
         let history: ChatSummary[] = [];
@@ -37,8 +37,8 @@ const Chat = () => {
         }
 
         if (state?.createNew) {
-          // 1) Coming from Home: create new chat, then reload history and open it
-          const created = await createChat("Новый чат");
+          // 1) Coming from Home: create new chat using passed scenario
+          const created = await createChat("Новый чат", state.mode ?? "goal", state.firstUserPrompt);
           setChat(created);
           localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
           setIsChatLoading(false);
