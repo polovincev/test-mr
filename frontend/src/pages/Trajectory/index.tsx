@@ -171,7 +171,11 @@ const Trajectory = () => {
                     onMouseEnter={() => setHoverIndex(idx)}
                     onMouseLeave={() => setHoverIndex((v) => (v === idx ? null : v))}
                   >
-                    <img className={styles.cardImage} src={t.image} alt="" />
+                    <div className={styles.cardImageContainer}>
+                      <div className={styles.cardImageWrapper}>
+                        <img className={styles.cardImage} src={t.image} alt="" />
+                      </div>
+                    </div>
                     <div className={styles.cardBody}>
                       <div className={styles.cardTitle}>{t.title}</div>
                       <div className={styles.cardText}>{t.description}</div>

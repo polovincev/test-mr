@@ -99,14 +99,32 @@
     align-self: flex-end;
 }
 
+.cardImageContainer {
+    width: 100%;
+    height: 160px;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 4px
+}
+
+.cardImageWrapper {
+    width: 100%;
+    height: 160px;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
 .cardImage {
     width: 100%;
     height: 160px;
-    object-fit: cover;
-    display: block;
-    padding: 4px;
     border-radius: 16px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
 }
+
+.card:hover img {
+    transform: scale(1.1); /* увеличение картинки при наведении */
+  }
 
 .cardBody {
     padding: 16px;
