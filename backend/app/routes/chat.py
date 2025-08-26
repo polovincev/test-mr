@@ -65,11 +65,9 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
-                    "content": "Начни диалог приветствием и предложением помочь сформулировать учебную цель, в приветсвии добавляй имя Максим",
+                    "content": "Начни диалог приветствием и предложением помочь сформулировать учебную цель, в приветсвии добавляй имя Дарья",
                 },
-            ],
-            temperature=0.7,
-            max_tokens=150,
+            ]
         )
 
         assistant_start = (
@@ -124,9 +122,7 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
 
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "system", "content": system_prompt}] + history_messages,
-            temperature=0.7,
-            max_tokens=300,
+            messages=[{"role": "system", "content": system_prompt}] + history_messages
         )
         assistant_reply = (
             completion.choices[0].message.content.strip()

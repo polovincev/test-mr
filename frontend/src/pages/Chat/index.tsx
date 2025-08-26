@@ -271,11 +271,16 @@ const Chat = () => {
                           {group.items.map((m, idx) => (
                             <div key={`${group.dateKey}-${idx}`} className={`${styles.messageRow} ${m.role === "assistant" ? styles.leftRow : styles.rightRow}`}>
                               <div className={`${styles.message} ${m.role === "assistant" ? styles.assistant : styles.user}`}> 
-                                {m.content.split("\n").map((line, i) => (
-                                  <p key={i} style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }}>
-                                    {line}
-                                  </p>
-                                ))}
+                                {m.content.split("\n").map((line, i) => {
+                                  const html = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                                  return (
+                                    <p
+                                      key={i}
+                                      style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }}
+                                      dangerouslySetInnerHTML={{ __html: html }}
+                                    />
+                                  );
+                                })}
                               </div>
                             </div>
                           ))}
