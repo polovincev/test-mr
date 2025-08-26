@@ -30,7 +30,8 @@ def _generate_fact_via_openai() -> str:
         from openai import OpenAI  # type: ignore
 
         client = OpenAI(api_key=api_key)
-        from ...prompts.fact_of_day import SYSTEM_PROMPT, USER_PROMPT
+        # Import from app.prompts to avoid relative import issues when running as a module
+        from app.prompts.fact_of_day import SYSTEM_PROMPT, USER_PROMPT  # type: ignore
 
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -52,7 +53,8 @@ def _generate_fact_via_openai() -> str:
             raise RuntimeError("empty completion")
         # Safety: trim to a couple of sentences
         return content.strip()
-    except Exception:
+    except Exception as e:
+        print("Error generating fact", e)
         return "ДНК всех людей совпадает примерно на 99,9%."
 
 
