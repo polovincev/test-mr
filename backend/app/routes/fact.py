@@ -30,20 +30,15 @@ def _generate_fact_via_openai() -> str:
         from openai import OpenAI  # type: ignore
 
         client = OpenAI(api_key=api_key)
-        # Import from app.prompts to avoid relative import issues when running as a module
-        from app.prompts.fact_of_day import SYSTEM_PROMPT, USER_PROMPT  # type: ignore
+        # Get system & user prompts via shared loader (caches between calls)
+        from app.prompts.loader import load_prompt  # type: ignore
+
+        system_prompt = load_prompt("fact_system")
 
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": USER_PROMPT,
-                },
+                {"role": "system", "content": system_prompt}
             ],
             temperature=0.7,
             max_tokens=100,
