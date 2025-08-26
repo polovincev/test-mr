@@ -16,6 +16,7 @@ const Chat = () => {
   const [isSending, setIsSending] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(true);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [isBootLoading, setIsBootLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
@@ -86,9 +87,13 @@ const Chat = () => {
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error(e);
+      } finally {
+        // Safety: ensure boot loader goes away even if something unexpected happened
+        setIsBootLoading(false);
       }
     };
     void init();
+    setIsBootLoading(false);
   }, []);
 
   const onSend = async () => {
@@ -172,6 +177,11 @@ const Chat = () => {
 
   return (
     <div className={`${styles.rowFullHeight}`}>
+      {isBootLoading && (
+        <div className={styles.appLoaderOverlay}>
+          <div className={styles.appBigSpinner}></div>
+        </div>
+      )}
       <div className={`${styles.leftPaneContainer}`}>
         <div className={styles.leftPane}>
           <div className={styles.leftHeader}>
@@ -179,74 +189,61 @@ const Chat = () => {
             <span className={styles.leftHeaderTitle}>ИИ-помощник</span>
           </div>
           <div className={styles.chatListContainer}>
-            {isHistoryLoading ? (
+            {latestChat && (
               <>
-                <div className={styles.skelTitle}></div>
                 <div className={styles.chatList}>
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className={styles.skelItem}></div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                {latestChat && (
-                  <>
-                    <div className={styles.chatList}>
-                      <button
-                        key={latestChat.id}
-                        className={`${styles.chatItemBtn} ${activeId === latestChat.id ? styles.chatItemActive : ""}`}
-                        onClick={async () => {
-                          try {
-                            setIsChatLoading(true);
-                            setChat({ id: latestChat.id, title: latestChat.title, messages: [] });
-                            localStorage.setItem(ACTIVE_ID_KEY, String(latestChat.id));
-                            const opened = await getChat(latestChat.id);
-                            setChat(opened);
-                          } catch (e) {
-                            // eslint-disable-next-line no-console
-                            console.error(e);
-                          } finally {
-                            setIsChatLoading(false);
-                          }
-                        }}
-                      >
-                        {latestChat.title} #{latestChat.id}
-                      </button>
-                    </div>
-                  </>
-                )}
-                <div className={styles.chatListTitle}>История</div>
-                <div className={styles.chatList}>
-                  {chats
-                    .filter((c) => latestChat && c.id === latestChat.id ? false : true)
-                    .slice()
-                    .sort((a, b) => b.id - a.id) // newest first
-                    .map((c) => (
-                      <button
-                        key={c.id}
-                        className={`${styles.chatItemBtn} ${activeId === c.id ? styles.chatItemActive : ""}`}
-                        onClick={async () => {
-                          try {
-                            setIsChatLoading(true);
-                            setChat({ id: c.id, title: c.title, messages: [] });
-                            localStorage.setItem(ACTIVE_ID_KEY, String(c.id));
-                            const opened = await getChat(c.id);
-                            setChat(opened);
-                          } catch (e) {
-                            // eslint-disable-next-line no-console
-                            console.error(e);
-                          } finally {
-                            setIsChatLoading(false);
-                          }
-                        }}
-                      >
-                        {c.title} #{c.id}
-                      </button>
-                    ))}
+                  <button
+                    key={latestChat.id}
+                    className={`${styles.chatItemBtn} ${activeId === latestChat.id ? styles.chatItemActive : ""}`}
+                    onClick={async () => {
+                      try {
+                        setIsChatLoading(true);
+                        setChat({ id: latestChat.id, title: latestChat.title, messages: [] });
+                        localStorage.setItem(ACTIVE_ID_KEY, String(latestChat.id));
+                        const opened = await getChat(latestChat.id);
+                        setChat(opened);
+                      } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error(e);
+                      } finally {
+                        setIsChatLoading(false);
+                      }
+                    }}
+                  >
+                    {latestChat.title} #{latestChat.id}
+                  </button>
                 </div>
               </>
             )}
+            <div className={styles.chatListTitle}>История</div>
+            <div className={styles.chatList}>
+              {chats
+                .filter((c) => latestChat && c.id === latestChat.id ? false : true)
+                .slice()
+                .sort((a, b) => b.id - a.id) // newest first
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    className={`${styles.chatItemBtn} ${activeId === c.id ? styles.chatItemActive : ""}`}
+                    onClick={async () => {
+                      try {
+                        setIsChatLoading(true);
+                        setChat({ id: c.id, title: c.title, messages: [] });
+                        localStorage.setItem(ACTIVE_ID_KEY, String(c.id));
+                        const opened = await getChat(c.id);
+                        setChat(opened);
+                      } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error(e);
+                      } finally {
+                        setIsChatLoading(false);
+                      }
+                    }}
+                  >
+                    {c.title} #{c.id}
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       </div>
