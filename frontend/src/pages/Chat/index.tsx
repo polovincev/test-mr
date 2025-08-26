@@ -88,13 +88,17 @@ const Chat = () => {
         // eslint-disable-next-line no-console
         console.error(e);
       } finally {
-        // Safety: ensure boot loader goes away even if something unexpected happened
-        setIsBootLoading(false);
+        // keep boot loader until chat is opened/created; don't force-hide here
       }
     };
     void init();
-    setIsBootLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!isHistoryLoading && !isChatLoading && chat) {
+      setIsBootLoading(false);
+    }
+  }, [isHistoryLoading, isChatLoading, chat]);
 
   const onSend = async () => {
     if (!chat || !input.trim() || isSending) return;
