@@ -44,8 +44,47 @@ async def list_chats(repo: ChatRepository = Depends(get_chat_repo)) -> List[Chat
 @router.post("/", response_model=Chat)
 async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_chat_repo)) -> Chat:
     chat = await repo.create_chat(title=data.title)
-    # Добавляем стартовое сообщение ассистента
-    await repo.add_message(chat.id, ChatMessage(role="assistant", content="Максим, привет! Давай определимся с твоей учебной целью. Что ты хочешь сделать?"))
+
+    # Стартовое сообщение генерируем через LLM (или используем дефолтное при ошибке)
+    try:
+        import os
+        from openai import OpenAI  # type: ignore
+        from app.prompts.loader import load_prompt  # type: ignore
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not set")
+
+        client = OpenAI(api_key=api_key)
+
+        system_prompt = load_prompt("smart_goal_system")
+
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": "Начни диалог приветствием и предложением помочь сформулировать учебную цель, в приветсвии добавляй имя Максим",
+                },
+            ],
+            temperature=0.7,
+            max_tokens=150,
+        )
+
+        assistant_start = (
+            completion.choices[0].message.content.strip()
+            if completion.choices and completion.choices[0].message.content
+            else None
+        )
+        if not assistant_start:
+            raise RuntimeError("empty completion")
+
+    except Exception as e:
+        print("Error generating first chat message", e)
+        assistant_start = "Максим, привет! Давай определимся с твоей учебной целью. Что ты хочешь сделать?"
+
+    await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start))
     # Возвращаем весь чат с сообщениями
     chat_full = await repo.get_chat(chat.id)
     assert chat_full is not None
@@ -59,8 +98,50 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         raise HTTPException(status_code=404, detail="Chat not found")
     # Добавляем сообщение пользователя
     await repo.add_message(chat_id, ChatMessage(role=data.role, content=data.content))
-    # Фиксированный ответ ассистента
-    await repo.add_message(chat_id, ChatMessage(role="assistant", content="Принято. Давай продолжим!"))
+
+    # --- Генерируем ответ ассистента через LLM на основе всей истории ---
+    try:
+        import os
+        from openai import OpenAI  # type: ignore
+
+        from app.prompts.loader import load_prompt  # type: ignore
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not set")
+
+        client = OpenAI(api_key=api_key)
+
+        chat_full = await repo.get_chat(chat_id)
+        assert chat_full is not None
+
+        # Преобразуем историю в формат OpenAI messages
+        history_messages = [
+            {"role": m.role, "content": m.content} for m in chat_full.messages
+        ]
+
+        system_prompt = load_prompt("smart_goal_system")
+
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": system_prompt}] + history_messages,
+            temperature=0.7,
+            max_tokens=300,
+        )
+        assistant_reply = (
+            completion.choices[0].message.content.strip()
+            if completion.choices and completion.choices[0].message.content
+            else None
+        )
+        if not assistant_reply:
+            raise RuntimeError("empty completion")
+
+    except Exception as e:
+        # Fallback fixed answer on error
+        print("Error generating chat response", e)
+        assistant_reply = "Принято. Давай продолжим!"
+
+    await repo.add_message(chat_id, ChatMessage(role="assistant", content=assistant_reply))
     chat = await repo.get_chat(chat_id)
     assert chat is not None
     return chat
