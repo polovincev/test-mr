@@ -154,7 +154,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 
         # 1) Сгенерировать навыки
         skills_resp = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": skills_prompt},
                 {"role": "user", "content": "Цель пользователя: " + goal_text + profile_block},
@@ -196,7 +196,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 			"Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
 		)
         traj_resp = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": traj_prompt},
                 {"role": "user", "content": trajectory_user},

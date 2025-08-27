@@ -50,7 +50,7 @@ async def get_skills() -> SkillsResponse:  # noqa: D401
 
         client = OpenAI(api_key=api_key)
         completion = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": STATIC_USER_PROMPT},

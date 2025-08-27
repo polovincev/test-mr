@@ -98,7 +98,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             )
 
             completion = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_instruction},
@@ -142,7 +142,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
 
             # 1) Подробный ответ на пользовательский запрос без запуска функций
             first_completion = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-5-chat-latest",
                 messages=[
                     {
                         "role": "system",
@@ -172,7 +172,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             ]
 
             second_completion = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": "Теперь начни вести диалог согласно системному промту. " + order_text},
@@ -237,7 +237,7 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         ]
 
         completion = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": order_text},
