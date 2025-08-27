@@ -29,6 +29,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp?: string;
+  suggestions: { label: string; action: "redirect" | "send_message"; href?: string; message?: string }[];
 }
 
 export interface Chat {

@@ -5,7 +5,7 @@ from typing import List, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from ..entities.chat import Chat, ChatMessage
+from ..entities.chat import Chat, ChatMessage, Suggestion
 from ..repositories.chat_repository import ChatRepository
 from ..repositories.in_memory_chat_repository import InMemoryChatRepository
 
@@ -41,6 +41,27 @@ class MessageIn(BaseModel):
 async def list_chats(repo: ChatRepository = Depends(get_chat_repo)) -> List[ChatOut]:
     chats = await repo.list_chats()
     return [ChatOut(id=c.id, title=c.title) for c in chats]
+
+
+# --- Helpers ---
+def _build_suggestions(mode: str, content: str) -> List[Suggestion]:
+    suggestions: List[Suggestion] = []
+    has_fix_goal = "[COMMAND:FIX_GOAL]" in content
+    has_profile_done = "[COMMAND:PROFILE_DONE]" in content
+
+    if mode in ("goal", "direct"):
+        if has_fix_goal:
+            suggestions.extend([
+                Suggestion(label="Посмотреть траекторию", action="redirect", href="/trajectory"),
+                Suggestion(label="Ответить на вопросы", action="send_message", message="Ответить на вопросы"),
+            ])
+        if has_profile_done:
+            suggestions.append(Suggestion(label="К траектории", action="redirect", href="/trajectory"))
+    elif mode == "profile_goal":
+        if has_fix_goal:
+            suggestions.append(Suggestion(label="К траектории", action="redirect", href="/trajectory"))
+
+    return suggestions
 
 
 @router.post("/", response_model=Chat)
@@ -99,7 +120,8 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 else "Привет! Давай познакомимся. Расскажи немного о себе, интересах и учебных целях."
             )
 
-        await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start))
+        suggestions = _build_suggestions(data.mode, assistant_start)
+        await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start, suggestions=suggestions))
 
     elif data.mode == "direct" and data.first_user_prompt:
         # Первое сообщение от пользователя, потом 2 ответа ассистента:
@@ -135,7 +157,8 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             )
             if not first_reply:
                 raise RuntimeError("empty completion (first reply)")
-            await repo.add_message(chat.id, ChatMessage(role="assistant", content=first_reply))
+            first_suggestions = _build_suggestions("direct", first_reply)
+            await repo.add_message(chat.id, ChatMessage(role="assistant", content=first_reply, suggestions=first_suggestions))
 
             # 2) Старт работы по системному промту c порядком GOAL -> PROFILE
             system_prompt = load_prompt("goal_system")
@@ -161,7 +184,8 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 else None
             )
             if second_reply:
-                await repo.add_message(chat.id, ChatMessage(role="assistant", content=second_reply))
+                second_suggestions = _build_suggestions("direct", second_reply)
+                await repo.add_message(chat.id, ChatMessage(role="assistant", content=second_reply, suggestions=second_suggestions))
         except Exception as e:
             print("Error handling direct mode two-step flow", e)
             await repo.add_message(chat.id, ChatMessage(role="assistant", content="Понял ваш запрос. Давайте теперь сформулируем вашу учебную цель!"))
@@ -233,7 +257,8 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         assistant_reply = "Принято. Давай продолжим!"
 
     # 1) Добавляем первичный ответ ассистента
-    await repo.add_message(chat_id, ChatMessage(role="assistant", content=assistant_reply))
+    suggestions = _build_suggestions(chat_full.mode, assistant_reply)
+    await repo.add_message(chat_id, ChatMessage(role="assistant", content=assistant_reply, suggestions=suggestions))
 
     # 2) Дополнительная генерация больше не требуется, единый промт обрабатывает теги внутри диалога
 

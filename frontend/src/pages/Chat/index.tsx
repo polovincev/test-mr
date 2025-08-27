@@ -100,14 +100,15 @@ const Chat = () => {
     }
   }, [isHistoryLoading, isChatLoading, chat]);
 
-  const onSend = async () => {
-    if (!chat || !input.trim() || isSending) return;
-    const messageContent = input.trim();
+  const onSend = async (overrideContent?: string) => {
+    const raw = overrideContent ?? input;
+    if (!chat || !raw.trim() || isSending) return;
+    const messageContent = raw.trim();
     const optimistic: ChatModel = {
       ...chat,
       messages: [
         ...chat.messages,
-        { role: "user", content: messageContent, timestamp: new Date().toISOString() },
+        { role: "user", content: messageContent, timestamp: new Date().toISOString(), suggestions: [] },
       ],
     };
     setChat(optimistic);
@@ -281,6 +282,24 @@ const Chat = () => {
                                     />
                                   );
                                 })}
+                                {m.role === "assistant" && Array.isArray((m as any).suggestions) && (m as any).suggestions.length > 0 && (
+                                  <div className={styles.suggestions}>
+                                    {(m as any).suggestions.map((s: { label: string; action: "redirect" | "send_message"; href?: string; message?: string }, i: number) => {
+                                      const handleClick = async () => {
+                                        if (s.action === "send_message" && s.message) {
+                                          await onSend(s.message);
+                                        } else if (s.action === "redirect" && s.href) {
+                                          navigate(s.href);
+                                        }
+                                      };
+                                      return (
+                                        <button key={i} className={styles.suggestionBtn} type="button" onClick={() => void handleClick()}>
+                                          {s.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))}
