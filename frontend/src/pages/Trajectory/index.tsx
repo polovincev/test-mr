@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getSkills, type SkillPoint, SkillsResponse } from "../../services/api";
+import { getTrajectory, type TrajectoryItem } from "../../services/api";
 
 const Trajectory = () => {
   const topics = [
@@ -59,17 +59,17 @@ const Trajectory = () => {
     { title: "Уверенный 👍", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
     { title: "Продвинутый 🤘", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
   ];
-  const [skills, setSkills] = useState<SkillPoint[] | null>(null);
+  const [trajectory, setTrajectory] = useState<TrajectoryItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
 
-  // fetch skills data
+  // fetch trajectory data
   useEffect(() => {
     if (didLoadSkillsRef.current) return;
     didLoadSkillsRef.current = true;
-    getSkills()
-      .then((resp: SkillsResponse) => setSkills(resp.items))
-      .catch(() => setSkills([]))
+    getTrajectory()
+      .then((items: TrajectoryItem[]) => setTrajectory(items))
+      .catch(() => setTrajectory([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -224,7 +224,7 @@ const Trajectory = () => {
           </div>
         </div>
         <div className={styles.right}>
-          {skills && (
+          {trajectory && (
             <div className={styles.chartArea}>
               <div className={styles.chartHeader}>
                 <div className={styles.chartTitle}>Ты освоишь</div>
@@ -238,8 +238,8 @@ const Trajectory = () => {
                 </div>
               </div>
               <RadarChart
-                labels={skills.map((s) => s.name)}
-                series={[{ name: "Уровень", data: skills.map((s) => s.level), color: "#7B81FF" }]}
+                labels={trajectory.map((t) => t.skills.name)}
+                series={[{ name: "Уровень", data: trajectory.map((t) => t.skills.recommended_level), color: "#7B81FF" }]}
                 size={420}
               />
             </div>

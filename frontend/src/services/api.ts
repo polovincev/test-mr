@@ -91,4 +91,23 @@ export async function getSkills(): Promise<SkillsResponse> {
   if (!res.ok) throw new Error("Failed to load skills");
   return (await res.json()) as SkillsResponse;
 }
+// -------- Trajectory API --------
+export interface TrajectorySkill {
+  name: string;
+  recommended_level: number;
+  description?: string | null;
+}
+
+export interface TrajectoryItem {
+  title: string;
+  description?: string | null;
+  tags?: string | null;
+  skills: TrajectorySkill;
+}
+
+export async function getTrajectory(): Promise<TrajectoryItem[]> {
+  const res = await fetch(`${API_URL}/trajectory/`);
+  if (!res.ok) throw new Error("Failed to load trajectory");
+  return (await res.json()) as TrajectoryItem[];
+}
 // end

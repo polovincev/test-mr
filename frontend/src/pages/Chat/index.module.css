@@ -54,25 +54,7 @@
     position: relative;
 }
 
-/* App-level loader overlay */
-.appLoaderOverlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-bg-panel);
-    z-index: 20;
-}
-
-.appBigSpinner {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 5px solid #E2E6F0;
-    border-top-color: #7B81FF;
-    animation: spin 0.9s linear infinite;
-}
+/* App-level loader overlay moved to components/LoaderOverlay */
 
 .rightPaneContainer {
     min-width: var(--content-width);
