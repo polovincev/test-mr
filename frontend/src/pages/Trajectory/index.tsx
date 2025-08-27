@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
@@ -21,14 +21,15 @@ const Trajectory = () => {
   const [useAI, setUseAI] = useState(false);
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const urlParams = new URLSearchParams(location.search);
+  const chatIdParam = urlParams.get("chat_id");
+  const chatId = chatIdParam ? Number(chatIdParam) : undefined;
 
   // fetch trajectory data
   useEffect(() => {
     if (didLoadSkillsRef.current) return;
     didLoadSkillsRef.current = true;
-    const urlParams = new URLSearchParams(location.search);
-    const chatIdParam = urlParams.get("chat_id");
-    const chatId = chatIdParam ? Number(chatIdParam) : undefined;
     getTrajectory(chatId)
       .then((resp) => setTraj(resp))
       .catch(() => setTraj({ goal: "", items: [] }))
@@ -135,6 +136,9 @@ const Trajectory = () => {
       <div className={styles.layout}>
         <div className={styles.left}>
           <div className={styles.trContainer} ref={containerRef}>
+            <div className={styles.topRow}>
+              <button className={styles.backBtn} onClick={() => navigate(`/chat`, { state: { fromTrajectory: true, chatId: chatIdParam } })}>← Назад</button>
+            </div>
             {traj?.goal && <div className={styles.header}>{traj.goal}</div>}
             <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
             <div className={styles.cards}>

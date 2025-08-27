@@ -20,3 +20,13 @@ def get_context(chat_id: int) -> Dict[str, Any]:
     return _context_by_chat_id.get(chat_id, {})
 
 
+# Trajectory helpers
+def get_trajectory(chat_id: int):
+    return _context_by_chat_id.get(chat_id, {}).get("trajectory")
+
+
+def set_trajectory(chat_id: int, trajectory):
+    ctx = _context_by_chat_id.setdefault(chat_id, {})
+    ctx["trajectory"] = trajectory
+
+

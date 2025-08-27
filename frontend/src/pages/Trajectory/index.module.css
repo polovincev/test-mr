@@ -288,4 +288,22 @@
     opacity: 0.5;
 }
 
+.backBtn {
+    background: rgba(245, 246, 255, 1);
+    border: none;
+    border-radius: 12px;
+    padding: 8px 20px;
+    color: rgba(10, 10, 10, 1);
+    font-size: 16px;
+    font-weight: 300;
+    font-family: "Onest";
+    height: 48px;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.backBtn:hover {
+    background: rgba(202, 194, 255, 1)
+}
+
 /* Loader-related styles removed: shared LoaderOverlay component is used */

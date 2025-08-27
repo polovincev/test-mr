@@ -127,6 +127,9 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
     skills_prompt = load_prompt(SYSTEM_SKILLS)
     traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
     ctx = get_context(chat_id) if chat_id is not None else {}
+    # if trajectory already cached for this chat, return it immediately
+    if chat_id is not None and "trajectory" in ctx:
+        return ctx["trajectory"]  # type: ignore [return-value]
     print("--------------------------------")
     print(ctx)
     print("--------------------------------")
@@ -317,7 +320,11 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         except Exception:
             pass
 
-        return TrajectoryResponse(goal=goal_text, items=items)
+        resp = TrajectoryResponse(goal=goal_text, items=items)
+        if chat_id is not None:
+            from app.repositories.context_store import set_trajectory  # type: ignore
+            set_trajectory(chat_id, resp)
+        return resp
     except Exception as e:
         print("Error generating trajectory", e)
         return TrajectoryResponse(goal=goal_text, items=[])
