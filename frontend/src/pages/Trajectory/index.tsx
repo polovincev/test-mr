@@ -3,54 +3,8 @@ import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
 import { getTrajectory, type TrajectoryItem } from "../../services/api";
-import goalImg from "../../icon/logo.svg";
 
 const Trajectory = () => {
-  const topics = [
-    {
-      id: 1,
-      title: "Наследственность и изменчивость организмов",
-      description:
-        "Узнаешь основы генетики через механизмы передачи признаков от родителей к потомству",
-      image:
-        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
-    },
-    {
-      id: 2,
-      title: "Молекулярные основы жизни",
-      description: "Разберёшь состав и свойства белков, углеводов, липидов, ДНК",
-      image:
-        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
-    },
-    {
-      id: 3,
-      title: "Эволюционное учение",
-      description: "Поймёшь механизмы эволюции и естественного отбора",
-      image:
-        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
-    },
-    {
-      id: 4,
-      title: "Экосистемы и биосфера",
-      description: "Разберёшься в структуре экосистем и глобальных циклах",
-      image:
-        "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=1400&auto=format&fit=crop",
-    },
-    {
-      id: 5,
-      title: "Человек и его здоровье",
-      description: "Узнаешь про системы организма и основы здорового образа жизни",
-      image:
-        "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1400&auto=format&fit=crop",
-    },
-    {
-      id: 6,
-      title: "Биотехнология",
-      description: "Познакомишься с современными биотехнологическими методами",
-      image:
-        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=1400&auto=format&fit=crop",
-    },
-  ];
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -195,7 +149,7 @@ const Trajectory = () => {
                   >
                     <div className={styles.cardImageContainer}>
                       <div className={styles.cardImageWrapper}>
-                        <img className={styles.cardImage} src={goalImg} alt="" />
+                        <img className={styles.cardImage} src={t.image_url ?? ""} alt="" />
                       </div>
                     </div>
                     <div className={styles.cardBody}>

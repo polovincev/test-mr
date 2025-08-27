@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -20,15 +20,16 @@ class TrajectoryItem(BaseModel):
     description: str | None = None
     tags: str | None = None
     skills: SkillRequirement
+    image_url: Optional[str] = Field(default=None, description="Preview image URL for the card")
 
 
 SYSTEM_SKILLS = "skills_system"
 SYSTEM_TRAJECTORY = "trajectory_system"
-USER_GOAL = "Цель пользователя: Подготовиться за месяц к экзамену по механике и сдать его на отлично"
+USER_GOAL = "Цель пользователя: Биология за 10 класс, подготовка к ЕГЭ"
 
 
 @router.get("/", response_model=List[TrajectoryItem])
-async def get_trajectory_list(mock: bool = Query(True)) -> List[TrajectoryItem]:  # noqa: D401
+async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]:  # noqa: D401
     """Генерирует траекторию: сперва скилы, затем элементы траектории, объединяет ответы.
 
     Если ключа нет или что-то пошло не так — возвращает пустой список.
@@ -39,7 +40,7 @@ async def get_trajectory_list(mock: bool = Query(True)) -> List[TrajectoryItem]:
 
     # Static mock toggle via query (?mock=true) or env var TRAJECTORY_MOCK=1
     if mock or os.getenv("TRAJECTORY_MOCK") == "1":
-        return [
+        items: List[TrajectoryItem] = [
             TrajectoryItem(
                 title="Кинематика: базовые законы движения",
                 description="Разберёшь виды движения, графики и связи между S, V, a.",
@@ -71,6 +72,49 @@ async def get_trajectory_list(mock: bool = Query(True)) -> List[TrajectoryItem]:
                 skills=SkillRequirement(name="Сопротивление материалов", recommended_level=2, description="Напряжённо-деформированное состояние"),
             ),
         ]
+        # Enrich with images
+        try:
+            import httpx
+            used_urls: set[str] = set()
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for idx, it in enumerate(items):
+                    try:
+                        resp = await client.post("http://158.160.19.226:8000/search", json={"text": it.tags, "top_k": 5})
+                        resp.raise_for_status()
+                        data = resp.json()
+                        images = []
+                        if isinstance(data, dict):
+                            images = data.get("images") or data.get("results") or data.get("items") or []
+                        elif isinstance(data, list):
+                            images = data
+                        urls: list[str] = []
+                        for v in images:
+                            if isinstance(v, str):
+                                urls.append(v)
+                            elif isinstance(v, dict):
+                                u = v.get("url") or v.get("image") or v.get("link")
+                                if isinstance(u, str):
+                                    urls.append(u)
+                        chosen: str | None = None
+                        if urls:
+                            candidate = urls[idx % len(urls)]
+                            if candidate not in used_urls:
+                                chosen = candidate
+                        if chosen is None:
+                            for u in urls:
+                                if u not in used_urls:
+                                    chosen = u
+                                    break
+                        if chosen is None and urls:
+                            chosen = urls[0]
+                        if isinstance(chosen, str):
+                            it.image_url = chosen
+                            used_urls.add(chosen)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return items
 
     api_key = os.getenv("OPENAI_API_KEY")
     skills_prompt = load_prompt(SYSTEM_SKILLS)
@@ -191,6 +235,53 @@ async def get_trajectory_list(mock: bool = Query(True)) -> List[TrajectoryItem]:
                 )
 
             items.append(TrajectoryItem(title=title, description=description, tags=tags_str, skills=sr))
+
+        # 4) Enrich items with images from external search
+        try:
+            import httpx
+            used_urls: set[str] = set()
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for idx, it in enumerate(items):
+                    try:
+                        resp = await client.post("http://158.160.19.226:8000/search", json={"text": it.tags, "top_k": 5})
+                        resp.raise_for_status()
+                        data = resp.json()
+                        images = []
+                        if isinstance(data, dict):
+                            images = data.get("images") or data.get("results") or data.get("items") or []
+                        elif isinstance(data, list):
+                            images = data
+                        urls: list[str] = []
+                        for v in images:
+                            if isinstance(v, str):
+                                urls.append(v)
+                            elif isinstance(v, dict):
+                                u = v.get("url") or v.get("image") or v.get("link")
+                                if isinstance(u, str):
+                                    urls.append(u)
+                        chosen: str | None = None
+                        if urls:
+                            candidate = urls[idx % len(urls)]
+                            if candidate not in used_urls:
+                                chosen = candidate
+                        if chosen is None:
+                            for u in urls:
+                                if u not in used_urls:
+                                    chosen = u
+                                    break
+                        if chosen is None and urls:
+                            chosen = urls[0]
+                        if isinstance(chosen, str):
+                            # update in-place since items are Pydantic models
+                            for j, existing in enumerate(items):
+                                if existing.title == it.title:
+                                    items[j].image_url = chosen
+                                    break
+                            used_urls.add(chosen)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
         return items
     except Exception as e:
