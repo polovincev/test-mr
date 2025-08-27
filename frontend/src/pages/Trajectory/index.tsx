@@ -245,11 +245,19 @@ const Trajectory = () => {
               </div>
               <RadarChart
                 labels={trajectory.map((t) => t.skills.name)}
-                series={[{
-                  name: "Уровень",
-                  data: trajectory.map((t) => (useAI ? t.skills.recommended_level : 0)),
-                  color: "rgb(188, 185, 185)",
-                }]}
+                series={[
+                  {
+                    name: "ИИ",
+                    data: trajectory.map((t) => (useAI ? t.skills.recommended_level : 0)),
+                    color: "rgb(188, 185, 185)",
+                  },
+                  {
+                    name: "Мой уровень",
+                    data: Array.from({ length: trajectory.length }, () => 1),
+                    color: "#503AE0",
+                    draggable: true,
+                  },
+                ]}
                 pointsOnly={useAI}
                 size={420}
               />

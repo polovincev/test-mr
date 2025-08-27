@@ -1,11 +1,14 @@
 import { Chart as ChartJS, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, Plugin, Chart } from "chart.js";
 import { Radar } from "react-chartjs-2";
 import styles from "./index.module.css";
+// @ts-ignore - plugin has no types bundled
+import dragDataPlugin from "chartjs-plugin-dragdata";
+
 
 // Plugin to draw rounded-corner polygon grid and axes for radar
-const roundedRadarGrid: Plugin<'radar'> = {
+const roundedRadarGrid: Plugin = {
   id: "roundedRadarGrid",
-  beforeDatasetsDraw(chart: Chart) {
+  beforeDatasetsDraw(chart: Chart, _args: any, _opts: any) {
     const scale: any = (chart as any).scales?.r;
     if (!scale) return;
     const labels: string[] = (chart.data.labels as string[]) ?? [];
@@ -77,12 +80,13 @@ const roundedRadarGrid: Plugin<'radar'> = {
   },
 };
 
-ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid);
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid, dragDataPlugin);
 
 type Series = {
   name: string;
   data: number[];
   color: string;
+  draggable?: boolean;
 };
 
 export interface RadarChartProps {
@@ -112,21 +116,22 @@ const wrapLabel = (label: string, maxChars: number): string[] => {
 const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, labelMaxCharsPerLine = 20, pointsOnly = false }) => {
   const data = {
     labels,
-    datasets: series.map((s) => ({
+    datasets: series.map((s, i) => ({
       label: s.name,
       data: s.data,
-      // remove fill and polygon border to avoid flicker on toggle
-      backgroundColor: "rgba(0,0,0,0)",
+      // Fill only for user (draggable) dataset, keep AI without fill
+      backgroundColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
       borderColor: "rgba(0,0,0,0)",
       borderWidth: 0,
-      pointBackgroundColor: s.color,
-      pointBorderColor: s.color,
-      pointBorderWidth: pointsOnly ? 0 : 0,
-      pointStyle: pointsOnly ? "rectRounded" : "circle",
-      pointRadius: pointsOnly ? 6 : 0,
-      pointHoverRadius: pointsOnly ? 7 : 0,
-      hitRadius: pointsOnly ? 12 : 0,
-    })),
+      // points
+      pointBackgroundColor: s.draggable ? s.color : s.color,
+      pointBorderColor: s.draggable ? s.color : s.color,
+      pointBorderWidth: s.draggable ? 1 : 0,
+      pointStyle: s.draggable ? "circle" : (pointsOnly && i === 0 ? "rectRounded" : "circle"),
+      pointRadius: s.draggable ? 0 : (pointsOnly && i === 0 ? 6 : 0),
+      pointHoverRadius: s.draggable ? 0 : (pointsOnly && i === 0 ? 7 : 0),
+      hitRadius: s.draggable ? 10 : (pointsOnly && i === 0 ? 12 : 0),
+    } as any)),
   };
 
   const options: any = {
@@ -143,6 +148,21 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
       tooltip: {
         enabled: true,
       },
+      // chartjs-plugin-dragdata configuration: enable dragging & snap to nearest 1..4
+      dragData: {
+        round: 0,
+        magnet: (v: number) => {
+          const snapped = Math.round(v);
+          if (snapped < 1) return 1;
+          if (snapped > 4) return 4;
+          return snapped;
+        },
+        // allow dragging only for datasets explicitly marked as draggable
+        onDragStart: function (this: any, _e: any, datasetIndex: number) {
+          const ds = series?.[datasetIndex];
+          return !!ds?.draggable;
+        }
+      } as any,
       // plugin config
       roundedRadarGrid: {
         levels: 4,
@@ -176,7 +196,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
     },
     elements: {
       line: {
-        tension: 0.05,
+        tension: 0.2,
       },
     },
   };
