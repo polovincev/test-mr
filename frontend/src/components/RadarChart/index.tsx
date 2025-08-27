@@ -170,7 +170,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, maxValue = 5, s
   };
 
   return (
-    <div className={styles.container} style={{ height: size }}>
+    <div className={styles.container} style={{ height: size, width: "100%" }}>
       <Radar data={data} options={options} />
     </div>
   );

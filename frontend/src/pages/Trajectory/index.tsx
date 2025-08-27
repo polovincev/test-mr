@@ -225,11 +225,24 @@ const Trajectory = () => {
         </div>
         <div className={styles.right}>
           {skills && (
-            <RadarChart
-              labels={skills.map((s) => s.name)}
-              series={[{ name: "Уровень", data: skills.map((s) => s.level), color: "#7B81FF" }]}
-              size={420}
-            />
+            <div className={styles.chartArea}>
+              <div className={styles.chartHeader}>
+                <div className={styles.chartTitle}>Ты освоишь</div>
+                <div className={styles.switchRow}>
+                  <label className={styles.switch}>
+                    <input className={styles.switchInput} type="checkbox" />
+                    <span className={styles.switchBg}></span>
+                    <span className={styles.switchKnob}></span>
+                  </label>
+                  <span className={styles.switchLabel}>ИИ-рекомендация</span>
+                </div>
+              </div>
+              <RadarChart
+                labels={skills.map((s) => s.name)}
+                series={[{ name: "Уровень", data: skills.map((s) => s.level), color: "#7B81FF" }]}
+                size={420}
+              />
+            </div>
           )}
         </div>
       </div>
