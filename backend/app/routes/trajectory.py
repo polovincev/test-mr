@@ -23,18 +23,25 @@ class TrajectoryItem(BaseModel):
     image_url: Optional[str] = Field(default=None, description="Preview image URL for the card")
 
 
+# Top-level response
+class TrajectoryResponse(BaseModel):
+    goal: str
+    items: List[TrajectoryItem]
+
+
 SYSTEM_SKILLS = "skills_system"
 SYSTEM_TRAJECTORY = "trajectory_system"
-USER_GOAL = "Цель пользователя: Биология за 10 класс, подготовка к ЕГЭ"
+USER_GOAL = "Биология за 10 класс, подготовка к ЕГЭ"
 
 
-@router.get("/", response_model=List[TrajectoryItem])
-async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]:  # noqa: D401
+@router.get("/", response_model=TrajectoryResponse)
+async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Query(None)) -> TrajectoryResponse:  # noqa: D401
     """Генерирует траекторию: сперва скилы, затем элементы траектории, объединяет ответы.
 
     Если ключа нет или что-то пошло не так — возвращает пустой список.
     """
     import os, json
+    from app.repositories.context_store import get_context  # type: ignore
 
     from app.prompts.loader import load_prompt  # type: ignore
 
@@ -114,14 +121,28 @@ async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]
                         pass
         except Exception:
             pass
-        return items
+        return TrajectoryResponse(goal=USER_GOAL, items=items)
 
     api_key = os.getenv("OPENAI_API_KEY")
     skills_prompt = load_prompt(SYSTEM_SKILLS)
     traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
+    ctx = get_context(chat_id) if chat_id is not None else {}
+    print("--------------------------------")
+    print(ctx)
+    print("--------------------------------")
+    # Resolve goal and profile from context
+    goal_text = (str(ctx.get("goal")).strip() if ctx.get("goal") else USER_GOAL)
+    profile_block = ""
+    try:
+        prof = ctx.get("profile") if isinstance(ctx, dict) else None
+        if isinstance(prof, dict) and any(bool(v) for v in prof.values()):
+            profile_json = json.dumps(prof, ensure_ascii=False)
+            profile_block = "\nПрофиль пользователя: " + profile_json
+    except Exception:
+        profile_block = ""
 
     if not api_key:
-        return []
+        return TrajectoryResponse(goal=goal_text, items=[])
 
     try:
         from openai import OpenAI  # type: ignore
@@ -130,10 +151,10 @@ async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]
 
         # 1) Сгенерировать навыки
         skills_resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": skills_prompt},
-                {"role": "user", "content": USER_GOAL},
+                {"role": "user", "content": "Цель пользователя: " + goal_text + profile_block},
             ],
         )
         skills_content = skills_resp.choices[0].message.content if skills_resp.choices else None
@@ -154,12 +175,25 @@ async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]
             return []
 
         skills_list = parse_skills(skills_content)
-        skill_names = [str(s.get("name", "")).strip() for s in skills_list if s.get("name")]
+        skills_lines = []
+        for item in skills_list:
+            name = str(item.get("name", "")).strip()
+            level = str(item.get("level", "")).strip()
+            if name:
+                skills_lines.append(f"- {name}: {level}")
 
-        # 2) Сгенерировать траекторию (названия навыков + цель)
-        trajectory_user = USER_GOAL + "\nНавыки: " + "; ".join(skill_names)
+        levels_help = (
+			"Расшифровка уровней: 2.0 — базовый уровень освоения; 3.0 — уверенный уровень освоения; 4.0 — продвинутый уровень освоения."
+		)
+
+
+        # 2) Сгенерировать траекторию (названия навыков + цель + профиль)
+        trajectory_user = (
+			(f"Цель пользователя: {goal_text}\n" if goal_text else "") +
+			"Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
+		)
         traj_resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": traj_prompt},
                 {"role": "user", "content": trajectory_user},
@@ -283,9 +317,9 @@ async def get_trajectory_list(mock: bool = Query(False)) -> List[TrajectoryItem]
         except Exception:
             pass
 
-        return items
+        return TrajectoryResponse(goal=goal_text, items=items)
     except Exception as e:
         print("Error generating trajectory", e)
-        return []
+        return TrajectoryResponse(goal=goal_text, items=[])
 
 

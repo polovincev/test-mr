@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from ..entities.chat import Chat, ChatMessage, Suggestion
 from ..repositories.chat_repository import ChatRepository
 from ..repositories.in_memory_chat_repository import InMemoryChatRepository
+from ..repositories.context_store import upsert_goal, upsert_profile
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -97,7 +98,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             )
 
             completion = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_instruction},
@@ -141,7 +142,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
 
             # 1) Подробный ответ на пользовательский запрос без запуска функций
             first_completion = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",
                 messages=[
                     {
                         "role": "system",
@@ -171,7 +172,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             ]
 
             second_completion = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": "Теперь начни вести диалог согласно системному промту. " + order_text},
@@ -236,7 +237,7 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
         ]
 
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": order_text},
@@ -259,6 +260,26 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
     # 1) Добавляем первичный ответ ассистента
     suggestions = _build_suggestions(chat_full.mode, assistant_reply)
     await repo.add_message(chat_id, ChatMessage(role="assistant", content=assistant_reply, suggestions=suggestions))
+
+    # 1.1) Попробуем извлечь GOAL и PROFILE из ответа и сохранить в контекст
+    try:
+        import json, re
+        # [GOAL: ...]
+        m_goal = re.search(r"\[GOAL:(.*?)\]", assistant_reply, flags=re.DOTALL)
+        if m_goal:
+            upsert_goal(chat_id, m_goal.group(1).strip())
+        # [PROFILE:{...}]
+        m_prof = re.search(r"\[PROFILE:(\{[\s\S]*?\})\]", assistant_reply, flags=re.DOTALL)
+        if m_prof:
+            prof_raw = m_prof.group(1)
+            try:
+                prof = json.loads(prof_raw)
+                if isinstance(prof, dict):
+                    upsert_profile(chat_id, prof)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     # 2) Дополнительная генерация больше не требуется, единый промт обрабатывает теги внутри диалога
 

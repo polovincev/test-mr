@@ -103,11 +103,18 @@ export interface TrajectoryItem {
   description?: string | null;
   tags?: string | null;
   skills: TrajectorySkill;
+  image_url?: string | null;
 }
 
-export async function getTrajectory(): Promise<TrajectoryItem[]> {
-  const res = await fetch(`${API_URL}/trajectory/`);
+export interface TrajectoryResponse {
+  goal: string;
+  items: TrajectoryItem[];
+}
+
+export async function getTrajectory(chatId?: number): Promise<TrajectoryResponse> {
+  const url = `${API_URL}/trajectory/${chatId ? `?chat_id=${chatId}` : ""}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to load trajectory");
-  return (await res.json()) as TrajectoryItem[];
+  return (await res.json()) as TrajectoryResponse;
 }
 // end

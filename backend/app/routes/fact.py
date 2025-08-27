@@ -36,7 +36,7 @@ def _generate_fact_via_openai() -> str:
         system_prompt = load_prompt("fact_system")
 
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt}
             ],

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getTrajectory, type TrajectoryItem } from "../../services/api";
+import { getTrajectory, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
 
 const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -14,18 +15,23 @@ const Trajectory = () => {
     { title: "Уверенный 👍", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
     { title: "Продвинутый 🤘", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
   ];
-  const [trajectory, setTrajectory] = useState<TrajectoryItem[] | null>(null);
+  const [traj, setTraj] = useState<TrajectoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(false);
+
+  const location = useLocation();
 
   // fetch trajectory data
   useEffect(() => {
     if (didLoadSkillsRef.current) return;
     didLoadSkillsRef.current = true;
-    getTrajectory()
-      .then((items: TrajectoryItem[]) => setTrajectory(items))
-      .catch(() => setTrajectory([]))
+    const urlParams = new URLSearchParams(location.search);
+    const chatIdParam = urlParams.get("chat_id");
+    const chatId = chatIdParam ? Number(chatIdParam) : undefined;
+    getTrajectory(chatId)
+      .then((resp) => setTraj(resp))
+      .catch(() => setTraj({ goal: "", items: [] }))
       .finally(() => setLoading(false));
   }, []);
 
@@ -52,7 +58,7 @@ const Trajectory = () => {
       ctx.lineJoin = "round";
 
       const containerRect = container.getBoundingClientRect();
-      const count = trajectory?.length ?? 0;
+      const count = traj?.items.length ?? 0;
       for (let i = 0; i < count - 1; i += 2) {
         const a = cardRefs.current[i];
         const b = cardRefs.current[i + 1];
@@ -118,7 +124,7 @@ const Trajectory = () => {
       containerRef.current?.removeEventListener("scroll", onScroll as any);
       window.clearTimeout(id);
     };
-  }, [trajectory?.length]);
+  }, [traj?.items.length]);
 
   if (loading) {
     return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
@@ -129,10 +135,10 @@ const Trajectory = () => {
       <div className={styles.layout}>
         <div className={styles.left}>
           <div className={styles.trContainer} ref={containerRef}>
-            <div className={styles.header} style={{ height: "20px", padding: "50px" }}>elementddd</div>
+            {traj?.goal && <div className={styles.header}>{traj.goal}</div>}
             <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
             <div className={styles.cards}>
-              {(trajectory ?? []).map((t, idx) => {
+              {(traj?.items ?? []).map((t, idx) => {
                 const alignLeft = idx % 2 === 0;
                 const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
                 const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
@@ -181,7 +187,7 @@ const Trajectory = () => {
           </div>
         </div>
         <div className={styles.right}>
-          {trajectory && (
+          {traj && (
             <div className={styles.chartArea}>
               <div className={styles.chartHeader}>
                 <div className={styles.chartTitle}>Ты освоишь</div>
@@ -200,16 +206,16 @@ const Trajectory = () => {
                 </div>
               </div>
               <RadarChart
-                labels={trajectory.map((t) => t.skills.name)}
+                labels={traj.items.map((t) => t.skills.name)}
                 series={[
                   {
                     name: "ИИ",
-                    data: trajectory.map((t) => (useAI ? t.skills.recommended_level : 0)),
+                    data: traj.items.map((t) => (useAI ? t.skills.recommended_level : 0)),
                     color: "rgb(188, 185, 185)",
                   },
                   {
                     name: "Мой уровень",
-                    data: Array.from({ length: trajectory.length }, () => 1),
+                    data: Array.from({ length: traj.items.length }, () => 1),
                     color: "#503AE0",
                     draggable: true,
                   },

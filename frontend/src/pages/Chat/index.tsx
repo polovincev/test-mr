@@ -286,7 +286,8 @@ const Chat = () => {
                                         if (s.action === "send_message" && s.message) {
                                           await onSend(s.message);
                                         } else if (s.action === "redirect" && s.href) {
-                                          navigate(s.href);
+                                          const target = s.href.includes("?") ? `${s.href}&chat_id=${chat?.id}` : `${s.href}?chat_id=${chat?.id}`;
+                                          navigate(target);
                                         }
                                       };
                                       return (
