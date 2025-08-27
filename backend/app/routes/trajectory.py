@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 
@@ -28,7 +28,7 @@ USER_GOAL = "Цель пользователя: Подготовиться за 
 
 
 @router.get("/", response_model=List[TrajectoryItem])
-async def get_trajectory_list() -> List[TrajectoryItem]:  # noqa: D401
+async def get_trajectory_list(mock: bool = Query(True)) -> List[TrajectoryItem]:  # noqa: D401
     """Генерирует траекторию: сперва скилы, затем элементы траектории, объединяет ответы.
 
     Если ключа нет или что-то пошло не так — возвращает пустой список.
@@ -36,6 +36,41 @@ async def get_trajectory_list() -> List[TrajectoryItem]:  # noqa: D401
     import os, json
 
     from app.prompts.loader import load_prompt  # type: ignore
+
+    # Static mock toggle via query (?mock=true) or env var TRAJECTORY_MOCK=1
+    if mock or os.getenv("TRAJECTORY_MOCK") == "1":
+        return [
+            TrajectoryItem(
+                title="Кинематика: базовые законы движения",
+                description="Разберёшь виды движения, графики и связи между S, V, a.",
+                tags="kinematics motion velocity acceleration graphs",
+                skills=SkillRequirement(name="Кинематика", recommended_level=3, description="Понимание базовых уравнений движения"),
+            ),
+            TrajectoryItem(
+                title="Динамика Ньютона и силы",
+                description="Научишься применять 3 закона Ньютона и раскладывать силы.",
+                tags="dynamics force newton friction normal",
+                skills=SkillRequirement(name="Динамика", recommended_level=2, description="Сумма сил и уравнения движения"),
+            ),
+            TrajectoryItem(
+                title="Статика и равновесие",
+                description="Условия равновесия, момент силы, центр масс.",
+                tags="statics equilibrium torque lever center",
+                skills=SkillRequirement(name="Статика", recommended_level=4, description="Условия равновесия тела"),
+            ),
+            TrajectoryItem(
+                title="Колебания и резонанс",
+                description="Свободные и вынужденные колебания, период, частота, фазовые диаграммы.",
+                tags="oscillations resonance frequency amplitude phase",
+                skills=SkillRequirement(name="Теория колебаний", recommended_level=1, description="Гармонические колебания"),
+            ),
+            TrajectoryItem(
+                title="Сопротивление материалов основы",
+                description="Напряжения, деформации, диаграммы растяжения, предел текучести.",
+                tags="strength materials stress strain elastic",
+                skills=SkillRequirement(name="Сопротивление материалов", recommended_level=2, description="Напряжённо-деформированное состояние"),
+            ),
+        ]
 
     api_key = os.getenv("OPENAI_API_KEY")
     skills_prompt = load_prompt(SYSTEM_SKILLS)

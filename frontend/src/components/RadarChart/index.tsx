@@ -13,8 +13,8 @@ const roundedRadarGrid: Plugin<'radar'> = {
 
     const opts: any = (chart.options as any)?.plugins?.roundedRadarGrid ?? {};
     const levels: number = opts.levels ?? 4;
-    const cornerRadius: number = opts.cornerRadius ?? 16;
-    const gridFill: string = opts.gridFill ?? "rgba(122, 134, 255, 0.12)";
+    const cornerRadius: number = opts.cornerRadius ?? 12;
+    const gridFill: string = opts.gridFill ?? "rgba(122, 133, 255, 0.77)";
     const axisColor: string = opts.axisColor ?? "#DADFF3";
     const gridLineColor: string = opts.gridLineColor ?? "#DADFF3";
 
@@ -30,18 +30,7 @@ const roundedRadarGrid: Plugin<'radar'> = {
 
     ctx.save();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = axisColor;
-
-    // draw axes strictly using scale positions
-    for (let i = 0; i < labels.length; i++) {
-      const p = scale.getPointPositionForValue(i, maxV);
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-    }
-
-    // draw rounded polygons for grid levels (filled)
+    // draw rounded polygons for grid levels (filled) UNDER axes
     for (let lvl = 1; lvl <= levels; lvl++) {
       const v = minV + ((maxV - minV) * lvl) / levels;
       const vertices = labels.map((_, i) => scale.getPointPositionForValue(i, v));
@@ -66,9 +55,21 @@ const roundedRadarGrid: Plugin<'radar'> = {
         ctx.fillStyle = gridFill;
         ctx.fill();
       }
-      // stroke every level to show grid lines
-      ctx.strokeStyle = gridLineColor;
-      ctx.lineWidth = 1;
+      // stroke inner levels only (hide outer contour)
+      if (lvl < levels) {
+        ctx.strokeStyle = gridLineColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // draw axes OVER background/fill
+    ctx.strokeStyle = axisColor;
+    for (let i = 0; i < labels.length; i++) {
+      const p = scale.getPointPositionForValue(i, maxV);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(p.x, p.y);
       ctx.stroke();
     }
 
@@ -87,9 +88,9 @@ type Series = {
 export interface RadarChartProps {
   labels: string[];
   series: Series[];
-  maxValue?: number;
   size?: number;
   labelMaxCharsPerLine?: number;
+  pointsOnly?: boolean;
 }
 
 const wrapLabel = (label: string, maxChars: number): string[] => {
@@ -108,21 +109,31 @@ const wrapLabel = (label: string, maxChars: number): string[] => {
   return lines.length > 0 ? lines : [label];
 };
 
-const RadarChart: React.FC<RadarChartProps> = ({ labels, series, maxValue = 5, size = 420, labelMaxCharsPerLine = 20 }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, labelMaxCharsPerLine = 20, pointsOnly = false }) => {
   const data = {
     labels,
     datasets: series.map((s) => ({
       label: s.name,
       data: s.data,
-      backgroundColor: s.color + "33", // ~20% opacity
-      borderColor: s.color,
-      borderWidth: 1,
+      // remove fill and polygon border to avoid flicker on toggle
+      backgroundColor: "rgba(0,0,0,0)",
+      borderColor: "rgba(0,0,0,0)",
+      borderWidth: 0,
       pointBackgroundColor: s.color,
-      pointRadius: 0,
+      pointBorderColor: s.color,
+      pointBorderWidth: pointsOnly ? 0 : 0,
+      pointStyle: pointsOnly ? "rectRounded" : "circle",
+      pointRadius: pointsOnly ? 6 : 0,
+      pointHoverRadius: pointsOnly ? 7 : 0,
+      hitRadius: pointsOnly ? 12 : 0,
     })),
   };
 
   const options: any = {
+    animation: {
+      duration: 1000,
+      easing: "easeOutQuart",
+    },
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -134,16 +145,17 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, maxValue = 5, s
       },
       // plugin config
       roundedRadarGrid: {
-        levels: 3,
-        cornerRadius: 12,
-        gridFill: "rgba(122, 134, 255, 0.12)",
-        axisColor: "#DADFF3",
+        levels: 4,
+        cornerRadius: 20,
+        gridFill: "rgba(228, 230, 247, 0.5)",
+        axisColor: "rgba(47, 35, 84, 0.2)",
+        gridLineColor: "rgba(47, 35, 84, 0.2)",
       },
     },
     scales: {
       r: {
         min: 0,
-        max: maxValue,
+        max: 4,
         ticks: {
           display: false,
         },

@@ -62,6 +62,7 @@ const Trajectory = () => {
   const [trajectory, setTrajectory] = useState<TrajectoryItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
+  const [useAI, setUseAI] = useState(false);
 
   // fetch trajectory data
   useEffect(() => {
@@ -230,7 +231,12 @@ const Trajectory = () => {
                 <div className={styles.chartTitle}>Ты освоишь</div>
                 <div className={styles.switchRow}>
                   <label className={styles.switch}>
-                    <input className={styles.switchInput} type="checkbox" />
+                    <input
+                      className={styles.switchInput}
+                      type="checkbox"
+                      checked={useAI}
+                      onChange={(e) => setUseAI(e.target.checked)}
+                    />
                     <span className={styles.switchBg}></span>
                     <span className={styles.switchKnob}></span>
                   </label>
@@ -239,7 +245,12 @@ const Trajectory = () => {
               </div>
               <RadarChart
                 labels={trajectory.map((t) => t.skills.name)}
-                series={[{ name: "Уровень", data: trajectory.map((t) => t.skills.recommended_level), color: "#7B81FF" }]}
+                series={[{
+                  name: "Уровень",
+                  data: trajectory.map((t) => (useAI ? t.skills.recommended_level : 0)),
+                  color: "rgb(188, 185, 185)",
+                }]}
+                pointsOnly={useAI}
                 size={420}
               />
             </div>
