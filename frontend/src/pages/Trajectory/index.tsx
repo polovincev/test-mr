@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
+import LoaderOverlay from "../../components/LoaderOverlay";
+import { getSkills, type SkillPoint, SkillsResponse } from "../../services/api";
 
 const Trajectory = () => {
   const topics = [
@@ -57,6 +59,19 @@ const Trajectory = () => {
     { title: "Уверенный 👍", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
     { title: "Продвинутый 🤘", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
   ];
+  const [skills, setSkills] = useState<SkillPoint[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const didLoadSkillsRef = useRef(false);
+
+  // fetch skills data
+  useEffect(() => {
+    if (didLoadSkillsRef.current) return;
+    didLoadSkillsRef.current = true;
+    getSkills()
+      .then((resp: SkillsResponse) => setSkills(resp.items))
+      .catch(() => setSkills([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const draw = () => {
@@ -148,6 +163,10 @@ const Trajectory = () => {
     };
   }, [topics.length]);
 
+  if (loading) {
+    return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.layout}>
@@ -205,21 +224,13 @@ const Trajectory = () => {
           </div>
         </div>
         <div className={styles.right}>
-          <RadarChart
-            labels={[
-              "Наследственность и изменчивость организмов",
-              "Молекулярные основы жизни",
-              "Эволюционное учение",
-              "Экосистемы и биосфера",
-              "Человек и его здоровье",
-              "Биотехнология",
-              "Биотехнология",
-            ]}
-            series={[
-              { name: "Целевой", data: [4, 5, 4, 5, 3, 4, 1], color: "#F062C0" },
-            ]}
-            size={420}
-          />
+          {skills && (
+            <RadarChart
+              labels={skills.map((s) => s.name)}
+              series={[{ name: "Уровень", data: skills.map((s) => s.level), color: "#7B81FF" }]}
+              size={420}
+            />
+          )}
         </div>
       </div>
     </div>

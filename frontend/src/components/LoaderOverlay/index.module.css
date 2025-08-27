@@ -1,0 +1,37 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-panel);
+    z-index: 30
+}
+
+.spinner {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 5px solid #E2E6F0;
+    border-top-color: #7B81FF;
+    animation: spin .9s linear infinite
+}
+
+.text {
+    margin-top: 16px;
+    font-family: "Onest";
+    font-size: 16px;
+    color: var(--color-text);
+    text-align: center
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0)
+    }
+
+    to {
+        transform: rotate(360deg)
+    }
+}

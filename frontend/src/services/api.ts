@@ -74,3 +74,21 @@ export async function listChats(): Promise<ChatSummary[]> {
   if (!res.ok) throw new Error("Failed to list chats");
   return (await res.json()) as ChatSummary[];
 }
+
+// -------- Skills API --------
+export interface SkillPoint {
+  name: string;
+  level: number;
+  description?: string;
+}
+
+export interface SkillsResponse {
+  items: SkillPoint[];
+}
+
+export async function getSkills(): Promise<SkillsResponse> {
+  const res = await fetch(`${API_URL}/skills/`);
+  if (!res.ok) throw new Error("Failed to load skills");
+  return (await res.json()) as SkillsResponse;
+}
+// end

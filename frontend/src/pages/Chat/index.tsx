@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
+import LoaderOverlay from "../../components/LoaderOverlay";
 import { Chat as ChatModel, createChat, sendMessage, getChat, listChats, ChatSummary } from "../../services/api";
 
 const ACTIVE_ID_KEY = "activeChatId";
@@ -182,11 +183,7 @@ const Chat = () => {
 
   return (
     <div className={`${styles.rowFullHeight}`}>
-      {isBootLoading && (
-        <div className={styles.appLoaderOverlay}>
-          <div className={styles.appBigSpinner}></div>
-        </div>
-      )}
+      {isBootLoading && <LoaderOverlay />}
       <div className={`${styles.leftPaneContainer}`}>
         <div className={styles.leftPane}>
           <div className={styles.leftHeader}>
