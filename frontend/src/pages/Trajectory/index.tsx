@@ -3,6 +3,7 @@ import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
 import { getTrajectory, type TrajectoryItem } from "../../services/api";
+import goalImg from "../../icon/logo.svg";
 
 const Trajectory = () => {
   const topics = [
@@ -97,7 +98,8 @@ const Trajectory = () => {
       ctx.lineJoin = "round";
 
       const containerRect = container.getBoundingClientRect();
-      for (let i = 0; i < cardRefs.current.length - 1; i += 2) {
+      const count = trajectory?.length ?? 0;
+      for (let i = 0; i < count - 1; i += 2) {
         const a = cardRefs.current[i];
         const b = cardRefs.current[i + 1];
         if (!a || !b) continue;
@@ -122,7 +124,7 @@ const Trajectory = () => {
         ctx.stroke();
       }
       // second pattern: from right card (odd index) to next left card (odd->even)
-      for (let i = 1; i < cardRefs.current.length - 1; i += 2) {
+      for (let i = 1; i < count - 1; i += 2) {
         const a = cardRefs.current[i];
         const b = cardRefs.current[i + 1];
         if (!a || !b) continue;
@@ -162,7 +164,7 @@ const Trajectory = () => {
       containerRef.current?.removeEventListener("scroll", onScroll as any);
       window.clearTimeout(id);
     };
-  }, [topics.length]);
+  }, [trajectory?.length]);
 
   if (loading) {
     return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
@@ -176,7 +178,7 @@ const Trajectory = () => {
             <div className={styles.header} style={{ height: "20px", padding: "50px" }}>elementddd</div>
             <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
             <div className={styles.cards}>
-              {topics.map((t, idx) => {
+              {(trajectory ?? []).map((t, idx) => {
                 const alignLeft = idx % 2 === 0;
                 const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
                 const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
@@ -184,7 +186,7 @@ const Trajectory = () => {
                 const faded = hoverIndex !== null && hoverIndex !== idx;
                 return (
                   <div
-                    key={t.id}
+                    key={`${t.title}-${idx}`}
                     className={`${styles.card} ${alignLeft ? styles.cardLeft : styles.cardRight} ${faded ? styles.faded : ""}`}
                     style={style}
                     ref={(el) => (cardRefs.current[idx] = el)}
@@ -193,12 +195,12 @@ const Trajectory = () => {
                   >
                     <div className={styles.cardImageContainer}>
                       <div className={styles.cardImageWrapper}>
-                        <img className={styles.cardImage} src={t.image} alt="" />
+                        <img className={styles.cardImage} src={goalImg} alt="" />
                       </div>
                     </div>
                     <div className={styles.cardBody}>
                       <div className={styles.cardTitle}>{t.title}</div>
-                      <div className={styles.cardText}>{t.description}</div>
+                      <div className={styles.cardText}>{t.description ?? t.skills?.description ?? ""}</div>
                     </div>
                     {hoverIndex === idx && (
                       <div className={styles.overlay} style={{ left: 210 }}>
