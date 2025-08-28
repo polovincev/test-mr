@@ -104,6 +104,8 @@ export interface TrajectorySkill {
   recommended_level: number;
   recommended_level_text?: string | null;
   levels?: SkillLevelInfo[];
+  user_level?: number; // new: current user level (default 0.1)
+  goal_level?: number; // new: goal level for user (default 0.1)
 }
 
 export interface TrajectoryItem {
@@ -123,6 +125,16 @@ export async function getTrajectory(chatId?: number): Promise<TrajectoryResponse
   const url = `${API_URL}/trajectory/${chatId ? `?chat_id=${chatId}` : ""}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to load trajectory");
+  return (await res.json()) as TrajectoryResponse;
+}
+
+export async function updateGoalLevels(chatId: number, levels: number[]): Promise<TrajectoryResponse> {
+  const res = await fetch(`${API_URL}/trajectory/goal_levels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, levels }),
+  });
+  if (!res.ok) throw new Error("Failed to update goal levels");
   return (await res.json()) as TrajectoryResponse;
 }
 // end

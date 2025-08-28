@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getTrajectory, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
+import { getTrajectory, updateGoalLevels, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
 
 const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -28,7 +28,6 @@ const Trajectory = () => {
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(false);
-  const [userLevels, setUserLevels] = useState<number[]>([]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,11 +45,7 @@ const Trajectory = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const len = traj?.items.length ?? 0;
-    if (!len) return;
-    setUserLevels((prev) => (prev.length === len ? prev : Array.from({ length: len }, () => 0.1)));
-  }, [traj?.items.length]);
+
 
   useEffect(() => {
     const draw = () => {
@@ -246,7 +241,7 @@ const Trajectory = () => {
                   },
                   {
                     name: "Мой уровень",
-                    data: userLevels,
+                    data: traj.items.map((t) => (typeof t.skills.goal_level === "number" ? t.skills.goal_level : 0.1)),
                     color: "#503AE0",
                     draggable: true
                   },
@@ -255,12 +250,25 @@ const Trajectory = () => {
                 size={420}
                 onChange={(datasetIndex, data) => {
                   if (datasetIndex === 1) {
-                    setUserLevels(data.map((v) => {
+                    const normalized = data.map((v) => {
                       const num = Number(v);
                       if (num < 1) return 0.1;
                       const rounded = Math.round(num);
                       return Math.max(1, Math.min(4, rounded));
-                    }));
+                    });
+                    // update local traj copy for immediate UI
+                    setTraj((prev) => {
+                      if (!prev) return prev;
+                      const next: TrajectoryResponse = { ...prev, items: prev.items.map((it, i) => ({
+                        ...it,
+                        skills: { ...it.skills, goal_level: normalized[i] }
+                      })) };
+                      return next;
+                    });
+                    // persist to backend context
+                    if (typeof chatId === "number") {
+                      updateGoalLevels(chatId, normalized).catch(() => void 0);
+                    }
                   }
                 }}
               />

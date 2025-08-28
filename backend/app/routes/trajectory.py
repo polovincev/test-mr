@@ -21,6 +21,9 @@ class SkillRequirement(BaseModel):
     recommended_level: int
     recommended_level_text: str | None = None
     levels: list[LevelInfo] = Field(default_factory=list)
+    # Added fields to track current user level and goal level on the frontend radar chart
+    user_level: float = Field(default=0.1)
+    goal_level: float = Field(default=0.1)
 
 
 class TrajectoryItem(BaseModel):
@@ -60,31 +63,31 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                 title="Кинематика: базовые законы движения",
                 description="Разберёшь виды движения, графики и связи между S, V, a.",
                 tags="kinematics motion velocity acceleration graphs",
-                skills=SkillRequirement(name="Кинематика", recommended_level=3, description="Понимание базовых уравнений движения"),
+                skills=SkillRequirement(name="Кинематика", recommended_level=3),
             ),
             TrajectoryItem(
                 title="Динамика Ньютона и силы",
                 description="Научишься применять 3 закона Ньютона и раскладывать силы.",
                 tags="dynamics force newton friction normal",
-                skills=SkillRequirement(name="Динамика", recommended_level=2, description="Сумма сил и уравнения движения"),
+                skills=SkillRequirement(name="Динамика", recommended_level=2),
             ),
             TrajectoryItem(
                 title="Статика и равновесие",
                 description="Условия равновесия, момент силы, центр масс.",
                 tags="statics equilibrium torque lever center",
-                skills=SkillRequirement(name="Статика", recommended_level=4, description="Условия равновесия тела"),
+                skills=SkillRequirement(name="Статика", recommended_level=4),
             ),
             TrajectoryItem(
                 title="Колебания и резонанс",
                 description="Свободные и вынужденные колебания, период, частота, фазовые диаграммы.",
                 tags="oscillations resonance frequency amplitude phase",
-                skills=SkillRequirement(name="Теория колебаний", recommended_level=1, description="Гармонические колебания"),
+                skills=SkillRequirement(name="Теория колебаний", recommended_level=1),
             ),
             TrajectoryItem(
                 title="Сопротивление материалов основы",
                 description="Напряжения, деформации, диаграммы растяжения, предел текучести.",
                 tags="strength materials stress strain elastic",
-                skills=SkillRequirement(name="Сопротивление материалов", recommended_level=2, description="Напряжённо-деформированное состояние"),
+                skills=SkillRequirement(name="Сопротивление материалов", recommended_level=2),
             ),
         ]
         # Enrich with images
@@ -310,7 +313,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 
             if chosen_skill is None:
                 # fallback minimal skill
-                sr = SkillRequirement(name="Навык", recommended_level=1, description=None)
+                sr = SkillRequirement(name="Навык", recommended_level=1)
             else:
                 lvl_raw = chosen_skill.get("recommended_level") or chosen_skill.get("level")
                 try:
@@ -321,7 +324,6 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                     name=str(chosen_skill.get("name", "Навык")),
                     recommended_level=lvl_int,
                     recommended_level_text=(str(chosen_skill.get("recommended_level_text")) if chosen_skill.get("recommended_level_text") else None),
-                    description=None,
                     levels=(chosen_skill.get("levels") or []),
                 )
 
@@ -382,5 +384,54 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
     except Exception as e:
         print("Error generating trajectory", e)
         return TrajectoryResponse(goal=goal_text, items=[])
+
+
+# Payload to update goal levels in cached trajectory
+class GoalLevelsUpdate(BaseModel):
+    chat_id: int
+    levels: list[float]
+
+
+@router.post("/goal_levels", response_model=TrajectoryResponse)
+async def update_goal_levels(payload: GoalLevelsUpdate) -> TrajectoryResponse:
+    """Update goal_level for each item in cached trajectory for given chat_id."""
+    try:
+        from app.repositories.context_store import get_context, set_trajectory  # type: ignore
+    except Exception:
+        # If context store is unavailable just return empty
+        return TrajectoryResponse(goal="", items=[])
+
+    ctx = get_context(payload.chat_id) if payload and isinstance(payload.chat_id, int) else {}
+    existing = ctx.get("trajectory") if isinstance(ctx, dict) else None
+    if not existing:
+        return TrajectoryResponse(goal="", items=[])
+
+    # Convert to model if stored as dict
+    if isinstance(existing, dict):
+        try:
+            resp = TrajectoryResponse(**existing)
+        except Exception:
+            return TrajectoryResponse(goal="", items=[])
+    else:
+        resp = existing  # type: ignore[assignment]
+
+    # Update goal levels
+    for idx, it in enumerate(resp.items):
+        val = payload.levels[idx] if idx < len(payload.levels) else 0.1
+        try:
+            v = float(val)
+        except Exception:
+            v = 0.1
+        if v < 0.1:
+            v = 0.1
+        it.skills.goal_level = v
+
+    # Save back to context
+    try:
+        set_trajectory(payload.chat_id, resp)
+    except Exception:
+        pass
+
+    return resp
 
 
