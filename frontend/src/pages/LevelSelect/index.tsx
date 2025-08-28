@@ -15,21 +15,23 @@ const LevelSelect = () => {
 
     const recommendedLevelRaw = Number(item?.skills?.recommended_level ?? 3);
     const recommendedIndex = Math.max(0, Math.min(2, Math.round(recommendedLevelRaw) - 2)); // 2->0, 3->1, 4->2
-
-    const [selected, setSelected] = useState<number>(recommendedIndex); // default to AI recommendation
+    const [selected, setSelected] = useState<number>(recommendedIndex);
 
     const levels = useMemo(() => {
         // Собираем тексты из item.skills.levels по 2/3/4, если есть
         const present = (item?.skills.levels ?? []).filter((x) => x && (x.level === 2 || x.level === 3 || x.level === 4));
-        const byLevel = new Map<number, { title: string; text: string[] }>();
+        const byLevel = new Map<number, { title: string; meta?: string; text: string[] }>();
         for (const l of present) {
             const title = l.level_name || (l.level === 2 ? "Базовый" : l.level === 3 ? "Уверенный" : "Продвинутый");
+            const meta = l.meta || undefined;
             const text = bullets(l.description || "");
-            byLevel.set(l.level, { title, text });
+            byLevel.set(l.level, { title, meta, text });
         }
-        const ensure = (lvl: number, fallback: string) => byLevel.get(lvl) || { title: fallback, text: [] };
+        const ensure = (lvl: number, fallback: string) => byLevel.get(lvl) || { title: fallback, meta: undefined, text: [] };
         return [ensure(2, "Базовый"), ensure(3, "Уверенный"), ensure(4, "Продвинутый")];
     }, [item]);
+
+    console.log(levels);
 
     return (
         <div className={styles.page}>
@@ -49,7 +51,7 @@ const LevelSelect = () => {
                                     <div className={styles.cardSelected} key={idx}>
                                         <div className={styles.card} onClick={() => setSelected(idx)}>
                                             <div className={styles.cardTitle}>{lv.title}</div>
-                                            <div className={styles.tasks}>{`${lv.text.length || (idx + 4)} заданий`}</div>
+                                            {lv.meta && <div className={styles.levelMeta}>{lv.meta}</div>}
                                             <div className={styles.list}>
                                                 {lv.text.slice(0, 4).map((t, i) => (
                                                     <div key={i}>• {t}</div>
@@ -63,7 +65,7 @@ const LevelSelect = () => {
                             return (
                                 <div key={idx} className={`${styles.card}`} onClick={() => setSelected(idx)}>
                                     <div className={styles.cardTitle}>{lv.title}</div>
-                                    <div className={styles.tasks}>{`${lv.text.length || (idx + 4)} заданий`}</div>
+                                    {lv.meta && <div className={styles.levelMeta}>{lv.meta}</div>}
                                     <div className={styles.list}>
                                         {lv.text.slice(0, 4).map((t, i) => (
                                             <div key={i}>• {t}</div>
