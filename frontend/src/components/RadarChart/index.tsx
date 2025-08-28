@@ -80,13 +80,114 @@ const roundedRadarGrid: Plugin = {
   },
 };
 
-ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid, dragDataPlugin);
+// Node hover tooltip plugin: shows info for any grid node (axis x integer level)
+const nodeHoverTooltip: Plugin = {
+  id: "nodeHoverTooltip",
+  afterInit(chart: any) {
+    const parent: HTMLElement = chart.canvas.parentNode as HTMLElement;
+    const el = document.createElement("div");
+    el.style.position = "absolute";
+    el.style.pointerEvents = "none";
+    el.style.transform = "translate(5%, -101%)";
+    // Card styles (mimic level cards)
+    el.style.background = "#FFFFFF";
+    el.style.border = "none";
+    el.style.borderRadius = "16px";
+    el.style.boxShadow = "0px 2px 8px 0px #0000000F, -2px 0px 16px 0px #0000000F";
+    el.style.padding = "14px 8px";
+    el.style.maxWidth = "160px";
+    el.style.fontFamily = "Onest";
+    el.style.fontSize = "12px";
+    el.style.color = "#2F2354";
+    el.style.zIndex = "10";
+    el.style.opacity = "0";
+    chart._nodeTooltip = el;
+    parent.appendChild(el);
+  },
+  afterEvent(chart: any, args: any) {
+    const scale = chart.scales?.r;
+    const canvas: HTMLCanvasElement | undefined = chart?.canvas;
+    const el: HTMLDivElement | undefined = chart._nodeTooltip;
+    if (!scale || !canvas || !el) return;
+    const type: string = args.event?.type || "";
+    const x: number = args.event?.x;
+    const y: number = args.event?.y;
+    if (type === "mouseout") {
+      el.style.opacity = "0";
+      return;
+    }
+    if (type !== "mousemove" && type !== "pointermove") return;
+
+    const labels: string[] = (chart.data.labels as string[]) ?? [];
+    if (!labels.length) return;
+    const minV: number = typeof scale.min === "number" ? scale.min : 0;
+    const maxV: number = typeof scale.max === "number" ? scale.max : 4;
+    const intMin = Math.ceil(minV);
+    const intMax = Math.floor(maxV);
+    const nodes: { axis: number; level: number; px: number; py: number }[] = [];
+    for (let axis = 0; axis < labels.length; axis++) {
+      for (let v = intMin; v <= intMax; v++) {
+        const p = scale.getPointPositionForValue(axis, v);
+        nodes.push({ axis, level: v, px: p.x, py: p.y });
+      }
+    }
+    let best = { idx: -1, d: Infinity };
+    for (let i = 0; i < nodes.length; i++) {
+      const d = Math.hypot(nodes[i].px - x, nodes[i].py - y);
+      if (d < best.d) best = { idx: i, d };
+    }
+    if (best.idx < 0 || best.d > 18) {
+      el.style.opacity = "0";
+      return;
+    }
+    const node = nodes[best.idx];
+    // Retrieve info from the first dataset that provides nodeInfo
+    let html = "";
+    const datasets: any[] = chart.data.datasets || [];
+    let info: any = undefined;
+    for (const ds of datasets) {
+      if (ds?.nodeInfo && Array.isArray(ds.nodeInfo)) {
+        const arr = ds.nodeInfo as any[];
+        const byLevel = arr[node.level];
+        if (Array.isArray(byLevel)) {
+          info = byLevel[node.axis];
+          break;
+        }
+      }
+    }
+    const label = labels[node.axis] ?? "";
+    // Styles are set on the container in afterInit to match level cards.
+    const titleStyle = "font-family:Onest;font-size:14px;font-weight:600;color:#000000;";
+    const metaStyle = "font-family:Onest;font-size:12px;color:#656C94;margin-top:4px;font-weight:200;";
+    const textStyle = "margin-top:10px;color:#161A33;font-size:14px;line-height:1.4;font-weight:200;font-family:Onest;";
+    if (typeof info === "string") {
+      const t = `${label} — уровень ${node.level}`;
+      html = `<div><div style=\"${titleStyle}\">${t}</div><div style=\"${textStyle}\">${info}</div></div>`;
+    } else if (info && (info.title || info.text || info.meta)) {
+      const title = info.title || `${label} — уровень ${node.level}`;
+      const meta = info.meta ? `<div style=\"${metaStyle}\">${info.meta}</div>` : "";
+      const text = info.text ? `<div style=\"${textStyle}\">${info.text}</div>` : "";
+      html = `<div><div style=\"${titleStyle}\">${title}</div>${meta}${text}</div>`;
+    } else {
+      const t = `${label} — уровень ${node.level}`;
+      html = `<div><div style=\"${titleStyle}\">${t}</div></div>`;
+    }
+    el.innerHTML = html;
+    const rect = chart.canvas.getBoundingClientRect();
+    el.style.left = `${rect.left + window.scrollX + node.px}px`;
+    el.style.top = `${rect.top + window.scrollY + node.py}px`;
+    el.style.opacity = "1";
+  },
+};
+
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid, dragDataPlugin, nodeHoverTooltip);
 
 type Series = {
   name: string;
   data: number[];
   color: string;
   draggable?: boolean;
+  nodeInfo?: Array<Array<string | { title?: string; meta?: string; text?: string }>>;
 };
 
 export interface RadarChartProps {
@@ -119,6 +220,8 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
     datasets: series.map((s, i) => ({
       label: s.name,
       data: s.data,
+      // custom per-series node info for nodeHoverTooltip plugin
+      nodeInfo: s.nodeInfo,
       // Fill only for user (draggable) dataset, keep AI without fill
       backgroundColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
       borderColor: "rgba(0,0,0,0)",
@@ -146,7 +249,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         display: false,
       },
       tooltip: {
-        enabled: true,
+        enabled: false,
       },
       // chartjs-plugin-dragdata configuration: enable dragging & snap to nearest 1..4
       dragData: {

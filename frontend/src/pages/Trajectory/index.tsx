@@ -216,12 +216,20 @@ const Trajectory = () => {
                     name: "ИИ",
                     data: traj.items.map((t) => (useAI ? t.skills.recommended_level : 0)),
                     color: "rgb(188, 185, 185)",
+                    // 5 уровней (0..4) × N осей — заполняем по уровням
+                    nodeInfo: Array.from({ length: 5 }, (_, level) =>
+                      traj.items.map((t) => ({
+                        title: `${t.skills.name} — уровень ${level}`,
+                        meta: `Мой уровень на уровне ${level}`,
+                        text: (t.skills.description ?? "").slice(0, 140),
+                      }))
+                    ),
                   },
                   {
                     name: "Мой уровень",
                     data: Array.from({ length: traj.items.length }, () => 1),
                     color: "#503AE0",
-                    draggable: true,
+                    draggable: true
                   },
                 ]}
                 pointsOnly={useAI}
