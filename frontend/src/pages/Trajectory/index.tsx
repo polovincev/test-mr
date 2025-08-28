@@ -49,7 +49,7 @@ const Trajectory = () => {
   useEffect(() => {
     const len = traj?.items.length ?? 0;
     if (!len) return;
-    setUserLevels((prev) => (prev.length === len ? prev : Array.from({ length: len }, () => 0)));
+    setUserLevels((prev) => (prev.length === len ? prev : Array.from({ length: len }, () => 0.1)));
   }, [traj?.items.length]);
 
   useEffect(() => {
@@ -246,7 +246,7 @@ const Trajectory = () => {
                   },
                   {
                     name: "Мой уровень",
-                    data: userLevels.length ? userLevels : Array.from({ length: traj.items.length }, () => 0),
+                    data: userLevels,
                     color: "#503AE0",
                     draggable: true
                   },
@@ -255,7 +255,12 @@ const Trajectory = () => {
                 size={420}
                 onChange={(datasetIndex, data) => {
                   if (datasetIndex === 1) {
-                    setUserLevels(data.map((v) => Math.max(1, Math.min(4, Math.round(Number(v))))));
+                    setUserLevels(data.map((v) => {
+                      const num = Number(v);
+                      if (num < 1) return 0.1;
+                      const rounded = Math.round(num);
+                      return Math.max(1, Math.min(4, rounded));
+                    }));
                   }
                 }}
               />

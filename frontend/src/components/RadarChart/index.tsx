@@ -267,7 +267,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         round: 0,
         magnet: (v: number) => {
           const snapped = Math.round(v);
-          if (snapped < 1) return 1;
+          if (snapped < 1) return 0.1;
           if (snapped > 4) return 4;
           return snapped;
         },
@@ -276,26 +276,14 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
           const ds = series?.[datasetIndex];
           return !!ds?.draggable;
         },
-        onDrag: function (this: any, _e: any, datasetIndex: number) {
-          try {
-            if (!onChange) return true;
-            const chart = this as any;
-            const ds = chart?.data?.datasets?.[datasetIndex];
-            if (!ds) return true;
-            const arr = Array.from(ds.data as any).map((x: any) => Number(x));
-            onChange(datasetIndex, arr);
-          } catch {}
-          return true;
-        },
         onDragEnd: function (this: any, _e: any, datasetIndex: number) {
           try {
             if (!onChange) return;
-            const chart = this as any;
-            const ds = chart?.data?.datasets?.[datasetIndex];
+            const ds = series?.[datasetIndex];
             if (!ds) return;
             const arr = Array.from(ds.data as any).map((x: any) => Number(x));
             onChange(datasetIndex, arr);
-          } catch {}
+          } catch { }
         }
       } as any,
       // plugin config
