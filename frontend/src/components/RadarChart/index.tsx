@@ -205,6 +205,7 @@ export interface RadarChartProps {
   size?: number;
   labelMaxCharsPerLine?: number;
   pointsOnly?: boolean;
+  onChange?: (datasetIndex: number, data: number[]) => void;
 }
 
 const wrapLabel = (label: string, maxChars: number): string[] => {
@@ -223,7 +224,7 @@ const wrapLabel = (label: string, maxChars: number): string[] => {
   return lines.length > 0 ? lines : [label];
 };
 
-const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, labelMaxCharsPerLine = 20, pointsOnly = false }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, labelMaxCharsPerLine = 20, pointsOnly = false, onChange }) => {
   const data = {
     labels,
     datasets: series.map((s, i) => ({
@@ -233,16 +234,17 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
       nodeInfo: s.nodeInfo,
       // Fill only for user (draggable) dataset, keep AI without fill
       backgroundColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
-      borderColor: "rgba(0,0,0,0)",
-      borderWidth: 0,
+      // Outline the area for draggable dataset (same color as fill)
+      borderColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
+      borderWidth: s.draggable ? 4 : 0,
       // points
-      pointBackgroundColor: s.draggable ? s.color : s.color,
+      pointBackgroundColor: s.draggable ? "#FFFFFF" : s.color,
       pointBorderColor: s.draggable ? s.color : s.color,
-      pointBorderWidth: s.draggable ? 1 : 0,
+      pointBorderWidth: s.draggable ? 0 : 0,
       pointStyle: s.draggable ? "circle" : (pointsOnly && i === 0 ? "rectRounded" : "circle"),
       pointRadius: s.draggable ? 0 : (pointsOnly && i === 0 ? 6 : 0),
       pointHoverRadius: s.draggable ? 0 : (pointsOnly && i === 0 ? 7 : 0),
-      hitRadius: s.draggable ? 10 : (pointsOnly && i === 0 ? 12 : 0),
+      hitRadius: s.draggable ? 12 : (pointsOnly && i === 0 ? 12 : 0),
     } as any)),
   };
 
@@ -273,6 +275,27 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         onDragStart: function (this: any, _e: any, datasetIndex: number) {
           const ds = series?.[datasetIndex];
           return !!ds?.draggable;
+        },
+        onDrag: function (this: any, _e: any, datasetIndex: number) {
+          try {
+            if (!onChange) return true;
+            const chart = this as any;
+            const ds = chart?.data?.datasets?.[datasetIndex];
+            if (!ds) return true;
+            const arr = Array.from(ds.data as any).map((x: any) => Number(x));
+            onChange(datasetIndex, arr);
+          } catch {}
+          return true;
+        },
+        onDragEnd: function (this: any, _e: any, datasetIndex: number) {
+          try {
+            if (!onChange) return;
+            const chart = this as any;
+            const ds = chart?.data?.datasets?.[datasetIndex];
+            if (!ds) return;
+            const arr = Array.from(ds.data as any).map((x: any) => Number(x));
+            onChange(datasetIndex, arr);
+          } catch {}
         }
       } as any,
       // plugin config

@@ -10,7 +10,7 @@ const Trajectory = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  
+
   const levels = (skillLevels?: { level_name?: string | null; meta?: string | null; description?: string | null }[]) => {
     const present = Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
     // хотим отобразить 3 карточки: уровни 2,3,4 если есть
@@ -28,6 +28,7 @@ const Trajectory = () => {
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(false);
+  const [userLevels, setUserLevels] = useState<number[]>([]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -44,6 +45,12 @@ const Trajectory = () => {
       .catch(() => setTraj({ goal: "", items: [] }))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const len = traj?.items.length ?? 0;
+    if (!len) return;
+    setUserLevels((prev) => (prev.length === len ? prev : Array.from({ length: len }, () => 0)));
+  }, [traj?.items.length]);
 
   useEffect(() => {
     const draw = () => {
@@ -229,10 +236,9 @@ const Trajectory = () => {
                     nodeInfo: Array.from({ length: 5 }, (_, level) =>
                       traj.items.map((t) => {
                         const li = (t.skills.levels || []).find((x) => x.level === level);
-                        const rec = t.skills.recommended_level_text ? `Целевой уровень: ${t.skills.recommended_level_text}` : undefined;
                         return {
                           title: li?.level_name || "Неизвестно",
-                          meta: li?.meta || rec,
+                          meta: li?.meta || "",
                           text: li?.description || "",
                         };
                       })
@@ -240,13 +246,18 @@ const Trajectory = () => {
                   },
                   {
                     name: "Мой уровень",
-                    data: Array.from({ length: traj.items.length }, () => 1),
+                    data: userLevels.length ? userLevels : Array.from({ length: traj.items.length }, () => 0),
                     color: "#503AE0",
                     draggable: true
                   },
                 ]}
                 pointsOnly={useAI}
                 size={420}
+                onChange={(datasetIndex, data) => {
+                  if (datasetIndex === 1) {
+                    setUserLevels(data.map((v) => Math.max(1, Math.min(4, Math.round(Number(v))))));
+                  }
+                }}
               />
             </div>
           )}
