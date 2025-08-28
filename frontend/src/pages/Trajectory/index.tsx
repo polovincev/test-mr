@@ -185,8 +185,10 @@ const Trajectory = () => {
                             className={styles.levelCard}
                             role="button"
                             tabIndex={0}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/level-select${chatIdParam ? `?chat_id=${chatIdParam}` : ""}` as string, { state: { item: t, chatId: chatIdParam } });
+                            }}
                           >
                             <div className={styles.levelTitle}>{lv.title}</div>
                             <div className={styles.levelMeta}>{lv.meta}</div>
