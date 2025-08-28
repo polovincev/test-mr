@@ -227,14 +227,14 @@
 .overlay {
     position: absolute;
     z-index: 5;
-    width: 160px;
+    width: 180px;
     pointer-events: auto;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(-50%) translateX(-15%);
 }
 
 .levelCard {
-    width: 160px;
+    width: 180px;
     background: #FFFFFF;
     border: none;
     border-radius: 16px;
@@ -278,8 +278,8 @@
 .levelText {
     margin-top: 10px;
     color: #161A33;
-    font-size: 14px;
-    line-height: 1.4;
+    font-size: 12px;
+    line-height: 1.2;
     font-weight: 200;
     font-family: "Onest";
 }

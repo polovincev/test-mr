@@ -95,7 +95,7 @@ const nodeHoverTooltip: Plugin = {
     el.style.borderRadius = "16px";
     el.style.boxShadow = "0px 2px 8px 0px #0000000F, -2px 0px 16px 0px #0000000F";
     el.style.padding = "14px 8px";
-    el.style.maxWidth = "160px";
+    el.style.maxWidth = "180px";
     el.style.fontFamily = "Onest";
     el.style.fontSize = "12px";
     el.style.color = "#2F2354";
@@ -156,10 +156,19 @@ const nodeHoverTooltip: Plugin = {
       }
     }
     const label = labels[node.axis] ?? "";
+    // Skip tooltip when title is explicitly marked as unknown
+    if (typeof info === "string") {
+      if (!info || info.trim() === "") { el.style.opacity = "0"; return; }
+    } else if (info) {
+      const t = (info.title ?? "").trim().toLowerCase();
+      if (!t || t === "неизвестно") { el.style.opacity = "0"; return; }
+    } else {
+      el.style.opacity = "0"; return;
+    }
     // Styles are set on the container in afterInit to match level cards.
     const titleStyle = "font-family:Onest;font-size:14px;font-weight:600;color:#000000;";
     const metaStyle = "font-family:Onest;font-size:12px;color:#656C94;margin-top:4px;font-weight:200;";
-    const textStyle = "margin-top:10px;color:#161A33;font-size:14px;line-height:1.4;font-weight:200;font-family:Onest;";
+    const textStyle = "margin-top:10px;color:#161A33;font-size:12px;line-height:1.2;font-weight:200;font-family:Onest;";
     if (typeof info === "string") {
       const t = `${label} — уровень ${node.level}`;
       html = `<div><div style=\"${titleStyle}\">${t}</div><div style=\"${textStyle}\">${info}</div></div>`;

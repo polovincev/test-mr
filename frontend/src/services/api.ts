@@ -92,10 +92,18 @@ export async function getSkills(): Promise<SkillsResponse> {
   return (await res.json()) as SkillsResponse;
 }
 // -------- Trajectory API --------
+export interface SkillLevelInfo {
+  level: number;
+  level_name?: string | null;
+  meta?: string | null;
+  description?: string | null;
+}
+
 export interface TrajectorySkill {
   name: string;
   recommended_level: number;
-  description?: string | null;
+  recommended_level_text?: string | null;
+  levels?: SkillLevelInfo[];
 }
 
 export interface TrajectoryItem {

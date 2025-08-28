@@ -9,10 +9,18 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/trajectory", tags=["trajectory"])
 
 
+class LevelInfo(BaseModel):
+    level: int
+    level_name: str | None = None
+    meta: str | None = None
+    description: str | None = None
+
+
 class SkillRequirement(BaseModel):
     name: str
     recommended_level: int
-    description: str | None = None
+    recommended_level_text: str | None = None
+    levels: list[LevelInfo] = Field(default_factory=list)
 
 
 class TrajectoryItem(BaseModel):
@@ -169,10 +177,54 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         def parse_skills(txt: str) -> list[dict]:
             try:
                 data = json.loads(txt)
-                if isinstance(data, dict) and "skills" in data and isinstance(data["skills"], list):
-                    return data["skills"]
-                if isinstance(data, list):
-                    return data
+                raw_list: list[dict] | None = None
+                if isinstance(data, dict) and isinstance(data.get("skills"), list):
+                    raw_list = data["skills"]  # type: ignore[assignment]
+                elif isinstance(data, list):
+                    raw_list = data  # type: ignore[assignment]
+                if not raw_list:
+                    return []
+                result: list[dict] = []
+                for s in raw_list:  # type: ignore[assignment]
+                    if not isinstance(s, dict):
+                        continue
+                    name = str(s.get("name", "")).strip()
+                    if not name:
+                        continue
+                    rec_txt = str(s.get("recommended_level", "")).strip() or None
+                    try:
+                        rec_int = int(float(rec_txt)) if rec_txt else None
+                    except Exception:
+                        rec_int = None
+                    # parse descriptions → levels
+                    levels_list: list[LevelInfo] = []
+                    descs = s.get("descriptions")
+                    if isinstance(descs, list):
+                        for d in descs:
+                            if not isinstance(d, dict):
+                                continue
+                            lv_txt = str(d.get("level", "")).strip()
+                            try:
+                                lv_int = int(float(lv_txt)) if lv_txt else None
+                            except Exception:
+                                lv_int = None
+                            levels_list.append(
+                                LevelInfo(
+                                    level=lv_int or 0,
+                                    level_name=(str(d.get("level_name")) if d.get("level_name") else None),
+                                    meta=(str(d.get("meta")) if d.get("meta") else None),
+                                    description=(str(d.get("description")) if d.get("description") else None),
+                                )
+                            )
+                    result.append(
+                        {
+                            "name": name,
+                            "recommended_level": rec_int or 0,
+                            "recommended_level_text": rec_txt,
+                            "levels": levels_list,
+                        }
+                    )
+                return result
             except Exception:
                 return []
             return []
@@ -260,7 +312,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                 # fallback minimal skill
                 sr = SkillRequirement(name="Навык", recommended_level=1, description=None)
             else:
-                lvl_raw = chosen_skill.get("level") or chosen_skill.get("recommended_level")
+                lvl_raw = chosen_skill.get("recommended_level") or chosen_skill.get("level")
                 try:
                     lvl_int = int(float(str(lvl_raw)))
                 except Exception:
@@ -268,7 +320,9 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                 sr = SkillRequirement(
                     name=str(chosen_skill.get("name", "Навык")),
                     recommended_level=lvl_int,
-                    description=(str(chosen_skill.get("description")) if chosen_skill.get("description") else None),
+                    recommended_level_text=(str(chosen_skill.get("recommended_level_text")) if chosen_skill.get("recommended_level_text") else None),
+                    description=None,
+                    levels=(chosen_skill.get("levels") or []),
                 )
 
             items.append(TrajectoryItem(title=title, description=description, tags=tags_str, skills=sr))

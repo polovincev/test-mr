@@ -10,11 +10,20 @@ const Trajectory = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const levels = [
-    { title: "Базовый ⭐️", meta: "4 задания", text: "Основы генетики: ключевые понятия и типы изменчивости" },
-    { title: "Уверенный ⭐️⭐", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
-    { title: "Продвинутый ⭐️⭐⭐️", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
-  ];
+  
+  const levels = (skillLevels?: { level_name?: string | null; meta?: string | null; description?: string | null }[]) => {
+    const present = Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
+    // хотим отобразить 3 карточки: уровни 2,3,4 если есть
+    const wanted = [2, 3, 4];
+    return wanted.map((lvl) => {
+      const li = present.find((x: any) => x && Number(x.level) === lvl) as any;
+      return {
+        title: li?.level_name || (lvl === 2 ? "Базовый" : lvl === 3 ? "Уверенный" : "Продвинутый"),
+        meta: li?.meta || "",
+        text: li?.description || "",
+      };
+    });
+  };
   const [traj, setTraj] = useState<TrajectoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
@@ -164,11 +173,11 @@ const Trajectory = () => {
                     </div>
                     <div className={styles.cardBody}>
                       <div className={styles.cardTitle}>{t.title}</div>
-                      <div className={styles.cardText}>{t.description ?? t.skills?.description ?? ""}</div>
+                      <div className={styles.cardText}>{t.description ?? ""}</div>
                     </div>
                     {hoverIndex === idx && (
                       <div className={styles.overlay} style={{ left: 210 }}>
-                        {levels.map((lv, i) => (
+                        {levels(t.skills.levels).map((lv, i) => (
                           <div
                             key={i}
                             className={styles.levelCard}
@@ -216,13 +225,17 @@ const Trajectory = () => {
                     name: "ИИ",
                     data: traj.items.map((t) => (useAI ? t.skills.recommended_level : 0)),
                     color: "rgb(188, 185, 185)",
-                    // 5 уровней (0..4) × N осей — заполняем по уровням
+                    // 5 уровней (0..4) × N осей — заполняем по уровням, берём из skills.levels если есть
                     nodeInfo: Array.from({ length: 5 }, (_, level) =>
-                      traj.items.map((t) => ({
-                        title: `${t.skills.name} — уровень ${level}`,
-                        meta: `Мой уровень на уровне ${level}`,
-                        text: (t.skills.description ?? "").slice(0, 140),
-                      }))
+                      traj.items.map((t) => {
+                        const li = (t.skills.levels || []).find((x) => x.level === level);
+                        const rec = t.skills.recommended_level_text ? `Целевой уровень: ${t.skills.recommended_level_text}` : undefined;
+                        return {
+                          title: li?.level_name || "Неизвестно",
+                          meta: li?.meta || rec,
+                          text: li?.description || "",
+                        };
+                      })
                     ),
                   },
                   {
