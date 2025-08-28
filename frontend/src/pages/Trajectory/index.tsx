@@ -11,9 +11,9 @@ const Trajectory = () => {
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const levels = [
-    { title: "Базовый 👌", meta: "4 задания", text: "Основы генетики: ключевые понятия и типы изменчивости" },
-    { title: "Уверенный 👍", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
-    { title: "Продвинутый 🤘", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
+    { title: "Базовый ⭐️", meta: "4 задания", text: "Основы генетики: ключевые понятия и типы изменчивости" },
+    { title: "Уверенный ⭐️⭐", meta: "6 заданий", text: "Практика: медицина, сельское хозяйство и др." },
+    { title: "Продвинутый ⭐️⭐⭐️", meta: "7 заданий", text: "Мини-исследование по актуальной теме" },
   ];
   const [traj, setTraj] = useState<TrajectoryResponse | null>(null);
   const [loading, setLoading] = useState(true);

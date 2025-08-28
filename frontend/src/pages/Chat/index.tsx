@@ -178,6 +178,51 @@ const Chat = () => {
     return result;
   };
 
+  // Remove any content enclosed in square brackets, supporting nested brackets
+  const stripBracketBlocks = (input: string): string => {
+    let result = "";
+    let i = 0;
+    const n = input.length;
+    while (i < n) {
+      if (input[i] === "[") {
+        // skip balanced bracket block
+        let depth = 0;
+        while (i < n) {
+          const ch = input[i];
+          if (ch === "[") depth++;
+          else if (ch === "]") {
+            depth--;
+            if (depth === 0) { i++; break; }
+          }
+          i++;
+        }
+        continue;
+      }
+      result += input[i];
+      i++;
+    }
+    return result;
+  };
+
+  // Extract [GOAL: ...] content for display
+  const extractGoalText = (input: string): string => {
+    const m = input.match(/\[GOAL:\s*([\s\S]*?)\]/);
+    if (m && m[1]) {
+      return m[1].trim();
+    }
+    return "";
+  };
+
+  const processAssistantContent = (raw: string): string => {
+    const goal = extractGoalText(raw);
+    const clean = stripBracketBlocks(raw).trim();
+    if (goal) {
+      const suffix = `\nТвоя цель: **${goal}**`;
+      return clean ? clean + suffix : suffix.replace(/^\n/, "");
+    }
+    return clean;
+  };
+
   const activeId = chat?.id ?? null;
   const latestChat = chats.length > 0 ? [...chats].sort((a, b) => b.id - a.id)[0] : null;
 
@@ -269,16 +314,14 @@ const Chat = () => {
                           {group.items.map((m, idx) => (
                             <div key={`${group.dateKey}-${idx}`} className={`${styles.messageRow} ${m.role === "assistant" ? styles.leftRow : styles.rightRow}`}>
                               <div className={`${styles.message} ${m.role === "assistant" ? styles.assistant : styles.user}`}> 
-                                {m.content.split("\n").map((line, i) => {
-                                  const html = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-                                  return (
-                                    <p
-                                      key={i}
-                                      style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }}
-                                      dangerouslySetInnerHTML={{ __html: html }}
-                                    />
-                                  );
-                                })}
+                                {processAssistantContent(m.content)
+                                  .split("\n")
+                                  .map((line, i) => {
+                                    const html = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                                    return (
+                                      <p key={i} style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }} dangerouslySetInnerHTML={{ __html: html }} />
+                                    );
+                                  })}
                                 {m.role === "assistant" && Array.isArray((m as any).suggestions) && (m as any).suggestions.length > 0 && (
                                   <div className={styles.suggestions}>
                                     {(m as any).suggestions.map((s: { label: string; action: "redirect" | "send_message"; href?: string; message?: string }, i: number) => {
