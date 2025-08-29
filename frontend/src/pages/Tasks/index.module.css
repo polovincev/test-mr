@@ -1,0 +1,18 @@
+.mdContent table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  border: 1px solid #0030f2; /* table outline */
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mdContent th,
+.mdContent td {
+  border: 1px solid #1d3594; /* cell borders */
+  padding: 8px 10px;
+  text-align: left;
+}
+.mdContent thead th {
+  background: #f8fafc;
+  font-weight: 600;
+}

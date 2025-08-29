@@ -542,7 +542,7 @@ async def update_goal_levels(payload: GoalLevelsUpdate) -> TrajectoryResponse:
         if v < 0.1:
             v = 0.1
         it.skills.goal_level = v
-
+        
     # Save back to context
     try:
         set_trajectory(payload.chat_id, resp)
@@ -647,11 +647,16 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                     lvl_desc = getattr(lv, "description", None)
                     task_items.append((task_title.strip(), lv.level, lvl_desc, task_desc))
 
-    # Load prompts
-    try:
-        system_prompt = load_prompt("task_generation_system")
-    except Exception:
-        system_prompt = ""
+    # Load system prompts for different levels
+    def safe_prompt(name: str) -> str:
+        try:
+            return load_prompt(name)
+        except Exception:
+            return ""
+
+    prompt_level2 = safe_prompt("task_generation_system")
+    prompt_level3 = safe_prompt("practice_3_system")
+    prompt_level4 = safe_prompt("practice_4_system")
 
     # Profile block
     profile_block = ""
@@ -687,11 +692,18 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
         )
 
         print(user_prompt)
+        # Choose system prompt based on level
+        sys_prompt = prompt_level2
+        if task_level == 3:
+            sys_prompt = prompt_level3 or prompt_level2
+        elif task_level == 4:
+            sys_prompt = prompt_level4 or prompt_level2
+
         try:
             comp = client.chat.completions.create(
                 model="gpt-5-chat-latest",
                 messages=[
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
             )
