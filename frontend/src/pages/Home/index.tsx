@@ -70,6 +70,7 @@ const Home = () => {
                   <button className={styles.actionButton} onClick={() => navigate("/trajectory")}>Траектория</button>
                   <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "profile_goal" } })}>Рассказать о себе</button>
                   <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal" } })}>Как поставить цель моего обучения</button>
+                  <button className={styles.actionButton} onClick={() => navigate("/my")}>МУ</button>
                 </div>
               </div>
             </div>
