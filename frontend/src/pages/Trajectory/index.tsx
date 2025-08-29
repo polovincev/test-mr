@@ -157,7 +157,18 @@ const Trajectory = () => {
                 const alignLeft = idx % 2 === 0;
                 const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
                 const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
-                const style = alignLeft ? { marginLeft: `${offset}px` } : { marginRight: `${offset}px` };
+                const baseStyle = alignLeft ? { marginLeft: `${offset}px` } : { marginRight: `${offset}px` };
+                const goalSelected = (typeof t.skills.goal_level === "number" && t.skills.goal_level > 0.1);
+                const style = goalSelected ? { ...baseStyle, cursor: "pointer" } : baseStyle;
+                // calculate tasks count up to goal level (if any)
+                let totalTasks = 0;
+                if (goalSelected && Array.isArray(t.skills.levels)) {
+                  for (const li of t.skills.levels) {
+                    if (li.level <= Math.round(t.skills.goal_level || 0)) {
+                      totalTasks += Array.isArray(li.tasks) ? li.tasks.length : 0;
+                    }
+                  }
+                }
                 const faded = hoverIndex !== null && hoverIndex !== idx;
                 return (
                   <div
@@ -165,8 +176,13 @@ const Trajectory = () => {
                     className={`${styles.card} ${alignLeft ? styles.cardLeft : styles.cardRight} ${faded ? styles.faded : ""}`}
                     style={style}
                     ref={(el) => (cardRefs.current[idx] = el)}
-                    onMouseEnter={() => setHoverIndex(idx)}
-                    onMouseLeave={() => setHoverIndex((v) => (v === idx ? null : v))}
+                    onMouseEnter={() => { if (!goalSelected) setHoverIndex(idx); }}
+                    onMouseLeave={() => { if (!goalSelected) setHoverIndex((v) => (v === idx ? null : v)); }}
+                    onClick={() => {
+                      if (goalSelected) {
+                        navigate(`/tasks${chatIdParam ? `?chat_id=${chatIdParam}` : ""}`, { state: { item: t, chatId: chatIdParam } });
+                      }
+                    }}
                   >
                     <div className={styles.cardImageContainer}>
                       <div className={styles.cardImageWrapper}>
@@ -176,8 +192,14 @@ const Trajectory = () => {
                     <div className={styles.cardBody}>
                       <div className={styles.cardTitle}>{t.title}</div>
                       <div className={styles.cardText}>{t.description ?? ""}</div>
+                      {goalSelected && (
+                        <div className={styles.progressRow}>
+                          <span className={styles.progressLabel}>Задач к изучению:</span>
+                          <span className={styles.progressValue}>{totalTasks}</span>
+                        </div>
+                      )}
                     </div>
-                    {hoverIndex === idx && (
+                    {!goalSelected && hoverIndex === idx && (
                       <div className={styles.overlay} style={{ left: 210 }}>
                         {levels(t.skills.levels).map((lv, i) => (
                           <div
