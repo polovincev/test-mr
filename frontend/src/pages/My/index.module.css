@@ -1,0 +1,65 @@
+.wrapper {
+  width: 100vw;
+  height: calc(100vh - 0px);
+}
+
+.backButton {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+}
+
+.topicNode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #7562F0;
+  box-shadow: 0px 4px 8px 0px #503AE01F;
+  backdrop-filter: blur(13.536466598510742px);
+  border-radius: 16px;
+  min-width: 360px;
+  max-width: 420px;
+}
+
+.topicImage {
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.topicContent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.topicBadge {
+  font-size: 12px;
+  color: #656C94;
+  font-weight: 200;
+}
+
+.topicTitle {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #101828;
+}
+
+.handleInvisible {
+  background: transparent;
+  border: none;
+  width: 8px;
+  height: 8px;
+}
+
+
