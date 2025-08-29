@@ -138,4 +138,24 @@ export async function updateGoalLevels(chatId: number, levels: number[]): Promis
   if (!res.ok) throw new Error("Failed to update goal levels");
   return (await res.json()) as TrajectoryResponse;
 }
+
+export interface GeneratedTask {
+  title: string;
+  level: number;
+  content_md: string;
+}
+
+export interface GenerateTasksResponse {
+  tasks: GeneratedTask[];
+}
+
+export async function generateTasks(chatId: number, topic: string): Promise<GenerateTasksResponse> {
+  const res = await fetch(`${API_URL}/trajectory/generate_tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic }),
+  });
+  if (!res.ok) throw new Error("Failed to generate tasks");
+  return (await res.json()) as GenerateTasksResponse;
+}
 // end
