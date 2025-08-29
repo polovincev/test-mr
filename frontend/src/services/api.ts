@@ -97,6 +97,7 @@ export interface SkillLevelInfo {
   level_name?: string | null;
   meta?: string | null;
   description?: string | null;
+  tasks?: { title: string; description?: string | null }[];
 }
 
 export interface TrajectorySkill {

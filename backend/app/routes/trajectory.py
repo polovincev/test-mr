@@ -9,11 +9,17 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/trajectory", tags=["trajectory"])
 
 
+class TaskInfo(BaseModel):
+    title: str
+    description: str | None = None
+
+
 class LevelInfo(BaseModel):
     level: int
     level_name: str | None = None
     meta: str | None = None
     description: str | None = None
+    tasks: list[TaskInfo] = Field(default_factory=list)
 
 
 class SkillRequirement(BaseModel):
@@ -40,8 +46,103 @@ class TrajectoryResponse(BaseModel):
     items: List[TrajectoryItem]
 
 
+# ------- Helpers (deduplicated) -------
+def format_tasks_count(n: int) -> str:
+    """Return string like '1 задание', '2 задания', '5 заданий'."""
+    n_abs = abs(int(n))
+    last_two = n_abs % 100
+    last = n_abs % 10
+    if last == 1 and last_two != 11:
+        form = "задание"
+    elif last in (2, 3, 4) and not (12 <= last_two <= 14):
+        form = "задания"
+    else:
+        form = "заданий"
+    return f"{int(n)} {form}"
+
+
+def ensure_levels(sr: SkillRequirement) -> None:
+    """Ensure levels 2/3/4 exist and sorted."""
+    have = {lv.level for lv in (sr.levels or [])}
+    for need in [2, 3, 4]:
+        if need not in have:
+            sr.levels.append(LevelInfo(level=need, level_name=None, meta=None, description=None, tasks=[]))
+    sr.levels.sort(key=lambda x: x.level)
+
+
+def compute_meta_for_skill(sr: SkillRequirement) -> None:
+    """Compute meta per level using custom rules based on tasks counts."""
+    c2 = next((len(lv.tasks) for lv in sr.levels if lv.level == 2), 0)
+    c3 = next((len(lv.tasks) for lv in sr.levels if lv.level == 3), 0)
+    for lv in sr.levels:
+        if lv.level == 2:
+            total = c2
+        elif lv.level == 3:
+            total = c2 + 2
+        elif lv.level == 4:
+            total = c2 + c3 + 1
+        else:
+            total = len(lv.tasks)
+        lv.meta = format_tasks_count(int(total))
+
+
+def map_tasks_to_levels(sr: SkillRequirement, mapping: dict[str, list[TaskInfo]]) -> None:
+    """Assign tasks from mapping {"2.0"|"3.0"|"4.0": tasks[]} to levels 2/3/4 and recompute meta."""
+    for lv in sr.levels:
+        key = "2.0" if lv.level == 2 else ("3.0" if lv.level == 3 else ("4.0" if lv.level == 4 else None))
+        if key:
+            lv.tasks = mapping.get(key, [])
+    compute_meta_for_skill(sr)
+
+
+async def enrich_items_with_images(items: List[TrajectoryItem]) -> None:
+    """Populate unique image_url for each item using external search service."""
+    try:
+        import httpx
+        used_urls: set[str] = set()
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for idx, it in enumerate(items):
+                try:
+                    resp = await client.post("http://158.160.19.226:8000/search", json={"text": it.tags, "top_k": 5})
+                    resp.raise_for_status()
+                    data = resp.json()
+                    images = []
+                    if isinstance(data, dict):
+                        images = data.get("images") or data.get("results") or data.get("items") or []
+                    elif isinstance(data, list):
+                        images = data
+                    urls: list[str] = []
+                    for v in images:
+                        if isinstance(v, str):
+                            urls.append(v)
+                        elif isinstance(v, dict):
+                            u = v.get("url") or v.get("image") or v.get("link")
+                            if isinstance(u, str):
+                                urls.append(u)
+                    chosen: str | None = None
+                    if urls:
+                        candidate = urls[idx % len(urls)]
+                        if candidate not in used_urls:
+                            chosen = candidate
+                    if chosen is None:
+                        for u in urls:
+                            if u not in used_urls:
+                                chosen = u
+                                break
+                    if chosen is None and urls:
+                        chosen = urls[0]
+                    if isinstance(chosen, str):
+                        it.image_url = chosen
+                        used_urls.add(chosen)
+                except Exception:
+                    continue
+    except Exception:
+        return
+
+
 SYSTEM_SKILLS = "skills_system"
 SYSTEM_TRAJECTORY = "trajectory_system"
+SYSTEM_TASK_LIST = "task_list_system"
 USER_GOAL = "Биология за 10 класс, подготовка к ЕГЭ"
 
 
@@ -137,6 +238,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
     api_key = os.getenv("OPENAI_API_KEY")
     skills_prompt = load_prompt(SYSTEM_SKILLS)
     traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
+    tasks_prompt = load_prompt(SYSTEM_TASK_LIST)
     ctx = get_context(chat_id) if chat_id is not None else {}
     # if trajectory already cached for this chat, return it immediately
     if chat_id is not None and "trajectory" in ctx:
@@ -329,52 +431,67 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 
             items.append(TrajectoryItem(title=title, description=description, tags=tags_str, skills=sr))
 
+        # 3.5) For each item, generate tasks per level (2.0/3.0/4.0) using goal/profile context
+        def parse_tasks(txt: str) -> dict[str, list[TaskInfo]]:
+            import json as _json
+            try:
+                data = _json.loads(txt)
+                if not isinstance(data, dict):
+                    return {}
+                result: dict[str, list[TaskInfo]] = {}
+                for key in ["2.0", "3.0", "4.0"]:
+                    arr = data.get(key)
+                    tasks: list[TaskInfo] = []
+                    if isinstance(arr, list):
+                        for t in arr:
+                            if isinstance(t, dict):
+                                title_v = t.get("title")
+                                desc_v = t.get("description")
+                                if isinstance(title_v, str) and title_v.strip():
+                                    tasks.append(TaskInfo(title=title_v.strip(), description=(str(desc_v) if isinstance(desc_v, str) else None)))
+                    result[key] = tasks
+                return result
+            except Exception:
+                return {}
+
+        # ensure each skill has all three levels present
+        # ensure_levels now deduped above
+
+        for it in items:
+            try:
+                ensure_levels(it.skills)
+                user_msg = (
+                    (f"Цель пользователя: {goal_text}\n" if goal_text else "")
+                    + (f"{profile_block}\n" if profile_block else "")
+                    + f"Навык: {it.skills.name}\nТема: {it.title}"
+                )
+                tasks_resp = client.chat.completions.create(
+                    model="gpt-5-chat-latest",
+                    messages=[
+                        {"role": "system", "content": tasks_prompt},
+                        {"role": "user", "content": user_msg},
+                    ],
+                )
+                tasks_content = tasks_resp.choices[0].message.content if tasks_resp.choices else None
+                if tasks_content:
+                    mapping = parse_tasks(tasks_content)
+                    map_tasks_to_levels(it.skills, mapping)
+                else:
+                    # No tasks returned: keep meta as count 0
+                    for lv in it.skills.levels:
+                        lv.tasks = []
+                    compute_meta_for_skill(it.skills)
+            except Exception:
+                # On failure, leave tasks empty but ensure meta reflects zero
+                try:
+                    for lv in it.skills.levels:
+                        lv.tasks = []
+                    compute_meta_for_skill(it.skills)
+                except Exception:
+                    pass
+
         # 4) Enrich items with images from external search
-        try:
-            import httpx
-            used_urls: set[str] = set()
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                for idx, it in enumerate(items):
-                    try:
-                        resp = await client.post("http://158.160.19.226:8000/search", json={"text": it.tags, "top_k": 5})
-                        resp.raise_for_status()
-                        data = resp.json()
-                        images = []
-                        if isinstance(data, dict):
-                            images = data.get("images") or data.get("results") or data.get("items") or []
-                        elif isinstance(data, list):
-                            images = data
-                        urls: list[str] = []
-                        for v in images:
-                            if isinstance(v, str):
-                                urls.append(v)
-                            elif isinstance(v, dict):
-                                u = v.get("url") or v.get("image") or v.get("link")
-                                if isinstance(u, str):
-                                    urls.append(u)
-                        chosen: str | None = None
-                        if urls:
-                            candidate = urls[idx % len(urls)]
-                            if candidate not in used_urls:
-                                chosen = candidate
-                        if chosen is None:
-                            for u in urls:
-                                if u not in used_urls:
-                                    chosen = u
-                                    break
-                        if chosen is None and urls:
-                            chosen = urls[0]
-                        if isinstance(chosen, str):
-                            # update in-place since items are Pydantic models
-                            for j, existing in enumerate(items):
-                                if existing.title == it.title:
-                                    items[j].image_url = chosen
-                                    break
-                            used_urls.add(chosen)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+        await enrich_items_with_images(items)
 
         resp = TrajectoryResponse(goal=goal_text, items=items)
         if chat_id is not None:
@@ -434,4 +551,140 @@ async def update_goal_levels(payload: GoalLevelsUpdate) -> TrajectoryResponse:
 
     return resp
 
+
+# -------- Task generation by topic --------
+class GenerateTasksRequest(BaseModel):
+    chat_id: int
+    topic: str
+
+
+class GeneratedTask(BaseModel):
+    title: str
+    level: int
+    content_md: str
+
+
+class GenerateTasksResponse(BaseModel):
+    chat_id: int
+    topic: str
+    goal: str
+    level: int
+    tasks: list[GeneratedTask]
+
+
+@router.post("/generate_tasks", response_model=GenerateTasksResponse)
+async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
+    """Generate theory/tasks content for a trajectory item topic using goal/profile context.
+
+    Logic:
+    1) Read trajectory from context by chat_id; find item by title == topic.
+    2) Determine level from skills.goal_level (rounded to 2/3/4, min 2).
+    3) For each task title in skills.tasks at that level, call LLM with system prompt
+       from task_generation_system and a user message that includes: goal, profile,
+       skill name, topic title, level, and the task topic/title.
+    4) Cache by (chat_id, topic) and return cached on subsequent calls.
+    """
+    from app.repositories.context_store import get_context, get_tasks, set_tasks  # type: ignore
+    from app.prompts.loader import load_prompt  # type: ignore
+    import os, json
+
+    chat_id = int(req.chat_id)
+    topic = str(req.topic).strip()
+
+    ctx = get_context(chat_id)
+    trajectory = ctx.get("trajectory") if isinstance(ctx, dict) else None
+    if not trajectory:
+        # Nothing to generate from
+        return GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=str(ctx.get("goal") or ""), level=2, tasks=[])
+
+    # Normalize to model
+    if isinstance(trajectory, dict):
+        try:
+            trajectory = TrajectoryResponse(**trajectory)
+        except Exception:
+            return GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=str(ctx.get("goal") or ""), level=2, tasks=[])
+
+    # Find item by title
+    target = next((it for it in trajectory.items if it.title.strip() == topic), None)
+    if target is None:
+        return GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=2, tasks=[])
+
+    # Determine level from goal_level (min 2, max 4)
+    gl = target.skills.goal_level if isinstance(target.skills.goal_level, (int, float)) else 2
+    try:
+        gl_int = int(round(float(gl)))
+    except Exception:
+        gl_int = 2
+    if gl_int < 2:
+        gl_int = 2
+    if gl_int > 4:
+        gl_int = 4
+
+    # Serve from cache using topic + level key if available
+    cache_key = f"{topic}::L{gl_int}"
+    cached = get_tasks(chat_id, cache_key)
+    if isinstance(cached, dict):
+        try:
+            return GenerateTasksResponse(**cached)
+        except Exception:
+            pass
+
+    # Extract task titles aggregated up to selected level:
+    # 2 -> only 2, 3 -> 2+3, 4 -> 2+3+4
+    include_levels = {2} if gl_int == 2 else ({2, 3} if gl_int == 3 else {2, 3, 4})
+    task_items: list[tuple[str, int]] = []
+    for lv in sorted(target.skills.levels, key=lambda x: x.level):
+        if lv.level in include_levels and lv.tasks:
+            for t in lv.tasks:
+                if isinstance(t.title, str) and t.title.strip():
+                    task_items.append((t.title.strip(), lv.level))
+
+    # Load prompts
+    try:
+        system_prompt = load_prompt("task_generation_system")
+    except Exception:
+        system_prompt = ""
+
+    # Profile block
+    profile_block = ""
+    try:
+        prof = ctx.get("profile") if isinstance(ctx, dict) else None
+        if isinstance(prof, dict) and any(bool(v) for v in prof.values()):
+            profile_json = json.dumps(prof, ensure_ascii=False)
+            profile_block = "\nПрофиль пользователя: " + profile_json
+    except Exception:
+        profile_block = ""
+
+    # OpenAI call
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or not task_items:
+        resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=[])
+        set_tasks(chat_id, cache_key, resp.dict())
+        return resp
+
+    from openai import OpenAI  # type: ignore
+    client = OpenAI(api_key=api_key)
+
+    generated: list[GeneratedTask] = []
+    for task_title, task_level in task_items:
+        user_prompt = (
+            f"Цель пользователя: {trajectory.goal}" + profile_block +
+            f"\nНавык: {target.skills.name}\nТема: {target.title}\nУровень задания: {task_level}.0\nЗадание: {task_title}"
+        )
+        try:
+            comp = client.chat.completions.create(
+                model="gpt-5-chat-latest",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+            content = comp.choices[0].message.content if comp.choices else ""
+        except Exception:
+            content = ""
+        generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip()))
+
+    resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=generated)
+    set_tasks(chat_id, cache_key, resp.dict())
+    return resp
 
