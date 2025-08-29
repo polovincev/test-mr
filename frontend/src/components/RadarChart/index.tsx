@@ -189,7 +189,57 @@ const nodeHoverTooltip: Plugin = {
   },
 };
 
-ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid, dragDataPlugin, nodeHoverTooltip);
+// Click-to-set plugin: choose nearest axis & integer level when user clicks and update dataset
+const clickSetLevel: Plugin = {
+  id: "clickSetLevel",
+  afterEvent(chart, args, opts) {
+    if (!args?.event) return;
+    const type = args.event.type;
+    if (type !== "click") return;
+    const scale: any = (chart as any).scales?.r;
+    if (!scale) return;
+    const { x, y } = args.event as any;
+    const labels: string[] = (chart.data.labels as string[]) ?? [];
+    if (!labels.length) return;
+    const cx = scale.xCenter;
+    const cy = scale.yCenter;
+    // Determine closest axis by angle
+    let bestAxis = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < labels.length; i++) {
+      const p = scale.getPointPositionForValue(i, 1);
+      const ang = Math.atan2(p.y - cy, p.x - cx);
+      const clickAng = Math.atan2(y - cy, x - cx);
+      let diff = Math.abs(ang - clickAng);
+      diff = Math.min(diff, 2 * Math.PI - diff);
+      if (diff < bestDiff) { bestDiff = diff; bestAxis = i; }
+    }
+    // Determine closest discrete level 0..4 on that axis (0=center)
+    let chosenLevel = 0;
+    let bestDist = Infinity;
+    for (let lvl = 0; lvl <= 4; lvl++) {
+      const p = scale.getPointPositionForValue(bestAxis, lvl);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestDist) { bestDist = d; chosenLevel = lvl; }
+    }
+    if (bestDist > 40) return; // ignore far clicks
+    if (chosenLevel === 1) return; // forbid selecting level 1
+    // Find target dataset: first draggable or index 1
+    let dsIndex = 1;
+    (chart.data.datasets as any[]).forEach((d, i) => { if (d.draggable) dsIndex = i; });
+    const ds: any = chart.data.datasets?.[dsIndex];
+    if (!ds || !Array.isArray(ds.data)) return;
+    const newData = [...ds.data];
+    newData[bestAxis] = chosenLevel === 0 ? 0.1 : chosenLevel;
+    ds.data = newData;
+    if (typeof opts?.onSet === "function") {
+      opts.onSet(dsIndex, newData.map(Number));
+    }
+    chart.update("none");
+  },
+};
+
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, roundedRadarGrid, nodeHoverTooltip, clickSetLevel);
 
 type Series = {
   name: string;
@@ -294,6 +344,9 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         axisColor: "rgba(47, 35, 84, 0.2)",
         gridLineColor: "rgba(47, 35, 84, 0.2)",
       },
+      clickSetLevel: {
+        onSet: (datasetIndex: number, arr: number[]) => { if (onChange) onChange(datasetIndex, arr); }
+      } as any,
     },
     scales: {
       r: {
