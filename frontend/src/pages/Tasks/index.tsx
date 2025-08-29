@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoaderOverlay from "../../components/LoaderOverlay";
 import { generateTasks, type GeneratedTask } from "../../services/api";
+import MarkdownIt from "markdown-it";
 
 const Tasks: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ const Tasks: React.FC = () => {
 const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; location: any }> = ({ chatId, topic, navigate, location }) => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<GeneratedTask[] | null>(null);
+  const mdRef = useRef<MarkdownIt>();
+  if (!mdRef.current) mdRef.current = new MarkdownIt({ html: false, linkify: true });
   // derive topic from state if not query
   const topicState = (location.state as any)?.item?.title;
   const finalTopic = topic || topicState || "";
@@ -59,7 +62,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
             <div key={idx} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 12 }}>
               <h3 style={{ margin: 0 }}>{t.title}</h3>
               <div style={{ fontSize: 12, color: "#656C94", marginBottom: 8 }}>Уровень {t.level}</div>
-              <div dangerouslySetInnerHTML={{ __html: t.content_md }} />
+              <div dangerouslySetInnerHTML={{ __html: mdRef.current!.render(t.content_md) }} />
             </div>
           ))}
         </>

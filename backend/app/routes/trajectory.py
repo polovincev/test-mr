@@ -632,12 +632,20 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
     # Extract task titles aggregated up to selected level:
     # 2 -> only 2, 3 -> 2+3, 4 -> 2+3+4
     include_levels = {2} if gl_int == 2 else ({2, 3} if gl_int == 3 else {2, 3, 4})
-    task_items: list[tuple[str, int]] = []
+    # collect: title, level, level_desc, task_desc
+    task_items: list[tuple[str, int, str | None, str | None]] = []
     for lv in sorted(target.skills.levels, key=lambda x: x.level):
         if lv.level in include_levels and lv.tasks:
             for t in lv.tasks:
-                if isinstance(t.title, str) and t.title.strip():
-                    task_items.append((t.title.strip(), lv.level))
+                if isinstance(t, dict):
+                    task_title = str(t.get("title", ""))
+                    task_desc = t.get("description")
+                else:
+                    task_title = str(getattr(t, "title", ""))
+                    task_desc = getattr(t, "description", None)
+                if isinstance(task_title, str) and task_title.strip():
+                    lvl_desc = getattr(lv, "description", None)
+                    task_items.append((task_title.strip(), lv.level, lvl_desc, task_desc))
 
     # Load prompts
     try:
@@ -666,11 +674,19 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
     client = OpenAI(api_key=api_key)
 
     generated: list[GeneratedTask] = []
-    for task_title, task_level in task_items:
+    for task_title, task_level, level_desc, task_desc in task_items:
         user_prompt = (
             f"Цель пользователя: {trajectory.goal}" + profile_block +
-            f"\nНавык: {target.skills.name}\nТема: {target.title}\nУровень задания: {task_level}.0\nЗадание: {task_title}"
+            f"\nНавык: {target.skills.name}"
+            f"\nТема: {target.title}"
+            f"\nОписание темы: {target.description or ''}"
+            f"\nУровень задания: {task_level}.0"
+            f"\nОписание уровня: {level_desc or ''}"
+            f"\nНазвание задания: {task_title}"
+            f"\nОписание задания: {task_desc or ''}"
         )
+
+        print(user_prompt)
         try:
             comp = client.chat.completions.create(
                 model="gpt-5-chat-latest",
