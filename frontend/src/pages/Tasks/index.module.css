@@ -1,18 +1,127 @@
-.mdContent table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-  border: 1px solid #0030f2; /* table outline */
-  border-radius: 8px;
-  overflow: hidden;
+.page {
+    background: #F6F7FB;
+    min-height: 100vh;
+    position: relative;
 }
+
+.progressRow {
+    display: flex;
+    font-size: 16px;
+    line-height: 20px;
+    background-color: #fff;
+    width: 800px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 1fr 800px 1fr; /* center column fixed 800px */
+    gap: 34px;
+    width: 100%;
+    padding: 32px 60px 0px 60px;
+}
+
+.sidebar {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: center;
+    justify-self: center; /* hug center */
+    width: min(320px, 100%);
+    height: calc(100vh - 104px);
+}
+
+.backButton {
+    position: absolute;
+    top: 32px;
+    left: 16px;
+    display: inline-flex;
+    align-items: center;
+    height: 48px;
+    padding: 0 18px 0px 14px;
+    border-radius: 12px;
+    border: 1px solid #E6E8F2;
+    background: #FFFFFF;
+    cursor: pointer;
+    box-shadow: 0 2px 3.2px rgba(202, 211, 238, 0.35);
+    font-family: Onest;
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 24px;
+}
+
+.sidebarTitle {
+    margin: 16px 0 12px 0;
+    font-size: 14px;
+    color: #656C94;
+}
+
+.sidebarList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebarItem {
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.sidebarItem:hover {
+    background: #F9FAFF;
+}
+
+.sidebarItemActive {
+    border-color: #503AE0;
+    box-shadow: 0 0 0 3px rgba(80, 58, 224, 0.08);
+}
+
+.content {
+    grid-column: 2; /* fixed center column */
+    width: 800px;
+    margin: 0 auto;
+}
+
+.contentCard {
+    border: none;
+    border-top-right-radius: 28px;
+    border-top-left-radius: 28px;
+    padding: 32px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    height: calc(100vh - 104px); /* keep header and paddings out */
+    overflow-y: auto; /* scroll inside the card */
+}
+
+/* Markdown content styles */
+.mdContent table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    border: 1px solid #0030f2;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 .mdContent th,
 .mdContent td {
-  border: 1px solid #1d3594; /* cell borders */
-  padding: 8px 10px;
-  text-align: left;
+    border: 1px solid #1d3594;
+    padding: 8px 10px;
+    text-align: left;
 }
+
 .mdContent thead th {
-  background: #f8fafc;
-  font-weight: 600;
+    background: #f8fafc;
+    font-weight: 600;
 }

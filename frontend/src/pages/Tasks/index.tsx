@@ -9,6 +9,7 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeKatex from "rehype-katex";
 import rehypeStringify from "rehype-stringify";
+import styles from "./index.module.css";
 
 const Tasks: React.FC = () => {
   const navigate = useNavigate();
@@ -24,11 +25,12 @@ const Tasks: React.FC = () => {
 const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; location: any }> = ({ chatId, topic, navigate, location }) => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<GeneratedTask[] | null>(null);
+  const [selected, setSelected] = useState<number>(0);
   const processorRef = useRef<any>();
   if (!processorRef.current) {
     processorRef.current = unified()
       .use(remarkParse)
-      .use(remarkGfm) // support tables, strikethrough, task lists
+      .use(remarkGfm)
       .use(remarkMath)
       .use(remarkRehype)
       .use(rehypeKatex)
@@ -38,19 +40,48 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const topicState = (location.state as any)?.item?.title;
   const finalTopic = topic || topicState || "";
 
+  const makeMockTasks = (t: string): GeneratedTask[] => [
+    {
+      title: `Разбор базовых понятий по теме`,
+      level: 2,
+      content_md:
+        "Вспомним ключевые определения и простые формулы. Встроенная формула: $a^2-b^2=(a-b)(a+b)$.\n\nТаблица-шпаргалка:\n\n| Величина | Обозначение | Единицы |\n|---|---|---|\n| Площадь круга | $S$ | $\\pi r^2$ |\n| Квадрат суммы |  | $(a+b)^2=a^2+2ab+b^2$ |",
+    },
+    {
+      title: "Практика с формулами",
+      level: 3,
+      content_md:
+        "Реши примеры и сверяйся с формулами. Блочная запись:\n\n$$\\int_0^1 x^2\\,dx=\\frac{1}{3}$$\n\nА также соотношение Пифагора: $c^2=a^2+b^2$.",
+    },
+    {
+      title: "Итоговое мини-задание",
+      level: 4,
+      content_md:
+        "Сравни формулы и сделай вывод. Пример сокращённого умножения:\n\n$$a^3-b^3=(a-b)(a^2+ab+b^2)$$\n\nСписок дел:\n- [ ] Прочитать конспект\n- [x] Выполнить 3 задания\n- [ ] Сдать решение преподавателю",
+    },
+  ];
+
   useEffect(() => {
     let ignore = false;
     const run = async () => {
       if (!chatId || !finalTopic) {
         setLoading(false);
-        setTasks([]);
+        setTasks(makeMockTasks(finalTopic || "Тема"));
+        setSelected(0);
         return;
       }
       try {
         const resp = await generateTasks(chatId, finalTopic);
-        if (!ignore) setTasks(resp.tasks);
+        const data = Array.isArray(resp?.tasks) ? resp.tasks : [];
+        if (!ignore) {
+          setTasks(data.length > 0 ? data : makeMockTasks(finalTopic));
+          setSelected(0);
+        }
       } catch {
-        if (!ignore) setTasks([]);
+        if (!ignore) {
+          setTasks(makeMockTasks(finalTopic));
+          setSelected(0);
+        }
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -59,28 +90,55 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     return () => { ignore = true; };
   }, [chatId, finalTopic]);
 
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // scroll to top when switching task
+    if (contentRef.current) contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }, [selected]);
+
+  const current = tasks && tasks.length > 0 ? tasks[Math.min(selected, tasks.length - 1)] : null;
+
+
   return (
-    <div style={{ padding: 24, position: "relative" }}>
-      <button
-        onClick={() => navigate(`/trajectory${chatId ? `?chat_id=${chatId}` : ""}`)}
-        style={{ marginBottom: 16, padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}
-      >
-        ← Назад к траектории
-      </button>
+    <div className={styles.page}>
       {loading && <LoaderOverlay text="Формирую задания для изучения…" />}
       {!loading && (
         <>
-          <h1>Задачи по теме «{finalTopic}»</h1>
-          {tasks && tasks.length === 0 && <p>Задания не найдены.</p>}
-          {tasks && tasks.map((t, idx) => (
-            <div key={idx} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>{t.title}</h3>
-              <div style={{ fontSize: 12, color: "#656C94", marginBottom: 8 }}>Уровень {t.level}</div>
-              <RenderedMarkdown processor={processorRef.current} content={t.content_md || ""} />
+          <button className={styles.backButton} onClick={() => navigate(`/trajectory${chatId ? `?chat_id=${chatId}` : ""}`)}>← Назад</button>
+          <div className={styles.container}>
+            <div className={styles.sidebar}>
+              <div className={styles.sidebarTitle}>Содержание</div>
+              <ul className={styles.sidebarList}>
+                {(tasks || []).map((t, i) => (
+                  <li
+                    key={`toc-${i}`}
+                    className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
+                    onClick={() => setSelected(i)}
+                  >
+                    {t.title}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ))}
-        </>
-      )}
+            <div className={styles.content} ref={contentRef}>
+              <div className={styles.progressRow}>Прогресс </div>
+              <div className={styles.contentCard}>
+                <div className={styles.innerWidth}>
+                  <h1 style={{ marginTop: 0 }}>Задачи по теме «{finalTopic}»</h1>
+                  {!current && <p>Задания не найдены.</p>}
+                  {current && (
+                    <div>
+                      <h3 style={{ margin: 0 }}>{current.title}</h3>
+                      <div style={{ fontSize: 12, color: "#656C94", marginBottom: 8 }}>Уровень {current.level}</div>
+                      <RenderedMarkdown processor={processorRef.current} content={current.content_md || ""} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.empty}></div>
+          </div>
+        </>)}
     </div>
   );
 };
@@ -102,7 +160,6 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
     run();
     return () => { ignore = true; };
   }, [processor, content]);
-  // ensure KaTeX CSS exists
   useEffect(() => {
     if (!document.getElementById("katex-css")) {
       const link = document.createElement("link");
@@ -116,7 +173,7 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
     <div
       style={{ overflowX: "auto" }}
       dangerouslySetInnerHTML={{ __html: html }}
-      className="md-content"
+      className={"mdContent"}
     />
   );
 };
