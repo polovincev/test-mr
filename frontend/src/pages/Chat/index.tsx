@@ -317,7 +317,9 @@ const Chat = () => {
                                 {processAssistantContent(m.content)
                                   .split("\n")
                                   .map((line, i) => {
-                                    const html = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                                    const html = line
+                                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold
+                                      .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, "$1<em>$2</em>"); // italic for single *...*
                                     return (
                                       <p key={i} style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }} dangerouslySetInnerHTML={{ __html: html }} />
                                     );

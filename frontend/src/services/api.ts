@@ -143,9 +143,16 @@ export interface GeneratedTask {
   title: string;
   level: number;
   content_md: string;
+  questions_to_consider?: { question: string; answer?: string }[];
+  tests?: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[];
+  payload?: Record<string, unknown>;
 }
 
 export interface GenerateTasksResponse {
+  chat_id?: number;
+  topic?: string;
+  goal?: string;
+  level?: number;
   tasks: GeneratedTask[];
 }
 

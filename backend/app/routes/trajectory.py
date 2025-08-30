@@ -562,6 +562,22 @@ class GeneratedTask(BaseModel):
     title: str
     level: int
     content_md: str
+    # New fields for level 2 structured content
+    questions_to_consider: list["QuestionsToConsider"] = Field(default_factory=list)
+    tests: list["Tests"] = Field(default_factory=list)
+
+
+class QuestionsToConsider(BaseModel):
+    question: str
+    answer: str | None = None
+
+
+class Tests(BaseModel):
+    question: str
+    options: list[str] = Field(default_factory=list)
+    correct: list[int] = Field(default_factory=list)
+    hint: str | None = None
+    explanation: str | None = None
 
 
 class GenerateTasksResponse(BaseModel):
@@ -569,7 +585,7 @@ class GenerateTasksResponse(BaseModel):
     topic: str
     goal: str
     level: int
-    tasks: list[GeneratedTask]
+    tasks: list[GeneratedTask] = Field(default_factory=list)
 
 
 @router.post("/generate_tasks", response_model=GenerateTasksResponse)
@@ -710,9 +726,95 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
             content = comp.choices[0].message.content if comp.choices else ""
         except Exception:
             content = ""
-        generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip()))
+
+        # For level 2: try to parse structured JSON from updated task_generation_system
+        if task_level == 2:
+            import json as _json, re as _re
+            payload: dict | None = None
+            if isinstance(content, str):
+                txt = content.strip()
+                m = _re.search(r"```(?:json)?\s*([\s\S]*?)```", txt, flags=_re.IGNORECASE)
+                if m:
+                    txt = m.group(1).strip()
+                if not txt.startswith("{"):
+                    i, j = txt.find("{"), txt.rfind("}")
+                    if i != -1 and j != -1 and j > i:
+                        txt = txt[i:j+1]
+                try:
+                    if txt.startswith("{"):
+                        payload = _json.loads(txt)
+                except Exception:
+                    payload = None
+
+            title_out = task_title
+            content_md_out = str(content or "").strip()
+            q_consider: list[QuestionsToConsider] = []
+            tests_out: list[Tests] = []
+
+            if isinstance(payload, dict):
+                # title/content
+                tval = payload.get("title")
+                if isinstance(tval, str) and tval.strip():
+                    title_out = tval.strip()
+                cval = payload.get("content_md") or payload.get("content")
+                if isinstance(cval, str) and cval.strip():
+                    content_md_out = cval.strip()
+
+                # questions_to_consider (robust for both latin/cyrillic 'c')
+                q_list = payload.get("questions_to_consider")
+                if not isinstance(q_list, list):
+                    q_list = payload.get("questions_to_сonsider")  # cyrillic 'с'
+                if isinstance(q_list, list):
+                    for q in q_list:
+                        if isinstance(q, dict):
+                            qs = str(q.get("question", "")).strip()
+                            ans = str(q.get("answer", "")).strip() if isinstance(q.get("answer"), str) else None
+                            if qs:
+                                q_consider.append(QuestionsToConsider(question=qs, answer=ans))
+
+                # tests
+                t_list = payload.get("tests")
+                if isinstance(t_list, list):
+                    for t in t_list:
+                        if not isinstance(t, dict):
+                            continue
+                        tq = str(t.get("question", "")).strip()
+                        opts_raw = t.get("options")
+                        corr_raw = t.get("correct")
+                        hint = str(t.get("hint", "")).strip() if isinstance(t.get("hint"), str) else None
+                        expl = str(t.get("explanation", "")).strip() if isinstance(t.get("explanation"), str) else None
+                        options: list[str] = []
+                        if isinstance(opts_raw, list):
+                            options = [str(o) for o in opts_raw]
+                        correct: list[int] = []
+                        # normalize correct indexes if provided as strings
+                        if isinstance(corr_raw, list):
+                            for v in corr_raw:
+                                try:
+                                    correct.append(int(v))
+                                except Exception:
+                                    # try map by option value
+                                    try:
+                                        idx = options.index(str(v))
+                                        correct.append(idx)
+                                    except Exception:
+                                        continue
+                        if tq and options:
+                            tests_out.append(Tests(question=tq, options=options, correct=correct, hint=hint, explanation=expl))
+
+            generated.append(
+                GeneratedTask(
+                    title=title_out,
+                    level=task_level,
+                    content_md=content_md_out,
+                    questions_to_consider=q_consider,
+                    tests=tests_out,
+                )
+            )
+        else:
+            # 3.0/4.0 keep legacy behavior
+            generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip()))
 
     resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=generated)
     set_tasks(chat_id, cache_key, resp.dict())
     return resp
-

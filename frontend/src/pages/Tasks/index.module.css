@@ -125,3 +125,14 @@
     background: #f8fafc;
     font-weight: 600;
 }
+
+.testsContainer { display: flex; flex-direction: column; gap: 12px; }
+.testItem { border: 1px solid #E6E8F2; border-radius: 12px; padding: 12px; background: #fff; }
+.testQuestion { font-size: 16px; line-height: 22px; color: #161a33; font-weight: 500; margin-bottom: 8px; }
+.testOptions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.testOption { display: flex; gap: 8px; align-items: center; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fafbff; cursor: pointer; }
+.testOptionSelected { background: #f0f2ff; border-color: #cad1e0; }
+.testResult { margin-top: 8px; font-size: 14px; }
+.testOk { color: #0db56c; }
+.testError { color: #b50d0d; }
+.testBtn { margin-top: 12px; padding: 10px 16px; border: none; border-radius: 12px; background: #4917bf; color: #fff; cursor: pointer; }
