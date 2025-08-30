@@ -235,22 +235,20 @@
 .testsContainer {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-}
-
-.testItem {
-    border: 1px solid #E6E8F2;
-    border-radius: 12px;
-    padding: 12px;
-    background: #fff;
+    gap: 16px;
 }
 
 .testQuestion {
-    font-size: 16px;
-    line-height: 22px;
-    color: #161a33;
-    font-weight: 500;
-    margin-bottom: 8px;
+    padding: 24px 0 12px 0;
+    color: var(--text-text-default, #161A33);
+    /* Heading/H4 */
+    font-family: Onest;
+    font-size: 18px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 26px;
+    /* 130% */
+    letter-spacing: -0.2px;
 }
 
 .testOptions {
@@ -263,11 +261,17 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-border-default, #E4E6F7);
     border-radius: 8px;
-    padding: 8px;
-    background: #fafbff;
     cursor: pointer;
+    padding: 12px;
+    color: #18181B;
+    font-family: Onest;
+    font-size: 14px;
+    /* font-style: normal; */
+    font-weight: 400;
+    /* line-height: 24px; */
+    /* 150% */
 }
 
 .testOptionSelected {
@@ -398,4 +402,16 @@
     margin-bottom: 8px;
     background: var(--background-bg-secondary, #F0F2FF);
     height: 1px;
+}
+
+.testChoiceHint {
+    color: var(--Text-Tertiary, #7A87A1);
+    /* Body/Small */
+    font-family: Onest;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+    /* 142.857% */
+    margin: 4px 0 10px 0;
 }

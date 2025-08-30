@@ -222,58 +222,66 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
 
 const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[] }>
   = ({ tests }) => {
-    const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
-    const [checked, setChecked] = useState(false);
-    const toggle = (qi: number, oi: number) => {
-      setAnswers((prev) => {
-        const next = { ...prev };
-        const set = new Set(next[qi] ?? []);
-        if (set.has(oi)) set.delete(oi); else set.add(oi);
-        next[qi] = set;
+  const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
+  const [checked, setChecked] = useState(false);
+  const toggle = (qi: number, oi: number, single: boolean) => {
+    setAnswers((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[qi] ?? []);
+      if (single) {
+        next[qi] = new Set([oi]);
         return next;
-      });
-    };
-    const onCheck = () => setChecked(true);
-    const isCorrect = (qi: number): boolean => {
-      const got = Array.from(answers[qi] ?? []); got.sort();
-      const need = (tests[qi].correct ?? []).slice().sort();
-      return got.length === need.length && got.every((v, i) => v === need[i]);
-    };
-    return (
-      <div style={{ marginTop: 24 }}>
-        <div className={styles.sectionTitle}>Тест</div>
-        <div className={styles.testsContainer}>
-          {tests.map((t, qi) => (
-            <div key={qi} className={styles.testItem}>
-              <div className={styles.testQuestion}>{t.question}</div>
-              <div className={styles.testOptions}>
-                {t.options.map((opt, oi) => {
-                  const selected = answers[qi]?.has(oi) ?? false;
-                  return (
-                    <label key={oi} className={`${styles.testOption} ${selected ? styles.testOptionSelected : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggle(qi, oi)}
-                      />
-                      <span>{opt}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {checked && (
-                <div className={styles.testResult}>
-                  {isCorrect(qi) ? (
-                    <div className={styles.testOk}>{t.explanation || "Верно"}</div>
-                  ) : (
-                    <div className={styles.testError}>{t.hint || "Подумай ещё"}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <button className={styles.testBtn} type="button" onClick={onCheck}>Проверить</button>
-      </div>
-    );
+      }
+      if (set.has(oi)) set.delete(oi); else set.add(oi);
+      next[qi] = set;
+      return next;
+    });
   };
+  const onCheck = () => setChecked(true);
+  const isCorrect = (qi: number): boolean => {
+    const got = Array.from(answers[qi] ?? []); got.sort();
+    const need = (tests[qi].correct ?? []).slice().sort();
+    return got.length === need.length && got.every((v, i) => v === need[i]);
+  };
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className={styles.testsContainer}>
+        {tests.map((t, qi) => (
+          <div key={qi} className={styles.testItem}>
+            <div className={styles.testQuestion}>{t.question}</div>
+            <div className={styles.testChoiceHint}>
+              {(Array.isArray(t.correct) && t.correct.length === 1) ? "Выбери один вариант" : "Выбери несколько вариантов"}
+            </div>
+            <div className={styles.testOptions}>
+              {t.options.map((opt, oi) => {
+                const selected = answers[qi]?.has(oi) ?? false;
+                const single = Array.isArray(t.correct) && t.correct.length === 1;
+                return (
+                  <label key={oi} className={`${styles.testOption} ${selected ? styles.testOptionSelected : ""}`}>
+                    <input
+                      type={single ? "radio" : "checkbox"}
+                      name={`test-${qi}`}
+                      checked={selected}
+                      onChange={() => toggle(qi, oi, single)}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {checked && (
+              <div className={styles.testResult}>
+                {isCorrect(qi) ? (
+                  <div className={styles.testOk}>{t.explanation || "Верно"}</div>
+                ) : (
+                  <div className={styles.testError}>{t.hint || "Подумай ещё"}</div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <button className={styles.testBtn} type="button" onClick={onCheck}>Проверить</button>
+    </div>
+  );
+};
