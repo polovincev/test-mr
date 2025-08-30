@@ -96,6 +96,10 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 else "Начни диалог приветствием и предложением рассказать о себе, дальше веди диалог используя системный промпт, в приветствии добавляй имя Дарья."
                 + order_text
             )
+            
+
+            print("user_instruction", user_instruction)
+            print("system_prompt", system_prompt)
 
             completion = client.chat.completions.create(
                 model="gpt-5-chat-latest",
@@ -294,5 +298,3 @@ async def get_chat(chat_id: int, repo: ChatRepository = Depends(get_chat_repo)) 
     if chat is None:
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
-
-
