@@ -150,7 +150,17 @@ const Trajectory = () => {
             <div className={styles.topRow}>
               <button className={styles.backBtn} onClick={() => navigate(`/chat`, { state: { fromTrajectory: true, chatId: chatIdParam } })}>← Назад</button>
             </div>
-            {traj?.goal && <div className={styles.header}>{traj.goal}</div>}
+            {traj?.goal && (
+              <>
+                <div className={styles.header}>{traj.goal}</div>
+                <button
+                  className={styles.metaLinkBtn}
+                  onClick={() => navigate('/my', { state: { trajectory: traj } })}
+                >
+                  В метаучебник
+                </button>
+              </>
+            )}
             <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
             <div className={styles.cards}>
               {(traj?.items ?? []).map((t, idx) => {

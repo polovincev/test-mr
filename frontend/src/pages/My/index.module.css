@@ -1,65 +1,197 @@
 .wrapper {
-  width: 100vw;
-  height: calc(100vh - 0px);
+    width: 100vw;
+    background: rgba(247, 249, 255, 1);
+    height: calc(100vh - 0px);
+}
+
+/* React Flow built-in controls customization */
+:global(.react-flow__controls) {
+  box-shadow: 0 12px 24px rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: row !important;
+}
+
+:global(.react-flow__controls-button) {
+  background: #FFFFFF !important;
+  border: 1px solid #E6E8F2 !important;
+  width: 40px !important;
+  height: 40px !important;
+}
+
+:global(.react-flow__controls-button:hover) {
+  background: #F5F6FF !important;
+}
+
+:global(.react-flow__controls svg) {
+  fill: #101828 !important;
 }
 
 .backButton {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  background: #fff;
-  cursor: pointer;
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    z-index: 10;
+    height: 48px;
+    padding: 12px 18px 12px 14px;
+    border-radius: var(--Medium, 16px);
+    background: var(--Surface-Primary, #FFF);
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 3.2px 0 rgba(202, 211, 238, 0.35);
+    color: var(--Text-Primary, #101828);
+    font-family: Onest;
+    font-size: 16px;
+    font-weight: 200;
+    line-height: 24px;
+    /* 150% */
+}
+
+.goalBlock {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 425px;
+    height: 70px;
+    z-index: 10;
+    background: #DBE5FF;
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.goalText {
+    text-align: center;
+    color: #101828;
+    font-family: Onest;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 20px;
+    /* 125% */
+}
+
+.levelFilterWrap {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 11;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.levelFilterBtn {
+    /* display: inline-flex; */
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0px 16px;
+    border-radius: var(--Medium, 12px);
+    background: #E4E6F7;
+    border: 2px solid #E4E6F7;
+    color: #101828;
+    font-family: Onest;
+    font-size: 16px;
+    font-weight: 300;
+    cursor: pointer;
+}
+
+.levelFilterBtn:hover {
+    background: #FFF;
+    border: 2px solid #503AE0;
+}
+
+.levelFilterLabel {
+    color: #7A87A1;
+    font-weight: 300;
+}
+
+.levelFilterValue {
+    font-weight: 500;
+}
+
+.levelCaret {
+    transition: transform .15s ease;
+}
+
+.levelCaretOpen {
+    transform: rotate(180deg);
+}
+
+.levelDropdown {
+    margin-top: 8px;
+    width: 220px;
+    background: #FFF;
+    border-radius: 16px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.levelItem {
+    width: 100%;
+    padding: 12px 16px;
+    font-family: Onest;
+    font-size: 16px;
+    color: #161A33;
+    border-radius: 16px;
+    cursor: pointer;
+}
+
+.levelItem:hover {
+    background: #F5F6FF;
+}
+
+.levelItemSelected {
+    color: #503AE0;
+    font-weight: 600;
 }
 
 .topicNode {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: #fff;
-  border: 1px solid #7562F0;
-  box-shadow: 0px 4px 8px 0px #503AE01F;
-  backdrop-filter: blur(13.536466598510742px);
-  border-radius: 16px;
-  min-width: 360px;
-  max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #7562F0;
+    box-shadow: 0px 4px 8px 0px #503AE01F;
+    backdrop-filter: blur(13.536466598510742px);
+    border-radius: 16px;
+    min-width: 360px;
+    max-width: 420px;
 }
 
 .topicImage {
-  width: 74px;
-  height: 74px;
-  object-fit: cover;
-  border-radius: 12px;
+    width: 74px;
+    height: 74px;
+    object-fit: cover;
+    border-radius: 12px;
 }
 
 .topicContent {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .topicBadge {
-  font-size: 12px;
-  color: #656C94;
-  font-weight: 200;
+    font-size: 12px;
+    color: #656C94;
+    font-weight: 200;
 }
 
 .topicTitle {
-  font-size: 20px;
-  line-height: 1.2;
-  font-weight: 600;
-  color: #101828;
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 600;
+    color: #101828;
 }
 
 .handleInvisible {
-  background: transparent;
-  border: none;
-  width: 8px;
-  height: 8px;
+    background: transparent;
+    border: none;
+    width: 8px;
+    height: 8px;
 }
-
-
