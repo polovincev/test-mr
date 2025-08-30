@@ -103,3 +103,4 @@ async def get_skills() -> SkillsResponse:  # noqa: D401
     except Exception as e:
         print("Error generating skills", e)
         return fallback
+

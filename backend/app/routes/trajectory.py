@@ -818,3 +818,4 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
     resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=generated)
     set_tasks(chat_id, cache_key, resp.dict())
     return resp
+
