@@ -216,7 +216,7 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
     <div
       style={{ overflowX: "auto" }}
       dangerouslySetInnerHTML={{ __html: html }}
-      className={"mdContent"}
+      className={styles.mdContent}
     />
   );
 };
