@@ -146,6 +146,7 @@ export interface GeneratedTask {
   questions_to_consider?: { question: string; answer?: string }[];
   tests?: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[];
   payload?: Record<string, unknown>;
+  passed?: boolean;
 }
 
 export interface GenerateTasksResponse {

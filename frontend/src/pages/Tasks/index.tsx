@@ -296,7 +296,16 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
             </div>
           ))}
         </div>
-        <button className={styles.testBtn} type="button" onClick={onCheck}>Проверить</button>
+        <div className={styles.footer}>
+          <button
+            className={styles.metaLinkBtn}
+            onClick={() => navigate('/my', { state: { trajectory: traj } })}
+          >
+            В метаучебник
+          </button>
+          <button className={styles.testBtn} type="button" onClick={onCheck}>Проверить</button>
+        </div>
+
       </div>
     );
   };
