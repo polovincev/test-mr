@@ -565,6 +565,7 @@ class GeneratedTask(BaseModel):
     # New fields for level 2 structured content
     questions_to_consider: list["QuestionsToConsider"] = Field(default_factory=list)
     tests: list["Tests"] = Field(default_factory=list)
+    passed: bool = Field(default=False)
 
 
 class QuestionsToConsider(BaseModel):
@@ -809,11 +810,12 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                     content_md=content_md_out,
                     questions_to_consider=q_consider,
                     tests=tests_out,
+                    passed=False,
                 )
             )
         else:
             # 3.0/4.0 keep legacy behavior
-            generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip()))
+            generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False))
 
     # sanitize content_md: remove lines like \n\n---\n\n (and with surrounding whitespace)
     import re as _re
@@ -826,5 +828,55 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
 
     resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=generated)
     set_tasks(chat_id, cache_key, resp.dict())
+    return resp
+
+
+class UpdateTaskPassedRequest(BaseModel):
+    chat_id: int
+    topic: str
+    index: int = Field(description="Zero-based task index in tasks array")
+    passed: bool
+
+
+@router.post("/tasks/passed")
+async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksResponse:
+    """Update 'passed' flag for a task in cached tasks for given chat/topic.
+
+    Reads tasks from context store (same cache as generate_tasks), updates flag, saves back and returns updated payload.
+    """
+    from app.repositories.context_store import get_tasks, set_tasks  # type: ignore
+
+    chat_id = int(req.chat_id)
+    topic = str(req.topic).strip()
+    cache_key = f"{topic}::L2"  # default fallback; below we try all levels if not found
+    cached = None
+    # try exact level keys first
+    for key in [f"{topic}::L2", f"{topic}::L3", f"{topic}::L4", topic]:
+        cached = get_tasks(chat_id, key)
+        if cached:
+            cache_key = key
+            break
+    if not isinstance(cached, dict):
+        # nothing cached yet
+        return GenerateTasksResponse(chat_id=chat_id, topic=topic, goal="", level=2, tasks=[])
+
+    try:
+        resp = GenerateTasksResponse(**cached)
+    except Exception:
+        return GenerateTasksResponse(chat_id=chat_id, topic=topic, goal="", level=2, tasks=[])
+
+    idx = max(0, min(req.index, len(resp.tasks) - 1)) if resp.tasks else 0
+    if resp.tasks:
+        try:
+            resp.tasks[idx].passed = bool(req.passed)
+        except Exception:
+            pass
+
+    # save back
+    try:
+        set_tasks(chat_id, cache_key, resp.dict())
+    except Exception:
+        pass
+
     return resp
 

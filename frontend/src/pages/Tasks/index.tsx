@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { generateTasks, type GeneratedTask, getTrajectory } from "../../services/api";
+import { generateTasks, type GeneratedTask, getTrajectory, updateTaskPassed } from "../../services/api";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMath from "remark-math";
@@ -217,7 +217,14 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             <button
                               type="button"
                               className={styles.testBtn}
-                              onClick={() => setSelected((s) => Math.min(s + 1, (tasks || []).length - 1))}
+                              onClick={async () => {
+                                try {
+                                  if (typeof chatId === 'number') {
+                                    await updateTaskPassed(chatId, finalTopic, selected, true);
+                                  }
+                                } catch {}
+                                setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                              }}
                             >
                               Далее
                             </button>
@@ -235,7 +242,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           <button
                             type="button"
                             className={styles.testBtn}
-                            onClick={() => {
+                            onClick={async () => {
+                              try {
+                                if (typeof chatId === 'number') {
+                                  await updateTaskPassed(chatId, finalTopic, selected, true);
+                                }
+                              } catch {}
                               if (tasks && selected < (tasks.length - 1)) {
                                 setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
                               }

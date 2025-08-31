@@ -166,4 +166,14 @@ export async function generateTasks(chatId: number, topic: string): Promise<Gene
   if (!res.ok) throw new Error("Failed to generate tasks");
   return (await res.json()) as GenerateTasksResponse;
 }
+
+export async function updateTaskPassed(chatId: number, topic: string, index: number, passed: boolean): Promise<GenerateTasksResponse> {
+  const res = await fetch(`${API_URL}/trajectory/tasks/passed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic, index, passed }),
+  });
+  if (!res.ok) throw new Error("Failed to update task passed status");
+  return (await res.json()) as GenerateTasksResponse;
+}
 // end
