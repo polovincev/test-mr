@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { generateTasks, type GeneratedTask } from "../../services/api";
+import { generateTasks, type GeneratedTask, getTrajectory } from "../../services/api";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMath from "remark-math";
@@ -29,6 +29,8 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const [tasks, setTasks] = useState<GeneratedTask[] | null>(null);
   const [selected, setSelected] = useState<number>(0);
   const processorRef = useRef<any>();
+  const testCheckRef = useRef<(() => void) | null>(null);
+  const [testFinished, setTestFinished] = useState(false);
   if (!processorRef.current) {
     processorRef.current = unified()
       .use(remarkParse)
@@ -107,7 +109,17 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
         });
       }
     } catch { /* ignore */ }
+    setTestFinished(false);
+    testCheckRef.current = null;
   }, [selected]);
+
+  useEffect(() => {
+    if (testFinished && contentRef.current) {
+      try {
+        contentRef.current.scrollTo({ top: contentRef.current.scrollHeight, behavior: "smooth" });
+      } catch { /* ignore */ }
+    }
+  }, [testFinished]);
 
   const current = tasks && tasks.length > 0 ? tasks[Math.min(selected, tasks.length - 1)] : null;
 
@@ -172,10 +184,67 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           </div>
                         </div>
                       )}
-                      <div className={styles.separator}></div>
+
                       {current.level === 2 && Array.isArray((current as any).tests) && (current as any).tests.length > 0 && (
-                        <TestsBlock key={selected} tests={(current as any).tests} />
+                        <TestsBlock
+                          key={selected}
+                          tests={(current as any).tests}
+                          onAttachCheckHandler={(fn) => { testCheckRef.current = fn; }}
+                          onChecked={() => setTestFinished(true)}
+                        />
                       )}
+                      <div className={styles.footer}>
+                        <button
+                          type="button"
+                          className={styles.toMyBtn}
+                          onClick={async () => {
+                            try {
+                              if (typeof chatId === "number") {
+                                const tr = await getTrajectory(chatId);
+                                navigate('/my', { state: { trajectory: tr } });
+                              } else {
+                                navigate('/my');
+                              }
+                            } catch {
+                              navigate('/my');
+                            }
+                          }}
+                        >
+                          В метаучебник
+                        </button>
+                        {Array.isArray((current as any).tests) && (current as any).tests.length > 0 && (
+                          testFinished && (tasks && selected < (tasks.length - 1)) ? (
+                            <button
+                              type="button"
+                              className={styles.testBtn}
+                              onClick={() => setSelected((s) => Math.min(s + 1, (tasks || []).length - 1))}
+                            >
+                              Далее
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.testBtn}
+                              onClick={() => { try { testCheckRef.current && testCheckRef.current(); } catch { } }}
+                            >
+                              Проверить
+                            </button>
+                          )
+                        )}
+                        {!(Array.isArray((current as any).tests) && (current as any).tests.length > 0) && (current.level === 3 || current.level === 4) && (
+                          <button
+                            type="button"
+                            className={styles.testBtn}
+                            onClick={() => {
+                              if (tasks && selected < (tasks.length - 1)) {
+                                setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                              }
+                            }}
+                          >
+                            Загрузить ответ
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -227,8 +296,8 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[] }>
-  = ({ tests }) => {
+const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void }>
+  = ({ tests, onAttachCheckHandler, onChecked }) => {
     const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
     const [checked, setChecked] = useState(false);
     const toggle = (qi: number, oi: number, single: boolean) => {
@@ -244,68 +313,68 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
         return next;
       });
     };
-    const onCheck = () => setChecked(true);
+    const onCheck = () => {
+      setChecked(true);
+      try { onChecked && onChecked(); } catch { /* ignore */ }
+    };
+    useEffect(() => {
+      try { onAttachCheckHandler && onAttachCheckHandler(() => onCheck()); } catch { }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const isCorrect = (qi: number): boolean => {
       const got = Array.from(answers[qi] ?? []); got.sort();
       const need = (tests[qi].correct ?? []).slice().sort();
       return got.length === need.length && got.every((v, i) => v === need[i]);
     };
     return (
-      <div style={{ marginTop: 24 }}>
-        <div className={styles.testsContainer}>
-          {tests.map((t, qi) => (
-            <div key={qi} className={styles.testItem}>
-              <div className={styles.testQuestion}>{t.question}</div>
-              <div className={styles.testChoiceHint}>
-                {(Array.isArray(t.correct) && t.correct.length === 1) ? "Выбери один вариант" : "Выбери несколько вариантов"}
-              </div>
-              <div className={styles.testOptions}>
-                {t.options.map((opt, oi) => {
-                  const selected = answers[qi]?.has(oi) ?? false;
-                  const single = Array.isArray(t.correct) && t.correct.length === 1;
-                  const optionCorrect = Array.isArray(t.correct) && t.correct.includes(oi);
-                  const classes = [styles.testOption];
-                  if (selected) classes.push(styles.testOptionSelected);
-                  if (checked && selected && optionCorrect) classes.push(styles.testOptionRight);
-                  if (checked && selected && !optionCorrect) classes.push(styles.testOptionWrong);
-                  return (
-                    <label key={oi} className={classes.join(" ")}>
-                      <input
-                        type={single ? "radio" : "checkbox"}
-                        name={`test-${qi}`}
-                        checked={selected}
-                        disabled={checked}
-                        onChange={() => { if (checked) return; toggle(qi, oi, single); }}
-                      />
-                      <span>{opt}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {checked && (
-                <div className={styles.testResult}>
-                  {t.explanation && (
-                    <div className={styles.explBlock}>
-                      <img className={styles.explIcon} src={lamp} alt="" />
-                      <div className={styles.explTitle}>Объяснение</div>
-                      <div className={styles.explText}>{t.explanation}</div>
-                    </div>
-                  )}
+      <>
+        <div className={styles.separator}></div>
+        <div style={{ marginTop: 24 }}>
+          <div className={styles.testsContainer}>
+            {tests.map((t, qi) => (
+              <div key={qi} className={styles.testItem}>
+                <div className={styles.testQuestion}>{t.question}</div>
+                <div className={styles.testChoiceHint}>
+                  {(Array.isArray(t.correct) && t.correct.length === 1) ? "Выбери один вариант" : "Выбери несколько вариантов"}
                 </div>
-              )}
-            </div>
-          ))}
+                <div className={styles.testOptions}>
+                  {t.options.map((opt, oi) => {
+                    const selected = answers[qi]?.has(oi) ?? false;
+                    const single = Array.isArray(t.correct) && t.correct.length === 1;
+                    const optionCorrect = Array.isArray(t.correct) && t.correct.includes(oi);
+                    const classes = [styles.testOption];
+                    if (selected) classes.push(styles.testOptionSelected);
+                    if (checked && selected && optionCorrect) classes.push(styles.testOptionRight);
+                    if (checked && selected && !optionCorrect) classes.push(styles.testOptionWrong);
+                    return (
+                      <label key={oi} className={classes.join(" ")}>
+                        <input
+                          type={single ? "radio" : "checkbox"}
+                          name={`test-${qi}`}
+                          checked={selected}
+                          disabled={checked}
+                          onChange={() => { if (checked) return; toggle(qi, oi, single); }}
+                        />
+                        <span>{opt}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {checked && (
+                  <div className={styles.testResult}>
+                    {t.explanation && (
+                      <div className={styles.explBlock}>
+                        <img className={styles.explIcon} src={lamp} alt="" />
+                        <div className={styles.explTitle}>Объяснение</div>
+                        <div className={styles.explText}>{t.explanation}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className={styles.footer}>
-          <button
-            className={styles.metaLinkBtn}
-            onClick={() => navigate('/my', { state: { trajectory: traj } })}
-          >
-            В метаучебник
-          </button>
-          <button className={styles.testBtn} type="button" onClick={onCheck}>Проверить</button>
-        </div>
-
-      </div>
+      </>
     );
   };

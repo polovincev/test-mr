@@ -311,7 +311,7 @@
 }
 
 .testBtn {
-    width: 160px;
+    width: 170px;
     height: 48px;
     min-width: 48px;
     padding: 8px 18px;
@@ -324,7 +324,7 @@
     color: var(--Text-Primary-Inverse, #FFF);
     text-align: center;
     font-family: Onest;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 400;
     line-height: 24px; /* 150% */
     border: none;
@@ -646,4 +646,32 @@
 
 .mdContent details li>p {
     margin: 0;
+}
+
+.actionsRow{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+}
+.toMyBtn{
+    appearance: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #3B6DF6;
+    font-size: 14px;
+    font-family: Onest;
+    cursor: pointer;
+}
+.toMyBtn:hover{ text-decoration: underline; }
+.checkBtn{
+    background: #503AE0;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-family: Onest;
+    font-size: 14px;
+    cursor: pointer;
 }
