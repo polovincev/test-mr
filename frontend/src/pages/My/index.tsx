@@ -270,6 +270,22 @@ const My: React.FC = () => {
     setEdges(computedEdges);
   }, [computedEdges, setEdges]);
 
+  // Fit viewport to show the whole map on mount and after graph changes
+  useEffect(() => {
+    if (rfRef.current) {
+      try { rfRef.current.fitView({ padding: 0.2, duration: 400, includeHiddenNodes: true } as any); } catch { /* ignore */ }
+    }
+  }, [computedNodes.length, computedEdges.length, loadingExpansions]);
+
+  // Defer fitView until after nodes/edges are rendered to DOM
+  useEffect(() => {
+    if (!rfRef.current) return;
+    const id = window.setTimeout(() => {
+      try { rfRef.current?.fitView({ padding: 0.2, duration: 300, includeHiddenNodes: true } as any); } catch { /* ignore */ }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [nodes.length, edges.length, loadingExpansions]);
+
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
   if (loadingExpansions) {
@@ -306,6 +322,9 @@ const My: React.FC = () => {
           edges={edges}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          fitViewOptions={{ padding: 0.2, includeHiddenNodes: true } as any}
+          onInit={(instance) => { rfRef.current = instance; try { instance.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ } }}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -315,7 +334,6 @@ const My: React.FC = () => {
               if (d && !d.noImage && typeof d.onOpen === 'function') d.onOpen();
             } catch { /* ignore */ }
           }}
-          fitView
         >
           <Background color="rgba(255, 255, 255, 0.6)" />
           <Controls position="bottom-left" showInteractive={false} />

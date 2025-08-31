@@ -412,6 +412,7 @@
 .modalFooter {
     display: flex;
     justify-content: flex-end;
+    gap: 10px;
     margin-top: 16px;
 }
 
@@ -419,6 +420,20 @@
     appearance: none;
     background: #503AE0;
     color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    height: 44px;
+    padding: 0 16px;
+    font-family: Onest;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.modalCtaSecondary {
+    appearance: none;
+    background: #F5F6FF;
+    color: #2F2354;
     border: none;
     border-radius: 12px;
     height: 44px;
