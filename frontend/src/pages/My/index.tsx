@@ -4,6 +4,7 @@ import { metaExpand } from "../../services/api";
 import ReactFlow, { Background, Controls, addEdge, useEdgesState, useNodesState, Connection, Edge, Node, Handle, Position, NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
+import LoaderOverlay from "../../components/LoaderOverlay";
 
 type TopicNodeData = {
   title: string;
@@ -92,6 +93,7 @@ const My: React.FC = () => {
   const chatIdParam = search.get("chat_id");
   const chatId = chatIdParam ? Number(chatIdParam) : (location.state as any)?.chatId ? Number((location.state as any)?.chatId) : undefined;
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
+  const [loadingExpansions, setLoadingExpansions] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
@@ -110,12 +112,16 @@ const My: React.FC = () => {
     const run = async () => {
       try {
         if (typeof chatId === "number") {
+          if (!ignore) setLoadingExpansions(true);
           const resp = await metaExpand(chatId);
           const map: Record<string, string[]> = {};
           (resp.items || []).forEach((it) => { map[it.title] = it.expansions || []; });
           if (!ignore) setExpansions(map);
         }
       } catch { /* ignore */ }
+      finally {
+        if (!ignore) setLoadingExpansions(false);
+      }
     };
     run();
     return () => { ignore = true; };
@@ -265,6 +271,10 @@ const My: React.FC = () => {
   }, [computedEdges, setEdges]);
 
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
+
+  if (loadingExpansions) {
+    return <LoaderOverlay text="Загружаю расширения…" />;
+  }
 
   return (
     <>
