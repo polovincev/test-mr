@@ -276,6 +276,7 @@
     background: linear-gradient(0deg, #E8FAF2 0%, #E8FAF2 100%), #FFF;
     border: 1px solid #E8FAF2;
 }
+
 /* success icon on selected option */
 .testOptionSelected::after {
     content: "";
@@ -358,6 +359,7 @@
     letter-spacing: -0.1px;
     cursor: pointer;
     position: relative;
+    padding-right: 16px;
     /* padding-right: 24px; space for custom arrow */
 }
 
@@ -452,11 +454,6 @@
     border-radius: 50%;
 }
 
-/* .testOptions input[type="checkbox"]:checked::after,
-.testOptions input[type="radio"]:checked::after {
-    transform: scale(1);
-    border: 1.5px solid var(--border-border-default, #E4E6F7);
-} */
 
 /* Improve click target spacing */
 .testOption span {
@@ -511,7 +508,8 @@
     font-size: 18px;
     font-style: normal;
     font-weight: 500;
-    line-height: 24px; /* 133.333% */
+    line-height: 24px;
+    /* 133.333% */
     letter-spacing: -0.1px;
     margin-bottom: 8px;
 }
@@ -525,6 +523,97 @@
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
-    line-height: 20px; /* 142.857% */
+    line-height: 20px;
+    /* 142.857% */
     width: 93%;
+}
+
+/* HTML <details>/<summary> accordions inside markdown */
+.mdContent details {
+    background-color: #F5F6FF;
+    margin: 12px 0;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.mdContent details>summary {
+    overflow: hidden;
+    color: var(--text-text-default, #161A33);
+    text-overflow: ellipsis;
+    font-family: Onest;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 24px;
+    letter-spacing: -0.1px;
+    cursor: pointer;
+    position: relative;
+    list-style: none;
+    padding-right: 16px;
+}
+
+.mdContent details>summary::-webkit-details-marker {
+    display: none;
+}
+
+.mdContent details>summary::after {
+    content: "";
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid #161A33;
+    border-bottom: 2px solid #161A33;
+    transition: transform 0.15s ease;
+}
+
+.mdContent details[open]>summary::after {
+    transform: translateY(-50%) rotate(-135deg);
+}
+
+.mdContent details>*:not(summary) {
+    color: var(--text-text-secondary, #656C94);
+
+    /* Body/Small */
+    font-family: Onest;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+    /* 142.857% */
+    margin-top: 8px;
+}
+
+/* Lists inside details */
+.mdContent details ul,
+.mdContent details ol {
+    margin: 8px 0 12px 18px;
+    padding-left: 0;
+}
+
+.mdContent details ul {
+    list-style: disc;
+}
+
+.mdContent details ol {
+    list-style: decimal;
+}
+
+.mdContent details li+li {
+    margin-top: 4px;
+}
+
+.mdContent details li {
+    /* Body/Small */
+    font-family: Onest;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+    color: var(--text-text-secondary, #656C94);
+}
+
+.mdContent details li>p {
+    margin: 0;
 }

@@ -815,6 +815,15 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
             # 3.0/4.0 keep legacy behavior
             generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip()))
 
+    # sanitize content_md: remove lines like \n\n---\n\n (and with surrounding whitespace)
+    import re as _re
+    for t in generated:
+        try:
+            if isinstance(t.content_md, str):
+                t.content_md = _re.sub(r"\n\s*---\s*\n", "\n", t.content_md)
+        except Exception:
+            pass
+
     resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=generated)
     set_tasks(chat_id, cache_key, resp.dict())
     return resp

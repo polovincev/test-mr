@@ -8,6 +8,7 @@ import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
 import rehypeStringify from "rehype-stringify";
 import styles from "./index.module.css";
 import lamp from "../../icon/lamp.png";
@@ -33,9 +34,10 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
       .use(remarkParse)
       .use(remarkGfm)
       .use(remarkMath)
-      .use(remarkRehype)
+      .use(remarkRehype, { allowDangerousHtml: true })
+      .use(rehypeRaw)
       .use(rehypeKatex)
-      .use(rehypeStringify);
+      .use(rehypeStringify, { allowDangerousHtml: true });
   }
   // derive topic from state if not query
   const topicState = (location.state as any)?.item?.title;
