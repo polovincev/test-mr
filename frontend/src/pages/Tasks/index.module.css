@@ -80,7 +80,7 @@
     cursor: pointer;
 }
 
-
+.sidebarItem{ position: relative; }
 
 .sidebarItem:hover {
     font-weight: 600;
@@ -108,6 +108,20 @@
     /* triangle color */
     border-top: 5px solid transparent;
     border-bottom: 5px solid transparent;
+}
+
+.sidebarOk {
+    position: absolute;
+    left: -28px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: -2px;
+    background: url('../../icon/ok.svg') no-repeat center / contain;
 }
 
 .content {

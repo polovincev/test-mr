@@ -140,6 +140,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                     className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
                     onClick={() => setSelected(i)}
                   >
+                    {t.passed ? <span className={styles.sidebarOk} /> : null}
                     {t.title}
                   </li>
                 ))}
@@ -223,6 +224,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                     await updateTaskPassed(chatId, finalTopic, selected, true);
                                   }
                                 } catch {}
+                                setTasks((prev) => {
+                                  if (!prev) return prev;
+                                  const next = prev.slice();
+                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                  return next;
+                                });
                                 setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
                               }}
                             >
@@ -248,6 +255,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                   await updateTaskPassed(chatId, finalTopic, selected, true);
                                 }
                               } catch {}
+                              setTasks((prev) => {
+                                if (!prev) return prev;
+                                const next = prev.slice();
+                                if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                return next;
+                              });
                               if (tasks && selected < (tasks.length - 1)) {
                                 setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
                               }
