@@ -32,14 +32,14 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
 
   return (
     <>
-      <div className={styles.topicNode} onClick={(e) => {
+      <div className={`${styles.topicNode} ${data?.noImage ? styles.topicNodeCompact : ""}`} onClick={(e) => {
         e.stopPropagation();
         try { data?.onOpen && data.onOpen(); } catch { /* ignore */ }
       }}>
         {!data?.noImage && imageUrl && <img src={imageUrl} alt="" className={styles.topicImage} />}
         <div className={styles.topicContent}>
           <div className={styles.topicBadge}>Тема</div>
-          <div className={styles.topicTitle}>{title}</div>
+          <div className={data?.noImage ? styles.topicTitleSmall : styles.topicTitle}>{title}</div>
         </div>
         <Handle type="target" position={positionForHandles} className={styles.handleInvisible} />
         <Handle type="source" position={positionForHandles} className={styles.handleInvisible} />
@@ -270,6 +270,12 @@ const My: React.FC = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={(_, node) => {
+            try {
+              const d: any = node?.data;
+              if (d && !d.noImage && typeof d.onOpen === 'function') d.onOpen();
+            } catch { /* ignore */ }
+          }}
           fitView
         >
           <Background color="rgba(255, 255, 255, 0.6)" />

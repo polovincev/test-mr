@@ -158,10 +158,17 @@
     border: 1px solid #7562F0;
     box-shadow: 0px 4px 8px 0px #503AE01F;
     backdrop-filter: blur(13.536466598510742px);
-    border-radius: var(--node-radius, 16px);
+    border-radius: 16px;
     min-width: 360px;
     max-width: 420px;
     position: relative;
+}
+
+.topicNodeCompact{
+  padding: 10px;
+  gap: 8px;
+  min-width: 200px;
+  max-width: 340px;
 }
 
 .topicImage {
@@ -188,6 +195,12 @@
     line-height: 1.2;
     font-weight: 600;
     color: #101828;
+}
+
+.topicTitleSmall{
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
 }
 
 .nodeTasksBox {
@@ -290,3 +303,128 @@
 }
 .flowControlsWrap label{ font-family: Onest; font-size: 12px; color:#656C94; margin-right: 4px; }
 .flowControlsWrap input{ vertical-align: middle; }
+
+/* --- Modal styles --- */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 12, 26, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 24px;
+    z-index: 1000;
+}
+
+.modal {
+    width: 720px;
+    max-width: 92vw;
+    max-height: 86vh;
+    overflow: auto;
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0px 12px 32px rgba(0, 0, 0, 0.15);
+    padding: 20px 20px 16px 20px;
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.modalBreadcrumb {
+    color: #656C94;
+    font-family: Onest;
+    font-size: 12px;
+    font-weight: 300;
+}
+
+.modalTitle {
+    color: #161A33;
+    font-family: Onest;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 4px;
+}
+
+.modalClose {
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    color: #2F2354;
+    cursor: pointer;
+}
+
+.modalProgress {
+    color: #656C94;
+    font-family: Onest;
+    font-size: 14px;
+    font-weight: 400;
+    margin: 8px 0 12px 0;
+}
+
+.modalIntro {
+    color: #161A33;
+    font-family: Onest;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 300;
+    margin: 6px 0 12px 0;
+}
+
+.modalLevelTitle {
+    color: #161A33;
+    font-family: Onest;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 12px;
+}
+
+.modalList {
+    margin: 8px 0 12px 16px;
+    padding-left: 6px;
+    color: #2F2354;
+    font-family: Onest;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 300;
+}
+
+.modalBadge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #E4E6F7;
+    color: #503AE0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.modalFooter {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.modalCta {
+    appearance: none;
+    background: #503AE0;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    height: 44px;
+    padding: 0 16px;
+    font-family: Onest;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
