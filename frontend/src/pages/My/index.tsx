@@ -98,6 +98,7 @@ const My: React.FC = () => {
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
   const levelRef = useRef<HTMLDivElement | null>(null);
+  const rfRef = useRef<any>(null);
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!levelRef.current) return;

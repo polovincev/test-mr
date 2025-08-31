@@ -239,7 +239,24 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             <button
                               type="button"
                               className={styles.testBtn}
-                              onClick={() => { try { testCheckRef.current && testCheckRef.current(); } catch { } }}
+                              onClick={async () => {
+                                try { testCheckRef.current && testCheckRef.current(); } catch { }
+                                try {
+                                  const title = String((current as any)?.title || "").toLowerCase();
+                                  const isL2 = Number((current as any)?.level) === 2;
+                                  const isLast = Array.isArray(tasks) && selected === (tasks.length - 1);
+                                  const isTest = title.includes("тест");
+                                  if (isL2 && isLast && isTest && typeof chatId === 'number') {
+                                      await updateTaskPassed(chatId, finalTopic, selected, true);
+                                      setTasks((prev) => {
+                                        if (!prev) return prev;
+                                        const next = prev.slice();
+                                        if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                        return next;
+                                      });
+                                  }
+                                } catch {}
+                              }}
                             >
                               Проверить
                             </button>

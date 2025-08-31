@@ -280,13 +280,14 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
     datasets: series.map((s, i) => ({
       label: s.name,
       data: s.data,
+      draggable: !!s.draggable,
       // custom per-series node info for nodeHoverTooltip plugin
       nodeInfo: s.nodeInfo,
       // Fill only for user (draggable) dataset, keep AI without fill
       backgroundColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
-      // Outline the area for draggable dataset (same color as fill)
-      borderColor: s.draggable ? (s.color + "22") : "rgba(0,0,0,0)",
-      borderWidth: s.draggable ? 4 : 0,
+      // Outline: draggable has thick, non-draggable gets thin visible line (except points-only first dataset)
+      borderColor: s.draggable ? (s.color + "22") : s.color,
+      borderWidth: s.draggable ? 4 : ((pointsOnly && i === 0) ? 0 : 2),
       // points
       pointBackgroundColor: s.draggable ? "#FFFFFF" : s.color,
       pointBorderColor: s.draggable ? s.color : s.color,
@@ -323,8 +324,10 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         },
         // allow dragging only for datasets explicitly marked as draggable
         onDragStart: function (this: any, _e: any, datasetIndex: number) {
-          const ds = series?.[datasetIndex];
-          return !!ds?.draggable;
+          try {
+            const liveDs = this?.data?.datasets?.[datasetIndex];
+            return !!(liveDs && liveDs.draggable);
+          } catch { return false; }
         },
         onDragEnd: function (this: any, _e: any, datasetIndex: number) {
           try {
@@ -345,7 +348,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ labels, series, size = 420, lab
         gridLineColor: "rgba(47, 35, 84, 0.2)",
       },
       clickSetLevel: {
-        onSet: (datasetIndex: number, arr: number[]) => { if (onChange) onChange(datasetIndex, arr); }
+        onSet: (_datasetIndex: number, arr: number[]) => { if (onChange) onChange(1, arr); }
       } as any,
     },
     scales: {

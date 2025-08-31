@@ -817,6 +817,62 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
             # 3.0/4.0 keep legacy behavior
             generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False))
 
+    # After generating all tasks, append a synthetic Level 2 test built from 5 random Level 2 tests
+    try:
+        import random as _random
+        # collect all tests from already generated level-2 tasks
+        level2_tests: list[Tests] = []
+        for t in generated:
+            try:
+                if int(getattr(t, "level", 0)) == 2 and isinstance(t.tests, list) and t.tests:
+                    for q in t.tests:
+                        if isinstance(q, Tests):
+                            level2_tests.append(q)
+                        elif isinstance(q, dict):
+                            # tolerate dict shape
+                            tq = str(q.get("question", "")).strip()
+                            opts = q.get("options") or []
+                            corr = q.get("correct") or []
+                            hint = q.get("hint") if isinstance(q.get("hint"), str) else None
+                            expl = q.get("explanation") if isinstance(q.get("explanation"), str) else None
+                            if tq and isinstance(opts, list):
+                                level2_tests.append(Tests(question=tq, options=[str(o) for o in opts], correct=[int(x) for x in corr if isinstance(x, (int, float, str)) and str(x).strip().isdigit()], hint=hint, explanation=expl))
+            except Exception:
+                continue
+        # choose up to 5 random unique tests
+        if level2_tests:
+            try:
+                selected = _random.sample(level2_tests, k=min(5, len(level2_tests)))
+            except Exception:
+                selected = level2_tests[:5]
+            if selected:
+                test_task = GeneratedTask(
+                    title="Тест по базовому уровню",
+                    level=2,
+                    content_md="### Тест по теме \n\nОтветь на вопросы и проверь, освоена ли тема на базовый уровень",
+                    questions_to_consider=[],
+                    tests=selected,
+                    passed=False,
+                )
+                # find the first index where level >= 3 to insert before it
+                insert_idx = None
+                for idx, t in enumerate(generated):
+                    try:
+                        if int(getattr(t, "level", 0)) >= 3:
+                            insert_idx = idx
+                            break
+                    except Exception:
+                        continue
+                if insert_idx is None:
+                    generated.append(test_task)
+                else:
+                    try:
+                        generated.insert(insert_idx, test_task)
+                    except Exception:
+                        generated.append(test_task)
+    except Exception:
+        pass
+
     # sanitize content_md: remove lines like \n\n---\n\n (and with surrounding whitespace)
     import re as _re
     for t in generated:
@@ -875,6 +931,90 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
     # save back
     try:
         set_tasks(chat_id, cache_key, resp.dict())
+    except Exception:
+        pass
+
+    # --- Progression rules → update user_level in trajectory stored in context ---
+    try:
+        from app.repositories.context_store import get_context, set_trajectory  # type: ignore
+        ctx = get_context(chat_id)
+        tr = ctx.get("trajectory") if isinstance(ctx, dict) else None
+        # normalize trajectory model
+        if isinstance(tr, dict):
+            try:
+                tr = TrajectoryResponse(**tr)
+            except Exception:
+                tr = None
+        if tr is not None and isinstance(tr, TrajectoryResponse):
+            # gather all cached tasks for this topic across possible keys
+            from app.repositories.context_store import get_tasks as _get_tasks  # type: ignore
+            all_tasks: list[GeneratedTask] = []
+            for k in [f"{req.topic}::L2", f"{req.topic}::L3", f"{req.topic}::L4", f"{req.topic}"]:
+                cached_any = _get_tasks(chat_id, k)
+                if isinstance(cached_any, dict):
+                    try:
+                        gtr = GenerateTasksResponse(**cached_any)
+                        if isinstance(gtr.tasks, list):
+                            for t in gtr.tasks:
+                                # ensure each has level
+                                try:
+                                    lvl = int(getattr(t, "level", 0))
+                                except Exception:
+                                    lvl = 0
+                                if lvl in (2, 3, 4):
+                                    all_tasks.append(t)
+                    except Exception:
+                        pass
+
+            # compute progression
+            any_passed = any(bool(getattr(t, "passed", False)) for t in all_tasks)
+            def level_passed(L: int) -> tuple[int, int]:
+                sel = [t for t in all_tasks if int(getattr(t, "level", 0)) == L]
+                total = len(sel)
+                done = sum(1 for t in sel if bool(getattr(t, "passed", False)))
+                return done, total
+
+            l2_done, l2_total = level_passed(2)
+            l3_done, l3_total = level_passed(3)
+            l4_done, l4_total = level_passed(4)
+            # special: level-2 test passed
+            l2_test_passed = any(
+                int(getattr(t, "level", 0)) == 2
+                and isinstance(getattr(t, "title", None), str)
+                and "тест по базовому уровню" in str(getattr(t, "title")).lower()
+                and bool(getattr(t, "passed", False))
+                for t in all_tasks
+            )
+
+            new_user_level: float = 0.1
+            if any_passed:
+                new_user_level = 1
+            # rule 1: all L2 or L2 test
+            if (l2_total > 0 and l2_done == l2_total) or l2_test_passed:
+                new_user_level = max(new_user_level, 2)
+            # rule 2: L2 complete AND all L3
+            if ((l2_total > 0 and l2_done == l2_total) or l2_test_passed) and (l3_total > 0 and l3_done == l3_total):
+                new_user_level = max(new_user_level, 3)
+            # rule 3: L2 complete AND all L3 AND all L4
+            if ((l2_total > 0 and l2_done == l2_total) or l2_test_passed) and (l3_total > 0 and l3_done == l3_total) and (l4_total > 0 and l4_done == l4_total):
+                new_user_level = max(new_user_level, 4)
+
+            # update in trajectory for matching topic
+            try:
+                for it in tr.items:
+                    if str(it.title).strip() == str(req.topic).strip():
+                        try:
+                            it.skills.user_level = float(new_user_level)
+                        except Exception:
+                            pass
+                        break
+            except Exception:
+                pass
+
+            try:
+                set_trajectory(chat_id, tr)
+            except Exception:
+                pass
     except Exception:
         pass
 

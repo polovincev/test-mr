@@ -274,6 +274,12 @@ const Trajectory = () => {
                     ),
                   },
                   {
+                    name: "Достигнутый уровень",
+                    data: traj.items.map((t) => (typeof t.skills.user_level === "number" ? t.skills.user_level : 0)),
+                    color: "#37C5F0",
+                    draggable: false,
+                  },
+                  {
                     name: "Мой уровень",
                     data: traj.items.map((t) => (typeof t.skills.goal_level === "number" ? t.skills.goal_level : 0.1)),
                     color: "#503AE0",
@@ -282,30 +288,39 @@ const Trajectory = () => {
                 ]}
                 pointsOnly={useAI}
                 size={420}
-                onChange={(datasetIndex, data) => {
-                  if (datasetIndex === 1) {
-                    const normalized = data.map((v) => {
-                      const num = Number(v);
-                      if (num < 1) return 0.1;
-                      const rounded = Math.round(num);
-                      return Math.max(1, Math.min(4, rounded));
-                    });
-                    // update local traj copy for immediate UI
-                    setTraj((prev) => {
-                      if (!prev) return prev;
-                      const next: TrajectoryResponse = { ...prev, items: prev.items.map((it, i) => ({
-                        ...it,
-                        skills: { ...it.skills, goal_level: normalized[i] }
-                      })) };
-                      return next;
-                    });
-                    // persist to backend context
-                    if (typeof chatId === "number") {
-                      updateGoalLevels(chatId, normalized).catch(() => void 0);
-                    }
+                onChange={(_datasetIndex, data) => {
+                  // Only draggable dataset can trigger this, so just persist the array
+                  const normalized = data.map((v) => {
+                    const num = Number(v);
+                    if (num < 1) return 0.1;
+                    const rounded = Math.round(num);
+                    return Math.max(1, Math.min(4, rounded));
+                  });
+                  // update local traj copy for immediate UI
+                  setTraj((prev) => {
+                    if (!prev) return prev;
+                    const next: TrajectoryResponse = { ...prev, items: prev.items.map((it, i) => ({
+                      ...it,
+                      skills: { ...it.skills, goal_level: normalized[i] }
+                    })) };
+                    return next;
+                  });
+                  // persist to backend context
+                  if (typeof chatId === "number") {
+                    updateGoalLevels(chatId, normalized).catch(() => void 0);
                   }
                 }}
               />
+              <div style={{ marginTop: 10, display: "flex", gap: 14, alignItems: "center", fontFamily: "Onest", fontSize: 13, color: "#656C94" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 2, background: "#37C5F0", opacity: 0.6, border: "1px solid #37C5F0" }}></span>
+                  достигнутый уровень
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 2, background: "#503AE022", border: "1px solid #503AE022" }}></span>
+                  целевой уровень
+                </span>
+              </div>
             </div>
           )}
         </div>
