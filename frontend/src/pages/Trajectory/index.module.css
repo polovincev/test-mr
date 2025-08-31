@@ -70,8 +70,21 @@
     font-weight: 300;
 }
 
-.switch { position: relative; display:inline-block; width:32px; height:20px;     cursor: pointer; }
-.switchBg { position:absolute; inset:0; background:#D1D5DB; border-radius:999px; transition: background 0.2s; }
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.switchBg {
+    position: absolute;
+    inset: 0;
+    background: #D1D5DB;
+    border-radius: 999px;
+    transition: background 0.2s;
+}
 
 .switchInput {
     position: absolute;
@@ -93,14 +106,16 @@
     border-radius: 50%;
     transform: translateY(-50%);
     transition: left 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-.switchInput:checked + .switchBg + .switchKnob {
+.switchInput:checked+.switchBg+.switchKnob {
     left: 14px;
 }
 
-.switchInput:checked + .switchBg { background:#503AE0; }
+.switchInput:checked+.switchBg {
+    background: #503AE0;
+}
 
 .switchLabel {
     user-select: none;
@@ -127,7 +142,7 @@
     font-family: "Onest";
 }
 
-.goalBlock{
+.goalBlock {
     width: 100%;
     background: #FAFBFF;
     border: 1px solid #E6E8F2;
@@ -136,7 +151,7 @@
     margin: 6px 0 16px 0;
 }
 
-.goalText{
+.goalText {
     color: #161A33;
     font-family: "Onest";
     font-size: 16px;
@@ -156,6 +171,18 @@
     font-family: "Onest";
     cursor: pointer;
     text-decoration: none;
+}
+
+.progressRow {
+    color: var(--text-text-secondary, #656C94);
+    font-family: Onest;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 24px;
+    /* 150% */
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
 }
 
 .title {
@@ -232,8 +259,9 @@
 }
 
 .card:hover img {
-    transform: scale(1.1); /* увеличение картинки при наведении */
-  }
+    transform: scale(1.1);
+    /* увеличение картинки при наведении */
+}
 
 .cardBody {
     padding: 16px;
@@ -280,15 +308,34 @@
     z-index: 1;
 }
 
-.overlay .levelCard:nth-child(1) { transform: rotate(2deg); }
-.overlay .levelCard:nth-child(2) { transform: translateY(-15px) translateX(10px) rotate(-4deg); z-index: 3; animation-delay: 0.2s; }
-.overlay .levelCard:nth-child(3) { transform: translateY(-20px) translateX(-2px) rotate(2deg); z-index: 2; animation-delay: 0.4s; }
+.overlay .levelCard:nth-child(1) {
+    transform: rotate(2deg);
+}
 
-.overlay .levelCard:hover { z-index: 10; }
+.overlay .levelCard:nth-child(2) {
+    transform: translateY(-15px) translateX(10px) rotate(-4deg);
+    z-index: 3;
+    animation-delay: 0.2s;
+}
+
+.overlay .levelCard:nth-child(3) {
+    transform: translateY(-20px) translateX(-2px) rotate(2deg);
+    z-index: 2;
+    animation-delay: 0.4s;
+}
+
+.overlay .levelCard:hover {
+    z-index: 10;
+}
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .levelTitle {

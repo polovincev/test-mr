@@ -880,3 +880,165 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
 
     return resp
 
+
+class MetaExpandRequest(BaseModel):
+    chat_id: int
+
+
+class MetaExpandItem(BaseModel):
+    title: str
+    expansions: list[str] = Field(default_factory=list)
+
+
+class MetaExpandResponse(BaseModel):
+    chat_id: int
+    items: list[MetaExpandItem] = Field(default_factory=list)
+
+
+@router.post("/meta_expand", response_model=MetaExpandResponse)
+async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
+    """Generate expanded meta description based on trajectory items' titles.
+
+    - Reads trajectory from context by chat_id
+    - Builds a comma-separated list of item titles
+    - Calls LLM with system prompt from meta_expand_system.txt and the user prompt as that list
+    - Caches result in context (ctx["meta_expand"]) and returns cached value if present
+    """
+    from app.repositories.context_store import get_context  # type: ignore
+    from app.prompts.loader import load_prompt  # type: ignore
+    import os
+
+    chat_id = int(req.chat_id)
+    ctx = get_context(chat_id)
+    cached = None
+    if isinstance(ctx, dict):
+        cached = ctx.get("meta_expand")
+        if isinstance(cached, dict) and int(cached.get("chat_id", 0)) == chat_id and isinstance(cached.get("items"), list):
+            try:
+                items_cached = [MetaExpandItem(**it) if isinstance(it, dict) else None for it in cached.get("items", [])]
+                items_cached = [it for it in items_cached if it is not None]
+                return MetaExpandResponse(chat_id=chat_id, items=items_cached)  # type: ignore[arg-type]
+            except Exception:
+                pass
+
+    trajectory = ctx.get("trajectory") if isinstance(ctx, dict) else None
+    titles: list[str] = []
+    try:
+        if trajectory and isinstance(trajectory, dict):
+            items = trajectory.get("items") or []
+            for it in items:
+                try:
+                    title = str(it.get("title", "")).strip()
+                    if title:
+                        titles.append(title)
+                except Exception:
+                    continue
+        elif trajectory and hasattr(trajectory, "items"):
+            for it in getattr(trajectory, "items", []):
+                try:
+                    title = str(getattr(it, "title", "")).strip()
+                    if title:
+                        titles.append(title)
+                except Exception:
+                    continue
+    except Exception:
+        titles = []
+
+    # provide titles as JSON array to encourage structured response
+    try:
+        import json as _json
+        user_prompt = _json.dumps({"titles": titles}, ensure_ascii=False)
+    except Exception:
+        user_prompt = ", ".join(titles)
+
+    system_prompt = load_prompt("meta_expand_system")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return MetaExpandResponse(chat_id=chat_id, items=[])
+
+    try:
+        from openai import OpenAI  # type: ignore
+        client = OpenAI(api_key=api_key)
+        comp = client.chat.completions.create(
+            model="gpt-5-chat-latest",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = comp.choices[0].message.content if comp.choices else ""
+    except Exception:
+        content = ""
+
+    # try to parse into structured items [{title, expansions[]}]
+    items_out: list[MetaExpandItem] = []
+    try:
+        import json as _json, re as _re
+        txt = str(content or "").strip()
+        # strip fenced code if present
+        m = _re.search(r"```(?:json)?\s*([\s\S]*?)```", txt, flags=_re.IGNORECASE)
+        if m:
+            txt = m.group(1).strip()
+        # find JSON array or object with items
+        if txt.startswith("{") or txt.startswith("["):
+            data = _json.loads(txt)
+            arr = None
+            if isinstance(data, dict):
+                # format A: { items: [{ title, expansions: [] }, ...] }
+                if isinstance(data.get("items"), list):
+                    arr = data["items"]
+                # format B: { expansions: { "Title": [..], ... } }
+                elif isinstance(data.get("expansions"), dict):
+                    exp_map = data.get("expansions")
+                    for k, v in (exp_map or {}).items():
+                        title = str(k).strip()
+                        if not title:
+                            continue
+                        exps = v if isinstance(v, list) else []
+                        exps = [str(x).strip() for x in exps if str(x).strip()]
+                        items_out.append(MetaExpandItem(title=title, expansions=exps))
+                # format C: direct dict { "Title": [..] }
+                else:
+                    simple_map = data
+                    ok = True
+                    for k, v in simple_map.items():
+                        if not isinstance(v, list):
+                            ok = False
+                            break
+                    if ok:
+                        for k, v in simple_map.items():
+                            title = str(k).strip()
+                            exps = [str(x).strip() for x in v if str(x).strip()]
+                            if title:
+                                items_out.append(MetaExpandItem(title=title, expansions=exps))
+            elif isinstance(data, list):
+                arr = data
+            if isinstance(arr, list):
+                for it in arr:
+                    if isinstance(it, dict):
+                        title = str(it.get("title", "")).strip()
+                        exps = it.get("expansions")
+                        if isinstance(exps, list):
+                            exps = [str(x).strip() for x in exps if str(x).strip()]
+                        else:
+                            exps = []
+                        if title:
+                            items_out.append(MetaExpandItem(title=title, expansions=exps))
+        # fallback: map each input title to empty expansions
+        if not items_out and titles:
+            items_out = [MetaExpandItem(title=t, expansions=[]) for t in titles]
+    except Exception:
+        items_out = [MetaExpandItem(title=t, expansions=[] ) for t in titles]
+
+    # save to context
+    try:
+        from app.repositories.context_store import get_context as _get_ctx  # type: ignore
+        c = _get_ctx(chat_id)
+        if isinstance(c, dict):
+            c["meta_expand"] = {"chat_id": chat_id, "items": [it.dict() for it in items_out]}
+    except Exception:
+        pass
+
+    return MetaExpandResponse(chat_id=chat_id, items=items_out)
+

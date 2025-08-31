@@ -155,7 +155,7 @@ const Trajectory = () => {
                 <div className={styles.header}>{traj.goal}</div>
                 <button
                   className={styles.metaLinkBtn}
-                  onClick={() => navigate('/my', { state: { trajectory: traj } })}
+                  onClick={() => navigate('/my', { state: { trajectory: traj, chatId } })}
                 >
                   В метаучебник
                 </button>

@@ -176,4 +176,18 @@ export async function updateTaskPassed(chatId: number, topic: string, index: num
   if (!res.ok) throw new Error("Failed to update task passed status");
   return (await res.json()) as GenerateTasksResponse;
 }
+
+// -------- Meta Expand API --------
+export interface MetaExpandItem { title: string; expansions: string[] }
+export interface MetaExpandResponse { chat_id: number; items: MetaExpandItem[] }
+
+export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
+  const res = await fetch(`${API_URL}/trajectory/meta_expand`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId }),
+  });
+  if (!res.ok) throw new Error("Failed to expand meta");
+  return (await res.json()) as MetaExpandResponse;
+}
 // end

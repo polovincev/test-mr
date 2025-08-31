@@ -202,7 +202,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             try {
                               if (typeof chatId === "number") {
                                 const tr = await getTrajectory(chatId);
-                                navigate('/my', { state: { trajectory: tr } });
+                                navigate('/my', { state: { trajectory: tr, chatId } });
                               } else {
                                 navigate('/my');
                               }

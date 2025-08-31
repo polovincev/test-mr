@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { metaExpand } from "../../services/api";
 import ReactFlow, { Background, Controls, addEdge, useEdgesState, useNodesState, Connection, Edge, Node, Handle, Position, NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
@@ -11,11 +12,12 @@ type TopicNodeData = {
   levelCounts?: { total: number; l2: number; l3: number; l4: number };
   goalLevel?: number; // 2|3|4 when selected, otherwise undefined
   onOpen?: () => void;
+  noImage?: boolean;
 };
 
 const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
   const title = data?.title || "Тема";
-  const imageUrl = data?.imageUrl || new URL("../../icon/profile.png", import.meta.url).href;
+  const imageUrl = data?.imageUrl; // for expansion nodes we intentionally omit image
   const side: "left" | "right" = data?.handleSide || "left";
   const positionForHandles = side === "left" ? Position.Left : Position.Right;
 
@@ -34,7 +36,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
         e.stopPropagation();
         try { data?.onOpen && data.onOpen(); } catch { /* ignore */ }
       }}>
-        <img src={imageUrl} alt="" className={styles.topicImage} />
+        {!data?.noImage && imageUrl && <img src={imageUrl} alt="" className={styles.topicImage} />}
         <div className={styles.topicContent}>
           <div className={styles.topicBadge}>Тема</div>
           <div className={styles.topicTitle}>{title}</div>
@@ -42,25 +44,26 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
         <Handle type="target" position={positionForHandles} className={styles.handleInvisible} />
         <Handle type="source" position={positionForHandles} className={styles.handleInvisible} />
       </div>
-      {data?.levelCounts && (
+      {data?.levelCounts && !data?.noImage && (
         <div className={styles.nodeTasksBox}>
-          <div className={styles.nodeTasksHeader}>Задания  <span className={styles.nodeTasksNum}>{data.levelCounts.total}</span></div>
+          <div className={styles.nodeTasksHeader}>Задания <span className={styles.nodeTasksNum}>{data.levelCounts.total}</span></div>
           <div className={styles.nodeChipRow}>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 2 ? styles.nodeChipActive : ""}`}>
+            <div className={styles.nodeChip}>
               <div className={styles.nodeChipTitle}>⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l2)}</div>
             </div>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 3 ? styles.nodeChipActive : ""}`}>
+            <div className={`${styles.nodeChip} ${styles.nodeChipActive}`}>
               <div className={styles.nodeChipTitle}>⭐⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l3)}</div>
             </div>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 4 ? styles.nodeChipActive : ""}`}>
+            <div className={styles.nodeChip}>
               <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l4)}</div>
             </div>
           </div>
         </div>
-      )}</>
+      )}
+    </>
   );
 };
 
@@ -69,7 +72,11 @@ const wrapperStyle: React.CSSProperties = { width: "100vw", height: "calc(100vh 
 const My: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const trajectory = (location.state as any)?.trajectory as { items?: { title: string; image_url?: string; skills?: { levels?: { level: number; level_name?: string; meta?: string; description?: string; tasks?: { title: string }[] }[]; name?: string; goal_level?: number } }[]; goal?: string } | undefined;
+  const trajectory = (location.state as any)?.trajectory as { items?: { title: string; image_url?: string; skills?: { levels?: { level: number; tasks?: { title: string }[] }[]; name?: string; goal_level?: number } }[]; goal?: string } | undefined;
+  const search = new URLSearchParams(location.search);
+  const chatIdParam = search.get("chat_id");
+  const chatId = chatIdParam ? Number(chatIdParam) : (location.state as any)?.chatId ? Number((location.state as any)?.chatId) : undefined;
+  const [expansions, setExpansions] = useState<Record<string, string[]>>({});
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
@@ -82,6 +89,22 @@ const My: React.FC = () => {
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    const run = async () => {
+      try {
+        if (typeof chatId === "number") {
+          const resp = await metaExpand(chatId);
+          const map: Record<string, string[]> = {};
+          (resp.items || []).forEach((it) => { map[it.title] = it.expansions || []; });
+          if (!ignore) setExpansions(map);
+        }
+      } catch { /* ignore */ }
+    };
+    run();
+    return () => { ignore = true; };
+  }, [chatId]);
 
   const nodeTypes = useMemo(() => ({ topic: TopicNode }), []);
 
@@ -134,9 +157,31 @@ const My: React.FC = () => {
           onOpen: () => setSelectedIdx(i),
         },
       });
+
+      // expansion children below the parent node if any
+      const exps = expansions[t.title] || [];
+      const exOffset = 500; // push outside from the center
+      exps.forEach((title, idx) => {
+        const id = `${i + 1}-e${idx + 1}`;
+        const exX = x + (isLeft ? -exOffset : exOffset);
+        const exY = y + 40 + idx * 84;
+        nodes.push({
+          id,
+          type: "topic",
+          position: { x: exX, y: exY },
+          data: {
+            title,
+            handleSide: isLeft ? "right" : "left",
+            levelCounts: { total: 0, l2: 0, l3: 0, l4: 0 },
+            goalLevel: undefined,
+            onOpen: () => void 0,
+            noImage: true,
+          },
+        });
+      });
     });
     return nodes;
-  }, [trajectory, setSelectedIdx]);
+  }, [trajectory, expansions]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -144,6 +189,19 @@ const My: React.FC = () => {
     for (let i = 0; i < n - 1; i++) {
       edges.push({ id: `e${i + 1}-${i + 2}`, source: String(i + 1), target: String(i + 2), type: "bezier" });
     }
+    // connect expansions to their parents
+    computedNodes.forEach((node) => {
+      if (node.id.includes("-e")) {
+        const parentId = node.id.split("-e")[0];
+        edges.push({
+          id: `p${parentId}-${node.id}`,
+          source: parentId,
+          target: node.id,
+          type: "bezier",
+          style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
+        } as any);
+      }
+    });
     return edges;
   }, [computedNodes]);
 
@@ -167,6 +225,15 @@ const My: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(computedEdges);
 
   const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
+
+  // Keep state in sync when computed graph changes (e.g., after meta_expand loads)
+  useEffect(() => {
+    setNodes(computedNodes);
+  }, [computedNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(computedEdges);
+  }, [computedEdges, setEdges]);
 
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
