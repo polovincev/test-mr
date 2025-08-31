@@ -41,8 +41,23 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           <div className={styles.topicBadge}>Тема</div>
           <div className={data?.noImage ? styles.topicTitleSmall : styles.topicTitle}>{title}</div>
         </div>
-        <Handle type="target" position={positionForHandles} className={styles.handleInvisible} />
-        <Handle type="source" position={positionForHandles} className={styles.handleInvisible} />
+        {data?.noImage ? (
+          <>
+            <Handle type="target" position={Position.Left} id="left" className={styles.handleInvisible} />
+            <Handle type="source" position={Position.Left} id="left" className={styles.handleInvisible} />
+            <Handle type="target" position={Position.Right} id="right" className={styles.handleInvisible} />
+            <Handle type="source" position={Position.Right} id="right" className={styles.handleInvisible} />
+            <Handle type="target" position={Position.Top} id="top" className={styles.handleInvisible} />
+            <Handle type="source" position={Position.Top} id="top" className={styles.handleInvisible} />
+            <Handle type="target" position={Position.Bottom} id="bottom" className={styles.handleInvisible} />
+            <Handle type="source" position={Position.Bottom} id="bottom" className={styles.handleInvisible} />
+          </>
+        ) : (
+          <>
+            <Handle type="target" position={positionForHandles} className={styles.handleInvisible} />
+            <Handle type="source" position={positionForHandles} className={styles.handleInvisible} />
+          </>
+        )}
       </div>
       {data?.levelCounts && !data?.noImage && (
         <div className={styles.nodeTasksBox}>
@@ -160,10 +175,9 @@ const My: React.FC = () => {
 
       // expansion children below the parent node if any
       const exps = expansions[t.title] || [];
-      const exOffset = 500; // push outside from the center
       exps.forEach((title, idx) => {
         const id = `${i + 1}-e${idx + 1}`;
-        const exX = x + (isLeft ? -exOffset : exOffset);
+        const exX = x + (isLeft ? -280 : 500);
         const exY = y + 40 + idx * 84;
         nodes.push({
           id,
@@ -193,13 +207,28 @@ const My: React.FC = () => {
     computedNodes.forEach((node) => {
       if (node.id.includes("-e")) {
         const parentId = node.id.split("-e")[0];
-        edges.push({
-          id: `p${parentId}-${node.id}`,
-          source: parentId,
-          target: node.id,
-          type: "bezier",
-          style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
-        } as any);
+        const parent = computedNodes.find((n) => n.id === parentId);
+        const child = node;
+        if (parent) {
+          const dx = child.position.x - parent.position.x;
+          const dy = child.position.y - parent.position.y;
+          const useHorizontal = Math.abs(dx) >= Math.abs(dy);
+          const sourceHandle = useHorizontal
+            ? (dx >= 0 ? "right" : "left")
+            : (dy >= 0 ? "bottom" : "top");
+          const targetHandle = useHorizontal
+            ? (dx >= 0 ? "left" : "right")
+            : (dy >= 0 ? "top" : "bottom");
+          edges.push({
+            id: `p${parentId}-${node.id}`,
+            source: parentId,
+            target: node.id,
+            sourceHandle,
+            targetHandle,
+            type: "straight",
+            style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
+          } as any);
+        }
       }
     });
     return edges;
