@@ -196,7 +196,11 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
     let ignore = false;
     const run = async () => {
       try {
-        const file = await processor.process(content);
+        const pre = String(content || "")
+          .replace(/\r\n/g, "\n")
+          // ensure markdown resumes normally after details blocks
+          .replace(/<\/details>\s*(?!\n\n)/g, "</details>\n\n");
+        const file = await processor.process(pre);
         if (!ignore) setHtml(String(file));
       } catch {
         if (!ignore) setHtml(content);
