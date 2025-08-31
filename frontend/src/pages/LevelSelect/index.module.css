@@ -89,10 +89,11 @@
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  height: 332pxpx;
+  height: 332px;
   padding: 3px;
   background: #D6F5FF;
   display: flex;
+  cursor: pointer;
 }
 
 .cardTitle {
@@ -136,10 +137,19 @@
 }
 
 .ctaLink {
-  color: #161A33;
+  overflow: hidden;
+  color: var(--text-text-default, #161A33);
+  text-align: center;
+  text-overflow: ellipsis;
+  
+  /* Body/Medium Accent */
   font-family: Onest;
   font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 24px; /* 150% */
   cursor: pointer;
+  
 }
 
 

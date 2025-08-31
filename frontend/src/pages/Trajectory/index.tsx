@@ -219,7 +219,7 @@ const Trajectory = () => {
                             tabIndex={0}
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/level-select${chatIdParam ? `?chat_id=${chatIdParam}` : ""}` as string, { state: { item: t, chatId: chatIdParam } });
+                              navigate(`/level-select${chatIdParam ? `?chat_id=${chatIdParam}` : ""}` as string, { state: { item: t, index: idx, chatId: chatIdParam } });
                             }}
                           >
                             <div className={styles.levelTitle}>{lv.title}</div>

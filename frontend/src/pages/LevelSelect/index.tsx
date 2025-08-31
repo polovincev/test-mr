@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import type { TrajectoryItem } from "../../services/api";
+import { getTrajectory, updateGoalLevels } from "../../services/api";
 import styles from "./index.module.css";
 import { useMemo, useState } from "react";
 
@@ -10,12 +11,13 @@ const LevelSelect = () => {
     const location = useLocation();
     const search = new URLSearchParams(location.search);
     const chatIdParam = search.get("chat_id");
-    const state = location.state as { item?: TrajectoryItem; chatId?: string } | null;
+    const state = location.state as { item?: TrajectoryItem; index?: number; chatId?: string } | null;
     const item = state?.item;
 
     const recommendedLevelRaw = Number(item?.skills?.recommended_level ?? 3);
     const recommendedIndex = Math.max(0, Math.min(2, Math.round(recommendedLevelRaw) - 2)); // 2->0, 3->1, 4->2
     const [selected, setSelected] = useState<number>(recommendedIndex);
+    const [saving, setSaving] = useState<boolean>(false);
 
     const levels = useMemo(() => {
         // Собираем тексты из item.skills.levels по 2/3/4, если есть
@@ -31,7 +33,36 @@ const LevelSelect = () => {
         return [ensure(2, "Базовый"), ensure(3, "Уверенный"), ensure(4, "Продвинутый")];
     }, [item]);
 
-    console.log(levels);
+    const onSelect = async (idx: number) => {
+        console.log("onSelect", idx);
+        setSelected(idx);
+        const chatId = chatIdParam ? Number(chatIdParam) : (state?.chatId ? Number(state.chatId) : undefined);
+        if (!chatId || !item) return;
+        try {
+            setSaving(true);
+            const tr = await getTrajectory(chatId);
+            const chosenLevel = 2 + idx; // idx: 0->2,1->3,2->4
+            // build new levels array for all items
+            const current = (tr.items || []).map((it) => {
+                const val = typeof it.skills.goal_level === "number" ? it.skills.goal_level : 0.1;
+                return val < 1 ? 0.1 : Math.max(1, Math.min(4, Math.round(val)));
+            });
+            let findIndex = typeof state?.index === 'number' ? state.index : -1;
+            if (findIndex < 0) {
+                findIndex = (tr.items || []).findIndex((it) => it.title === item.title || it.skills?.name === item.skills?.name);
+            }
+            if (findIndex >= 0) {
+                current[findIndex] = chosenLevel;
+            }
+            await updateGoalLevels(chatId, current);
+            const topic = item?.title || item?.skills?.name || "";
+            navigate(`/tasks?chat_id=${chatId}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}` as string, {
+                state: { item, chatId }
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <div className={styles.page}>
@@ -49,7 +80,7 @@ const LevelSelect = () => {
                             if (idx === recommendedIndex) {
                                 return (
                                     <div className={styles.cardSelected} key={idx}>
-                                        <div className={styles.card} onClick={() => setSelected(idx)}>
+                                        <div className={styles.card} onClick={() => onSelect(idx)}>
                                             <div className={styles.cardTitle}>{lv.title}</div>
                                             {lv.meta && <div className={styles.levelMeta}>{lv.meta}</div>}
                                             <div className={styles.list}>
@@ -63,7 +94,7 @@ const LevelSelect = () => {
                                 )
                             }
                             return (
-                                <div key={idx} className={`${styles.card}`} onClick={() => setSelected(idx)}>
+                                <div key={idx} className={`${styles.card}`} onClick={() => onSelect(idx)}>
                                     <div className={styles.cardTitle}>{lv.title}</div>
                                     {lv.meta && <div className={styles.levelMeta}>{lv.meta}</div>}
                                     <div className={styles.list}>
@@ -76,7 +107,13 @@ const LevelSelect = () => {
                         })}
                     </div>
                     <div className={styles.ctaRow}>
-                        <a className={styles.ctaLink} role="button" onClick={() => navigate(`/trajectory${chatIdParam ? `?chat_id=${chatIdParam}` : ""}`)}>Продолжить с выбором ИИ</a>
+                        <a
+                          className={styles.ctaLink}
+                          role="button"
+                          onClick={() => { if (!saving) onSelect(recommendedIndex); }}
+                        >
+                           Продолжить с выбором ИИ
+                        </a>
                     </div>
                 </div>
 
