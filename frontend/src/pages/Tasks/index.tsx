@@ -209,6 +209,10 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           tests={(current as any).tests}
                           onAttachCheckHandler={(fn) => { testCheckRef.current = fn; }}
                           onChecked={() => setTestFinished(true)}
+                          suppressExplanation={(() => {
+                            const title = String((current as any)?.title || "").toLowerCase();
+                            return title.includes("тест по теме") || title.includes("тест по базовому уровню");
+                          })()}
                         />
                       )}
                       <div className={styles.footer}>
@@ -355,8 +359,8 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void }>
-  = ({ tests, onAttachCheckHandler, onChecked }) => {
+const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void; suppressExplanation?: boolean }>
+  = ({ tests, onAttachCheckHandler, onChecked, suppressExplanation }) => {
     const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
     const [checked, setChecked] = useState(false);
     const toggle = (qi: number, oi: number, single: boolean) => {
@@ -419,7 +423,7 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
                     );
                   })}
                 </div>
-                {checked && (
+                {checked && !suppressExplanation && (
                   <div className={styles.testResult}>
                     {t.explanation && (
                       <div className={styles.explBlock}>
