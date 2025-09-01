@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { metaExpand } from "../../services/api";
+import { metaExpand, updateGoalLevels } from "../../services/api";
 import ReactFlow, { Background, Controls, addEdge, useEdgesState, useNodesState, Connection, Edge, Node, Handle, Position, NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
@@ -14,6 +14,7 @@ type TopicNodeData = {
   goalLevel?: number; // 2|3|4 when selected, otherwise undefined
   onOpen?: () => void;
   noImage?: boolean;
+  onSetLevel?: (level: 2 | 3 | 4) => void;
 };
 
 const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
@@ -61,18 +62,22 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
         )}
       </div>
       {data?.levelCounts && !data?.noImage && (
-        <div className={styles.nodeTasksBox}>
+        <div
+          className={styles.nodeTasksBox}
+          onMouseDown={(e) => { e.stopPropagation(); }}
+          onClick={(e) => { e.stopPropagation(); }}
+        >
           <div className={styles.nodeTasksHeader}>Задания <span className={styles.nodeTasksNum}>{data.levelCounts.total}</span></div>
           <div className={styles.nodeChipRow}>
-            <div className={styles.nodeChip}>
+            <div className={`${styles.nodeChip} ${data?.goalLevel === 2 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(2); } catch {} }}>
               <div className={styles.nodeChipTitle}>⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l2)}</div>
             </div>
-            <div className={`${styles.nodeChip} ${styles.nodeChipActive}`}>
+            <div className={`${styles.nodeChip} ${data?.goalLevel === 3 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(3); } catch {} }}>
               <div className={styles.nodeChipTitle}>⭐⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l3)}</div>
             </div>
-            <div className={styles.nodeChip}>
+            <div className={`${styles.nodeChip} ${data?.goalLevel === 4 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(4); } catch {} }}>
               <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
               <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l4)}</div>
             </div>
@@ -190,6 +195,28 @@ const My: React.FC = () => {
           levelCounts: (t as any).levelCounts,
           goalLevel: (t as any).goalLevel,
           onOpen: () => setSelectedIdx(i),
+          onSetLevel: (lvl: 2 | 3 | 4) => {
+            try {
+              const newLevel = Math.max(2, Math.min(4, Number(lvl)));
+              // Update the real trajectory object in router state if provided
+              try {
+                const idx = i;
+                const tr: any = (trajectory as any);
+                if (tr && Array.isArray(tr.items) && tr.items[idx]) {
+                  tr.items[idx].skills = { ...(tr.items[idx].skills || {}), goal_level: newLevel };
+                }
+              } catch { }
+              // Trigger UI update by updating expansions state (no-op mutate)
+              setExpansions((prev) => ({ ...prev }));
+              // Persist to backend
+              if (typeof chatId === 'number') {
+                try {
+                  const levels = (trajectory?.items || []).map((it, k) => (k === i ? newLevel : Math.round(Number(it?.skills?.goal_level || 0.1)) || 0.1));
+                  updateGoalLevels(chatId, levels as any).catch(() => void 0);
+                } catch { }
+              }
+            } catch { }
+          },
         },
       });
 
