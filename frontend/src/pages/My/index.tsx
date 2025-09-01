@@ -387,7 +387,14 @@ const My: React.FC = () => {
           onGoTasks={() => {
             const it: any = selectedItem;
             const topic = it?.title || it?.skills?.name || "";
-            navigate(`/tasks${topic ? `?topic=${encodeURIComponent(topic)}` : ""}` as string, { state: { item: it } });
+            const goalSelected = typeof it?.skills?.goal_level === "number" && it?.skills?.goal_level > 0.1;
+            const chatQ = typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+            if (goalSelected) {
+              const qp = topic ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(topic)}` : chatQ;
+              navigate(`/tasks${qp}` as string, { state: { item: it, chatId } });
+            } else {
+              navigate(`/level-select${chatQ}` as string, { state: { item: it, index: selectedIdx, chatId } });
+            }
           }}
         />
       )}
