@@ -128,6 +128,19 @@ const My: React.FC = () => {
     return () => { ignore = true; };
   }, [chatId]);
 
+  // Force layout/resize and fit graph on initial mount
+  useEffect(() => {
+    try { window.dispatchEvent(new Event("resize")); } catch { /* ignore */ }
+    const id1 = window.setTimeout(() => {
+      try { rfRef.current && rfRef.current.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ }
+    }, 0);
+    // second tick for images/fonts
+    const id2 = window.setTimeout(() => {
+      try { rfRef.current && rfRef.current.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ }
+    }, 200);
+    return () => { window.clearTimeout(id1); window.clearTimeout(id2); };
+  }, []);
+
   const nodeTypes = useMemo(() => ({ topic: TopicNode }), []);
 
   const defaultEdgeOptions = useMemo(() => ({
