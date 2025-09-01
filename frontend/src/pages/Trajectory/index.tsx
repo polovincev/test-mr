@@ -55,7 +55,10 @@ const Trajectory = () => {
           if (!goalSelected) return [it.title, { done: 0 }] as const;
           try {
             const resp = await generateTasks(chatId, it.title);
-            const done = resp.tasks.filter((t) => t.passed).length;
+            const done = resp.tasks.filter((t) => {
+              const title = String((t as any)?.title || "").toLowerCase();
+              return !title.includes("тест по базовому уровню") && t.passed;
+            }).length;
             return [it.title, { done }] as const;
           } catch {
             return [it.title, { done: 0 }] as const;

@@ -149,8 +149,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
             <div className={styles.content}>
               {Array.isArray(tasks) && tasks.length > 0 && (
                 (() => {
-                  const total = tasks.length;
-                  const done = tasks.reduce((acc, t) => acc + (t && (t as any).passed ? 1 : 0), 0);
+                  const filtered = tasks.filter((t) => {
+                    const title = String((t as any)?.title || "").toLowerCase();
+                    return !title.includes("тест по базовому уровню");
+                  });
+                  const total = filtered.length;
+                  const done = filtered.reduce((acc, t) => acc + ((t as any).passed ? 1 : 0), 0);
                   return (
                     <div className={styles.progressRow}>
                       <span className={styles.taskProgressText}>Готово {done} из {total}</span>
