@@ -80,7 +80,9 @@
     cursor: pointer;
 }
 
-.sidebarItem{ position: relative; }
+.sidebarItem {
+    position: relative;
+}
 
 .sidebarItem:hover {
     font-weight: 600;
@@ -340,7 +342,8 @@
     font-family: Onest;
     font-size: 15px;
     font-weight: 400;
-    line-height: 24px; /* 150% */
+    line-height: 24px;
+    /* 150% */
     border: none;
 }
 
@@ -662,13 +665,14 @@
     margin: 0;
 }
 
-.actionsRow{
+.actionsRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 16px;
 }
-.toMyBtn{
+
+.toMyBtn {
     appearance: none;
     background: transparent;
     border: none;
@@ -678,8 +682,12 @@
     font-family: Onest;
     cursor: pointer;
 }
-.toMyBtn:hover{ text-decoration: underline; }
-.checkBtn{
+
+.toMyBtn:hover {
+    text-decoration: underline;
+}
+
+.checkBtn {
     background: #503AE0;
     color: #fff;
     border: none;
@@ -701,15 +709,96 @@
     line-height: 20px;
     margin-bottom: 8px;
 }
+
 .taskProgressBar {
     height: 8px;
     background: #E4E6F7;
     border-radius: 4px;
     overflow: hidden;
 }
+
 .taskProgressInner {
     height: 100%;
     background: #503AE0;
     border-radius: 4px;
     transition: width 0.3s ease-in-out;
+}
+
+/* Basic-level test fail panel */
+.failPanel {
+    margin-top: 16px;
+    display: flex;
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 16px;
+    background: #FCEBED;
+}
+
+.failTitle {
+    color: var(--text-text-default, #161A33);
+    font-family: Onest;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 20px;
+    /* 125% */
+    margin-bottom: 6px;
+}
+
+.failSubtitle {
+    color: var(--text-text-default, #161A33);
+
+    /* Body/Small */
+    font-family: var(--family-onest, Onest);
+    font-size: 14px;
+    font-style: normal;
+    font-weight: var(--weight-regular, 300);
+    line-height: 20px;
+    /* 142.857% */
+    margin-bottom: 24px;
+}
+
+.failActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.failRetryBtn {
+    display: flex;
+    width: 164px;
+    height: 48px;
+    min-width: 48px;
+    padding: 8px 18px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--Small, 12px);
+    background: #4917BF;
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+    color: var(--Text-Primary-Inverse, #FFF);
+    text-align: center;
+    text-overflow: ellipsis;
+    font-family: Onest;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 24px;
+    /* 150% */
+}
+
+.failSkipBtn {
+    background: transparent;
+    color: #3B6DF6;
+    border: 0;
+    font-family: Onest;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 24px;
+    cursor: pointer;
 }

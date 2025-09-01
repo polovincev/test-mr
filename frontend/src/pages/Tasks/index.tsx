@@ -31,6 +31,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const processorRef = useRef<any>();
   const testCheckRef = useRef<(() => void) | null>(null);
   const [testFinished, setTestFinished] = useState(false);
+  const [testFailed, setTestFailed] = useState(false);
   if (!processorRef.current) {
     processorRef.current = unified()
       .use(remarkParse)
@@ -111,6 +112,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     } catch { /* ignore */ }
     setTestFinished(false);
     testCheckRef.current = null;
+    setTestFailed(false);
   }, [selected]);
 
   useEffect(() => {
@@ -213,28 +215,47 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             const title = String((current as any)?.title || "").toLowerCase();
                             return title.includes("тест по теме") || title.includes("тест по базовому уровню");
                           })()}
+                          onSkip={() => {
+                            if (tasks && selected < (tasks.length - 1)) {
+                              setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                            }
+                          }}
+                          onFailChange={(v) => setTestFailed(Boolean(v))}
+                          enableFailPanel={(() => {
+                            const title = String((current as any)?.title || "").toLowerCase();
+                            return title.includes("тест по базовому уровню");
+                          })()}
+                          onReset={() => setTestFinished(false)}
                         />
                       )}
                       <div className={styles.footer}>
-                        <button
-                          type="button"
-                          className={styles.toMyBtn}
-                          onClick={async () => {
-                            try {
-                              if (typeof chatId === "number") {
-                                const tr = await getTrajectory(chatId);
-                                navigate('/my', { state: { trajectory: tr, chatId } });
-                              } else {
-                                navigate('/my');
-                              }
-                            } catch {
-                              navigate('/my');
-                            }
-                          }}
-                        >
-                          В метаучебник
-                        </button>
-                        {Array.isArray((current as any).tests) && (current as any).tests.length > 0 && (
+                        {(() => {
+                          const hasTests = Array.isArray((current as any).tests) && (current as any).tests.length > 0;
+                          if (!hasTests || (hasTests && !testFailed)) {
+                            return (
+                              <button
+                                type="button"
+                                className={styles.toMyBtn}
+                                onClick={async () => {
+                                  try {
+                                    if (typeof chatId === "number") {
+                                      const tr = await getTrajectory(chatId);
+                                      navigate('/my', { state: { trajectory: tr, chatId } });
+                                    } else {
+                                      navigate('/my');
+                                    }
+                                  } catch {
+                                    navigate('/my');
+                                  }
+                                }}
+                              >
+                                В метаучебник
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
+                        {Array.isArray((current as any).tests) && (current as any).tests.length > 0 && !testFailed && (
                           testFinished && (tasks && selected < (tasks.length - 1)) ? (
                             <button
                               type="button"
@@ -328,10 +349,21 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
     let ignore = false;
     const run = async () => {
       try {
-        const pre = String(content || "")
+        let pre = String(content || "")
           .replace(/\r\n/g, "\n")
           // ensure markdown resumes normally after details blocks
           .replace(/<\/details>\s*(?!\n\n)/g, "</details>\n\n");
+        // strip <b> tags inside <summary>...</summary> only
+        try {
+          pre = pre.replace(/<summary([^>]*)>([\s\S]*?)<\/summary>/gi, (_m, attrs, inner) => {
+            const cleaned = String(inner).replace(/<\/?b>/gi, "");
+            return `<summary${attrs}>${cleaned}</summary>`;
+          });
+        } catch { /* ignore */ }
+        // force blank line after </summary> so following plain text becomes <p>
+        pre = pre.replace(/<\/summary>\s*(?!\n\n)/gi, "</summary>\n\n");
+        // ensure content before </details> ends with a newline for consistent block parsing
+        pre = pre.replace(/([^\n])\s*<\/details>/gi, "$1\n</details>");
         const file = await processor.process(pre);
         if (!ignore) setHtml(String(file));
       } catch {
@@ -359,10 +391,11 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void; suppressExplanation?: boolean }>
-  = ({ tests, onAttachCheckHandler, onChecked, suppressExplanation }) => {
+const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void }>
+  = ({ tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset }) => {
     const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
     const [checked, setChecked] = useState(false);
+    const [correctCount, setCorrectCount] = useState<number>(0);
     const toggle = (qi: number, oi: number, single: boolean) => {
       setAnswers((prev) => {
         const next = { ...prev };
@@ -378,6 +411,17 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
     };
     const onCheck = () => {
       setChecked(true);
+      try {
+        // compute score
+        let ok = 0;
+        for (let qi = 0; qi < tests.length; qi++) {
+          const got = Array.from(answers[qi] ?? []).slice().sort((a, b) => a - b);
+          const need = (tests[qi].correct ?? []).slice().sort((a, b) => a - b);
+          const isRight = got.length === need.length && got.every((v, i) => v === need[i]);
+          if (isRight) ok += 1;
+        }
+        setCorrectCount(ok);
+      } catch { /* ignore */ }
       try { onChecked && onChecked(); } catch { /* ignore */ }
     };
     useEffect(() => {
@@ -388,6 +432,18 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
       const got = Array.from(answers[qi] ?? []); got.sort();
       const need = (tests[qi].correct ?? []).slice().sort();
       return got.length === need.length && got.every((v, i) => v === need[i]);
+    };
+    const needToRetry = Boolean(enableFailPanel) && checked && (correctCount * 2 <= tests.length - 1); // only for basic test
+    useEffect(() => {
+      try { onFailChange && onFailChange(needToRetry); } catch {}
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [needToRetry]);
+    const retry = () => {
+      setAnswers({});
+      setChecked(false);
+      setCorrectCount(0);
+      try { onFailChange && onFailChange(false); } catch {}
+      try { onReset && onReset(); } catch {}
     };
     return (
       <>
@@ -437,6 +493,16 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
               </div>
             ))}
           </div>
+          {needToRetry && (
+            <div className={styles.failPanel}>
+              <div className={styles.failTitle}>Пока базовый уровень не освоен — попробуй ещё раз</div>
+              <div className={styles.failSubtitle}>Чтобы мы зачли тест, ответь правильно больше, чем на половину вопросов</div>
+              <div className={styles.failActions}>
+                <button type="button" onClick={retry} className={styles.failRetryBtn}>Пройти ещё раз</button>
+                <button type="button" onClick={() => { try { onSkip && onSkip(); } catch {} }} className={styles.failSkipBtn}>Пропустить</button>
+              </div>
+            </div>
+          )}
         </div>
       </>
     );
