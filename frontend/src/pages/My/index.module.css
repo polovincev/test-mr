@@ -54,7 +54,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: 425px;
-    height: 70px;
+    height: 60px;
     z-index: 10;
     background: #DBE5FF;
     border-radius: 12px;
@@ -417,7 +417,7 @@
     transform: rotate(-5.678deg);
     justify-content: center;
     align-items: center;
-    border-radius: 20px;
+    border-radius: 12px;
     width: 68px;
     height: 28px;
     border: 2px solid #FFF;

@@ -330,7 +330,7 @@ const My: React.FC = () => {
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
   if (loadingExpansions) {
-    return <LoaderOverlay text="Загружаю расширения…" />;
+    return <LoaderOverlay text="Формирую тематические связи..." />;
   }
 
   return (
@@ -419,6 +419,7 @@ const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => vo
   const l2 = byLevel.get(2);
   const l3 = byLevel.get(3);
   const l4 = byLevel.get(4);
+  const goalLvl = Math.round(Number(item?.skills?.goal_level || 0));
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -435,7 +436,7 @@ const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => vo
         )}
         {l2 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐ Базовый уровень</div>
+            <div className={styles.modalLevelTitle}>⭐ Базовый уровень {goalLvl === 2 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
             <ul className={styles.modalList}>
               {splitBullets(l2?.description).map((t, i) => <li key={`l2-${i}`}>{t}</li>)}
             </ul>
@@ -443,7 +444,7 @@ const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => vo
         )}
         {l3 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐⭐ Уверенный уровень <span className={styles.modalBadge}>Целевой</span></div>
+            <div className={styles.modalLevelTitle}>⭐⭐ Уверенный уровень {goalLvl === 3 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
             <ul className={styles.modalList}>
               {splitBullets(l3?.description).map((t, i) => <li key={`l3-${i}`}>{t}</li>)}
             </ul>
@@ -451,7 +452,7 @@ const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => vo
         )}
         {l4 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐⭐⭐ Продвинутый уровень</div>
+            <div className={styles.modalLevelTitle}>⭐⭐⭐ Продвинутый уровень {goalLvl === 4 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
             <ul className={styles.modalList}>
               {splitBullets(l4?.description).map((t, i) => <li key={`l4-${i}`}>{t}</li>)}
             </ul>
