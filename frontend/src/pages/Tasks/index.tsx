@@ -147,7 +147,20 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
               </ul>
             </div>
             <div className={styles.content}>
-              <div className={styles.progressRow}>Прогресс </div>
+              {Array.isArray(tasks) && tasks.length > 0 && (
+                (() => {
+                  const total = tasks.length;
+                  const done = tasks.reduce((acc, t) => acc + (t && (t as any).passed ? 1 : 0), 0);
+                  return (
+                    <div className={styles.progressRow}>
+                      <span className={styles.taskProgressText}>Готово {done} из {total}</span>
+                      <div className={styles.taskProgressBar}>
+                        <div className={styles.taskProgressInner} style={{ width: `${total ? Math.min(100, Math.round((done / total) * 100)) : 0}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
               <div className={styles.contentCard} ref={contentRef}>
                 <div className={styles.innerWidth}>
                   {!current && <p>Задания не найдены.</p>}

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getTrajectory, updateGoalLevels, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
+import { getTrajectory, updateGoalLevels, generateTasks, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
 
 const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -28,6 +28,7 @@ const Trajectory = () => {
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(false);
+  const [progressByTitle, setProgressByTitle] = useState<{ [key: string]: { done: number } }>({});
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,6 +46,28 @@ const Trajectory = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const loadDoneCounts = async () => {
+      if (!traj || typeof chatId !== 'number') return;
+      const entries: Array<[string, { done: number }]> = await Promise.all(
+        traj.items.map(async (it) => {
+          const goalSelected = typeof it.skills.goal_level === 'number' && it.skills.goal_level > 0.1;
+          if (!goalSelected) return [it.title, { done: 0 }] as const;
+          try {
+            const resp = await generateTasks(chatId, it.title);
+            const done = resp.tasks.filter((t) => t.passed).length;
+            return [it.title, { done }] as const;
+          } catch {
+            return [it.title, { done: 0 }] as const;
+          }
+        })
+      );
+      const map: Record<string, { done: number }> = {};
+      entries.forEach(([k, v]) => (map[k] = v));
+      setProgressByTitle(map);
+    };
+    loadDoneCounts();
+  }, [traj?.items.length, chatId]);
 
 
   useEffect(() => {
@@ -172,10 +195,13 @@ const Trajectory = () => {
                 const style = goalSelected ? { ...baseStyle, cursor: "pointer" } : baseStyle;
                 // calculate tasks count up to goal level (if any)
                 let totalTasks = 0;
+                let doneTasks = progressByTitle[t.title]?.done || 0;
                 if (goalSelected && Array.isArray(t.skills.levels)) {
+                  const maxLevel = Math.round(t.skills.goal_level || 0);
                   for (const li of t.skills.levels) {
-                    if (li.level <= Math.round(t.skills.goal_level || 0)) {
-                      totalTasks += Array.isArray(li.tasks) ? li.tasks.length : 0;
+                    if (li.level <= maxLevel) {
+                      const arr = Array.isArray(li.tasks) ? li.tasks : [];
+                      totalTasks += arr.length;
                     }
                   }
                 }
@@ -202,10 +228,12 @@ const Trajectory = () => {
                     <div className={styles.cardBody}>
                       <div className={styles.cardTitle}>{t.title}</div>
                       <div className={styles.cardText}>{t.description ?? ""}</div>
-                      {goalSelected && (
-                        <div className={styles.progressRow}>
-                          <span className={styles.progressLabel}>Задач к изучению:</span>
-                          <span className={styles.progressValue}>{totalTasks}</span>
+                      {goalSelected && totalTasks > 0 && (
+                        <div style={{ marginTop: 14 }}>
+                          <div className={styles.cardProgressText}>{doneTasks} из {totalTasks} заданий</div>
+                          <div className={styles.cardProgressBar}>
+                            <div className={styles.cardProgressInner} style={{ width: `${Math.min(100, Math.round((doneTasks / totalTasks) * 100))}%` }} />
+                          </div>
                         </div>
                       )}
                     </div>
