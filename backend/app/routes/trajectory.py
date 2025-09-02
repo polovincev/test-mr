@@ -249,6 +249,13 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                             if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
                                 for t in v.get("tasks", []):
                                     try:
+                                        # exclude base-level test from passedCount
+                                        try:
+                                            _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
+                                        except Exception:
+                                            _title = ""
+                                        if "тест по базовому уровню" in _title:
+                                            continue
                                         if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
                                             passed_sum += 1
                                     except Exception:
@@ -281,6 +288,12 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                                 if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
                                     for t in v.get("tasks", []):
                                         try:
+                                            try:
+                                                _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
+                                            except Exception:
+                                                _title = ""
+                                            if "тест по базовому уровню" in _title:
+                                                continue
                                             if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
                                                 passed_sum += 1
                                         except Exception:

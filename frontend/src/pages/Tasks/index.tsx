@@ -30,6 +30,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const [selected, setSelected] = useState<number>(0);
   const processorRef = useRef<any>();
   const testCheckRef = useRef<(() => boolean) | null>(null);
+  const checkBusyRef = useRef<boolean>(false);
   const [testFinished, setTestFinished] = useState(false);
   const [testFailed, setTestFailed] = useState(false);
   if (!processorRef.current) {
@@ -286,13 +287,21 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                               type="button"
                               className={styles.testBtn}
                               onClick={async () => {
+                                console.log("CHECK: click");
+                                if (checkBusyRef.current) { console.log("CHECK: skip busy"); return; }
+                                checkBusyRef.current = true;
                                 let needRetry = false;
-                                try { needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false; } catch { }
+                                try {
+                                  needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false;
+                                  console.log("CHECK: needRetry=", needRetry);
+                                } catch (e) { console.log("CHECK: testCheckRef error", e); }
                                 // For base-level test: if no retry needed (>=3 correct), mark passed immediately
                                 try {
                                   const title = String((current as any)?.title || "").toLowerCase();
                                   const isBaseTest = title.includes("тест по базовому уровню");
+                                  console.log("CHECK: isBaseTest=", isBaseTest, "chatId=", chatId);
                                   if (isBaseTest && !needRetry && typeof chatId === 'number') {
+                                    console.log("CHECK: calling updateTaskPassed");
                                     await updateTaskPassed(chatId, finalTopic, selected, true);
                                     setTasks((prev) => {
                                       if (!prev) return prev;
@@ -301,7 +310,8 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                       return next;
                                     });
                                   }
-                                } catch {}
+                                } catch (e) { console.log("CHECK: updateTaskPassed error", e); }
+                                finally { checkBusyRef.current = false; }
                               }}
                             >
                               Проверить
@@ -412,10 +422,12 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
         }
         if (set.has(oi)) set.delete(oi); else set.add(oi);
         next[qi] = set;
+        console.log("TOGGLE:", { qi, oi, single, after: Array.from(next[qi] ?? []) });
         return next;
       });
     };
     const onCheck = (): boolean => {
+      console.log("ONCHECK: start");
       setChecked(true);
       try {
         // compute score (source of truth: DOM selections to avoid stale state)
@@ -435,10 +447,13 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
           got = got.slice().sort((a, b) => a - b);
           const need = (tests[qi].correct ?? []).slice().sort((a, b) => a - b);
           const isRight = got.length === need.length && got.every((v, i) => v === need[i]);
+          console.log("ONCHECK: qi=", qi, { got, need, isRight });
           if (isRight) ok += 1;
         }
+        console.log("ONCHECK: correctCount=", ok);
         setCorrectCount(ok);
         const needRetry = Boolean(enableFailPanel) && ok < 3;
+        console.log("ONCHECK: needRetry=", needRetry, "enableFailPanel=", enableFailPanel);
         setFailed(needRetry);
         try { onFailChange && onFailChange(needRetry); } catch {}
         try { onChecked && onChecked(); } catch { /* ignore */ }
@@ -448,11 +463,15 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
       return true;
     };
     useEffect(() => {
-      try { onAttachCheckHandler && onAttachCheckHandler(() => onCheck()); } catch { }
+      try {
+        onAttachCheckHandler && onAttachCheckHandler(() => onCheck());
+        console.log("ATTACH: testCheckRef attached");
+      } catch { }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     const needToRetry = failed;
     const retry = () => {
+      console.log("RETRY: reset");
       setAnswers({});
       setChecked(false);
       setCorrectCount(0);
