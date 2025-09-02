@@ -260,52 +260,27 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           }
                           return null;
                         })()}
-                        {Array.isArray((current as any).tests) && (current as any).tests.length > 0 && !testFailed && (
-                          // After CHECK: always show Далее for level 2 when not last
-                          testFinished && (tasks && selected < (tasks.length - 1)) ? (
-                            <button
-                              type="button"
-                              className={styles.testBtn}
-                              onClick={async () => {
-                                try {
-                                  if (typeof chatId === 'number') {
-                                    await updateTaskPassed(chatId, finalTopic, selected, true);
-                                  }
-                                } catch {}
-                                setTasks((prev) => {
-                                  if (!prev) return prev;
-                                  const next = prev.slice();
-                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
-                                  return next;
-                                });
-                                setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
-                              }}
-                            >
-                              Далее
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={styles.testBtn}
-                              onClick={async () => {
-                                console.log("CHECK: click");
-                                if (checkBusyRef.current) { console.log("CHECK: skip busy"); return; }
-                                checkBusyRef.current = true;
-                                let needRetry = false;
-                                try {
-                                  needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false;
-                                  console.log("CHECK: needRetry=", needRetry);
-                                } catch (e) { console.log("CHECK: testCheckRef error", e); }
-                                // For base-level test: if it's the LAST task and no retry needed (>=3 correct),
-                                // mark passed immediately (spec requirement)
-                                try {
-                                  const title = String((current as any)?.title || "").toLowerCase();
-                                  const isBaseTest = title.includes("тест по базовому уровню");
-                                  const isLast = (Array.isArray(tasks) ? selected === (tasks.length - 1) : false);
-                                  console.log("CHECK: isBaseTest=", isBaseTest, "isLast=", isLast, "chatId=", chatId);
-                                  if (isBaseTest && isLast && !needRetry && typeof chatId === 'number') {
-                                    console.log("CHECK: calling updateTaskPassed");
-                                    await updateTaskPassed(chatId, finalTopic, selected, true);
+                        {/* --- ACTION BUTTONS --- */}
+                        {(() => {
+                          const isTest = Array.isArray((current as any).tests) && (current as any).tests.length > 0;
+                          const titleLc = String((current as any)?.title || "").toLowerCase();
+                          const isBaseTest = isTest && titleLc.includes("тест по базовому уровню");
+                          const hasNext = tasks && selected < (tasks.length - 1);
+
+                          // LEVEL 2 TESTS (including base test)
+                          if (isTest && current.level === 2) {
+                            // Still not checked -> show "Проверить"
+                            if (!testFinished) {
+                              return (
+                                <button type="button" className={styles.testBtn} onClick={async () => {
+                                  if (checkBusyRef.current) return;
+                                  checkBusyRef.current = true;
+                                  let needRetry = false;
+                                  try { needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false; } catch {}
+
+                                  // If base test is last item and passed -> update backend immediately
+                                  if (isBaseTest && !needRetry && !hasNext && typeof chatId === 'number') {
+                                    try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
                                     setTasks((prev) => {
                                       if (!prev) return prev;
                                       const next = prev.slice();
@@ -313,39 +288,55 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                       return next;
                                     });
                                   }
-                                } catch (e) { console.log("CHECK: updateTaskPassed error", e); }
-                                finally { checkBusyRef.current = false; }
-                              }}
-                            >
-                              Проверить
-                            </button>
-                          )
-                        )}
-                        {!(Array.isArray((current as any).tests) && (current as any).tests.length > 0) && (current.level === 3 || current.level === 4) && (
-                          <button
-                            type="button"
-                            className={styles.testBtn}
-                            onClick={async () => {
-                              try {
+
+                                  checkBusyRef.current = false;
+                                }}>Проверить</button>
+                              );
+                            }
+
+                            // Checked, decide if retry needed for base test
+                            if (isBaseTest && testFailed) {
+                              return null; // retry panel already visible, no buttons
+                            }
+
+                            // Ready to go next or finished
+                            return hasNext ? (
+                              <button type="button" className={styles.testBtn} onClick={async () => {
+                                // mark passed and move next
                                 if (typeof chatId === 'number') {
-                                  await updateTaskPassed(chatId, finalTopic, selected, true);
+                                  try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
                                 }
-                              } catch {}
-                              setTasks((prev) => {
-                                if (!prev) return prev;
-                                const next = prev.slice();
-                                if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
-                                return next;
-                              });
-                              // Immediately count 3/4 level as passed; advance only if NOT last
-                              if (tasks && selected < (tasks.length - 1)) {
+                                setTasks((prev) => {
+                                  if (!prev) return prev;
+                                  const next = prev.slice();
+                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                  return next;
+                                });
                                 setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
-                              }
-                            }}
-                          >
-                            Загрузить ответ
-                          </button>
-                        )}
+                              }}>Далее</button>
+                            ) : null; // last item handled by ToMyBtn
+                          }
+
+                          // LEVEL 3/4 TASKS (non-test)
+                          if (!isTest && (current.level === 3 || current.level === 4)) {
+                            return (
+                              <button type="button" className={styles.testBtn} onClick={async () => {
+                                if (typeof chatId === 'number') {
+                                  try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
+                                }
+                                setTasks((prev) => {
+                                  if (!prev) return prev;
+                                  const next = prev.slice();
+                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                  return next;
+                                });
+                                if (hasNext) setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                              }}>Загрузить ответ</button>
+                            );
+                          }
+
+                          return null;
+                        })()}
                       </div>
                     </div>
                   )}
