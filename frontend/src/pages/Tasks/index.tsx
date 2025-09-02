@@ -29,7 +29,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const [tasks, setTasks] = useState<GeneratedTask[] | null>(null);
   const [selected, setSelected] = useState<number>(0);
   const processorRef = useRef<any>();
-  const testCheckRef = useRef<(() => void) | null>(null);
+  const testCheckRef = useRef<(() => boolean) | null>(null);
   const [testFinished, setTestFinished] = useState(false);
   const [testFailed, setTestFailed] = useState(false);
   if (!processorRef.current) {
@@ -72,7 +72,8 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     const run = async () => {
       if (!chatId || !finalTopic) {
         setLoading(false);
-        setTasks(makeMockTasks(finalTopic || "Тема"));
+        const mk = makeMockTasks(finalTopic || "Тема");
+        setTasks(mk);
         setSelected(0);
         return;
       }
@@ -80,12 +81,15 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
         const resp = await generateTasks(chatId, finalTopic);
         const data = Array.isArray(resp?.tasks) ? resp.tasks : [];
         if (!ignore) {
-          setTasks(data.length > 0 ? data : makeMockTasks(finalTopic));
-          setSelected(0);
+          const list = data.length > 0 ? data : makeMockTasks(finalTopic);
+          setTasks(list);
+          const firstNotPassed = list.findIndex((t: any) => !t?.passed);
+          setSelected(firstNotPassed >= 0 ? firstNotPassed : 0);
         }
       } catch {
         if (!ignore) {
-          setTasks(makeMockTasks(finalTopic));
+          const mk = makeMockTasks(finalTopic);
+          setTasks(mk);
           setSelected(0);
         }
       } finally {
@@ -282,20 +286,20 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                               type="button"
                               className={styles.testBtn}
                               onClick={async () => {
-                                try { testCheckRef.current && testCheckRef.current(); } catch { }
+                                let needRetry = false;
+                                try { needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false; } catch { }
+                                // For base-level test: if no retry needed (>=3 correct), mark passed immediately
                                 try {
                                   const title = String((current as any)?.title || "").toLowerCase();
-                                  const isL2 = Number((current as any)?.level) === 2;
-                                  const isLast = Array.isArray(tasks) && selected === (tasks.length - 1);
-                                  const isTest = title.includes("тест");
-                                  if (isL2 && isLast && isTest && typeof chatId === 'number') {
-                                      await updateTaskPassed(chatId, finalTopic, selected, true);
-                                      setTasks((prev) => {
-                                        if (!prev) return prev;
-                                        const next = prev.slice();
-                                        if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
-                                        return next;
-                                      });
+                                  const isBaseTest = title.includes("тест по базовому уровню");
+                                  if (isBaseTest && !needRetry && typeof chatId === 'number') {
+                                    await updateTaskPassed(chatId, finalTopic, selected, true);
+                                    setTasks((prev) => {
+                                      if (!prev) return prev;
+                                      const next = prev.slice();
+                                      if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                      return next;
+                                    });
                                   }
                                 } catch {}
                               }}
@@ -391,11 +395,13 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => void) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void }>
+const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => boolean) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void }>
   = ({ tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset }) => {
     const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
     const [checked, setChecked] = useState(false);
     const [correctCount, setCorrectCount] = useState<number>(0);
+    const [failed, setFailed] = useState(false);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const toggle = (qi: number, oi: number, single: boolean) => {
       setAnswers((prev) => {
         const next = { ...prev };
@@ -409,39 +415,48 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
         return next;
       });
     };
-    const onCheck = () => {
+    const onCheck = (): boolean => {
       setChecked(true);
       try {
-        // compute score
+        // compute score (source of truth: DOM selections to avoid stale state)
         let ok = 0;
+        const container = rootRef.current;
         for (let qi = 0; qi < tests.length; qi++) {
-          const got = Array.from(answers[qi] ?? []).slice().sort((a, b) => a - b);
+          let got: number[] = [];
+          try {
+            const inputs = container?.querySelectorAll(`input[name="test-${qi}"]`);
+            if (inputs) {
+              inputs.forEach((inp, idx) => {
+                const el = inp as HTMLInputElement;
+                if (el.checked) got.push(idx);
+              });
+            }
+          } catch { /* ignore */ }
+          got = got.slice().sort((a, b) => a - b);
           const need = (tests[qi].correct ?? []).slice().sort((a, b) => a - b);
           const isRight = got.length === need.length && got.every((v, i) => v === need[i]);
           if (isRight) ok += 1;
         }
         setCorrectCount(ok);
+        const needRetry = Boolean(enableFailPanel) && ok < 3;
+        setFailed(needRetry);
+        try { onFailChange && onFailChange(needRetry); } catch {}
+        try { onChecked && onChecked(); } catch { /* ignore */ }
+        return needRetry;
       } catch { /* ignore */ }
       try { onChecked && onChecked(); } catch { /* ignore */ }
+      return true;
     };
     useEffect(() => {
       try { onAttachCheckHandler && onAttachCheckHandler(() => onCheck()); } catch { }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    const isCorrect = (qi: number): boolean => {
-      const got = Array.from(answers[qi] ?? []); got.sort();
-      const need = (tests[qi].correct ?? []).slice().sort();
-      return got.length === need.length && got.every((v, i) => v === need[i]);
-    };
-    const needToRetry = Boolean(enableFailPanel) && checked && (correctCount * 2 <= tests.length - 1); // only for basic test
-    useEffect(() => {
-      try { onFailChange && onFailChange(needToRetry); } catch {}
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [needToRetry]);
+    const needToRetry = failed;
     const retry = () => {
       setAnswers({});
       setChecked(false);
       setCorrectCount(0);
+      setFailed(false);
       try { onFailChange && onFailChange(false); } catch {}
       try { onReset && onReset(); } catch {}
     };
@@ -449,7 +464,7 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
       <>
         <div className={styles.separator}></div>
         <div style={{ marginTop: 24 }}>
-          <div className={styles.testsContainer}>
+          <div className={styles.testsContainer} ref={rootRef}>
             {tests.map((t, qi) => (
               <div key={qi} className={styles.testItem}>
                 <div className={styles.testQuestion}>{t.question}</div>

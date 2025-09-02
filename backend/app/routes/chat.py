@@ -101,7 +101,9 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             print("user_instruction", user_instruction)
             print("system_prompt", system_prompt)
 
-            completion = client.chat.completions.create(
+            import asyncio
+            completion = await asyncio.to_thread(
+                client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -145,7 +147,9 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
             client = OpenAI(api_key=api_key)
 
             # 1) Подробный ответ на пользовательский запрос без запуска функций
-            first_completion = client.chat.completions.create(
+            import asyncio
+            first_completion = await asyncio.to_thread(
+                client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
                     {
@@ -175,7 +179,8 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 {"role": m.role, "content": m.content} for m in updated_chat.messages
             ]
 
-            second_completion = client.chat.completions.create(
+            second_completion = await asyncio.to_thread(
+                client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -240,7 +245,9 @@ async def add_message(chat_id: int, data: MessageIn, repo: ChatRepository = Depe
             {"role": m.role, "content": m.content} for m in chat_full.messages
         ]
 
-        completion = client.chat.completions.create(
+        import asyncio
+        completion = await asyncio.to_thread(
+            client.chat.completions.create,
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},

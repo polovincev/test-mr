@@ -100,6 +100,7 @@ const My: React.FC = () => {
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
   const [loadingExpansions, setLoadingExpansions] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
   const levelRef = useRef<HTMLDivElement | null>(null);
@@ -235,7 +236,7 @@ const My: React.FC = () => {
             handleSide: isLeft ? "right" : "left",
             levelCounts: { total: 0, l2: 0, l3: 0, l4: 0 },
             goalLevel: undefined,
-            onOpen: () => void 0,
+            onOpen: () => setRelatedTitle(title),
             noImage: true,
           },
         });
@@ -372,7 +373,7 @@ const My: React.FC = () => {
           onNodeClick={(_, node) => {
             try {
               const d: any = node?.data;
-              if (d && !d.noImage && typeof d.onOpen === 'function') d.onOpen();
+              if (d && typeof d.onOpen === 'function') d.onOpen();
             } catch { /* ignore */ }
           }}
         >
@@ -397,6 +398,23 @@ const My: React.FC = () => {
             }
           }}
         />
+      )}
+      {relatedTitle && (
+        <div className={styles.modalOverlay} onClick={() => setRelatedTitle(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <div className={styles.modalBreadcrumb}>Тема</div>
+                <div className={styles.modalTitle}>{relatedTitle}</div>
+              </div>
+              <button className={styles.modalClose} onClick={() => setRelatedTitle(null)}>×</button>
+            </div>
+            <div className={styles.modalIntro}>Это связанная тема из метаучебника. Выберите основную тему, чтобы продолжить работу с заданиями.</div>
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCta} onClick={() => setRelatedTitle(null)}>Понятно</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

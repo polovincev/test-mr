@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getTrajectory, updateGoalLevels, generateTasks, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
+import { getTrajectory, updateGoalLevels, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
 
 const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -28,7 +28,7 @@ const Trajectory = () => {
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(false);
-  const [progressByTitle, setProgressByTitle] = useState<{ [key: string]: { done: number } }>({});
+  // progress is provided by backend via item.passedCount; no client fetch needed
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,31 +46,7 @@ const Trajectory = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const loadDoneCounts = async () => {
-      if (!traj || typeof chatId !== 'number') return;
-      const entries: Array<[string, { done: number }]> = await Promise.all(
-        traj.items.map(async (it) => {
-          const goalSelected = typeof it.skills.goal_level === 'number' && it.skills.goal_level > 0.1;
-          if (!goalSelected) return [it.title, { done: 0 }] as const;
-          try {
-            const resp = await generateTasks(chatId, it.title);
-            const done = resp.tasks.filter((t) => {
-              const title = String((t as any)?.title || "").toLowerCase();
-              return !title.includes("тест по базовому уровню") && t.passed;
-            }).length;
-            return [it.title, { done }] as const;
-          } catch {
-            return [it.title, { done: 0 }] as const;
-          }
-        })
-      );
-      const map: Record<string, { done: number }> = {};
-      entries.forEach(([k, v]) => (map[k] = v));
-      setProgressByTitle(map);
-    };
-    loadDoneCounts();
-  }, [traj?.items.length, chatId]);
+  // removed client-side generateTasks calls; use item.passedCount from trajectory
 
 
   useEffect(() => {
@@ -198,7 +174,7 @@ const Trajectory = () => {
                 const style = goalSelected ? { ...baseStyle, cursor: "pointer" } : baseStyle;
                 // calculate tasks count up to goal level (if any)
                 let totalTasks = 0;
-                let doneTasks = progressByTitle[t.title]?.done || 0;
+                let doneTasks = (typeof (t as any).passedCount === 'number') ? (t as any).passedCount : 0;
                 if (goalSelected && Array.isArray(t.skills.levels)) {
                   const maxLevel = Math.round(t.skills.goal_level || 0);
                   for (const li of t.skills.levels) {

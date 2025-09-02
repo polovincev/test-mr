@@ -38,6 +38,7 @@ class TrajectoryItem(BaseModel):
     tags: str | None = None
     skills: SkillRequirement
     image_url: Optional[str] = Field(default=None, description="Preview image URL for the card")
+    passedCount: int = Field(default=0, description="Count of passed tasks for this topic from cached context")
 
 
 # Top-level response
@@ -187,7 +188,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             TrajectoryItem(
                 title="Сопротивление материалов основы",
                 description="Напряжения, деформации, диаграммы растяжения, предел текучести.",
-                tags="strength materials stress strain elastic",
+                tags="resistance materials stress strain yield",
                 skills=SkillRequirement(name="Сопротивление материалов", recommended_level=2),
             ),
         ]
@@ -233,16 +234,70 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                         pass
         except Exception:
             pass
-        return TrajectoryResponse(goal=USER_GOAL, items=items)
+        resp = TrajectoryResponse(goal=USER_GOAL, items=items)
+        # enrich with passedCount from context tasks
+        try:
+            from app.repositories.context_store import get_context  # type: ignore
+            ctx = get_context(int(chat_id) if chat_id is not None else -1)
+            tasks_by_topic = (ctx or {}).get("tasks") or {}
+            for it in resp.items:
+                try:
+                    # tasks cached under keys like "{title}::L{level}", so sum across all levels
+                    passed_sum = 0
+                    if isinstance(tasks_by_topic, dict):
+                        for k, v in tasks_by_topic.items():
+                            if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                                for t in v.get("tasks", []):
+                                    try:
+                                        if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
+                                            passed_sum += 1
+                                    except Exception:
+                                        continue
+                    setattr(it, "passedCount", int(passed_sum))
+                except Exception:
+                    setattr(it, "passedCount", 0)
+        except Exception:
+            pass
+        return resp
 
     api_key = os.getenv("OPENAI_API_KEY")
     skills_prompt = load_prompt(SYSTEM_SKILLS)
     traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
     tasks_prompt = load_prompt(SYSTEM_TASK_LIST)
     ctx = get_context(chat_id) if chat_id is not None else {}
-    # if trajectory already cached for this chat, return it immediately
+    # if trajectory already cached for this chat, enrich passedCount and return
     if chat_id is not None and "trajectory" in ctx:
-        return ctx["trajectory"]  # type: ignore [return-value]
+        try:
+            tr_raw = ctx["trajectory"]
+            resp = TrajectoryResponse(**tr_raw) if isinstance(tr_raw, dict) else tr_raw
+            # recompute passedCount from cached tasks
+            try:
+                tasks_by_topic = (ctx or {}).get("tasks") or {}
+                for it in resp.items:
+                    try:
+                        passed_sum = 0
+                        if isinstance(tasks_by_topic, dict):
+                            for k, v in tasks_by_topic.items():
+                                if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                                    for t in v.get("tasks", []):
+                                        try:
+                                            if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
+                                                passed_sum += 1
+                                        except Exception:
+                                            continue
+                        it.passedCount = int(passed_sum)
+                    except Exception:
+                        it.passedCount = 0
+            except Exception:
+                pass
+            # save back enriched trajectory
+            try:
+                set_trajectory(int(chat_id), resp)
+            except Exception:
+                pass
+            return resp
+        except Exception:
+            return ctx["trajectory"]  # type: ignore [return-value]
     print("--------------------------------")
     print(ctx)
     print("--------------------------------")
@@ -381,6 +436,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             return []
 
         traj_items_raw = parse_traj(traj_content)
+    
 
         # 3) Сопоставить: для каждого элемента взять первый подходящий скил из списка
         items: list[TrajectoryItem] = []
@@ -717,7 +773,9 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
             sys_prompt = prompt_level4 or prompt_level2
 
         try:
-            comp = client.chat.completions.create(
+            import asyncio
+            comp = await asyncio.to_thread(
+                client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": sys_prompt},
@@ -757,7 +815,13 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                 tval = payload.get("title")
                 if isinstance(tval, str) and tval.strip():
                     title_out = tval.strip()
-                cval = payload.get("content_md") or payload.get("content")
+                # accept various casings / aliases
+                cval = (
+                    payload.get("content_md")
+                    or payload.get("contentMd")
+                    or payload.get("content")
+                    or payload.get("markdown")
+                )
                 if isinstance(cval, str) and cval.strip():
                     content_md_out = cval.strip()
 
@@ -765,6 +829,13 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                 q_list = payload.get("questions_to_consider")
                 if not isinstance(q_list, list):
                     q_list = payload.get("questions_to_сonsider")  # cyrillic 'с'
+                if not isinstance(q_list, list):
+                    q_list = payload.get("questionsToConsider")
+                if not isinstance(q_list, list):
+                    # sometimes nested under items
+                    items = payload.get("items")
+                    if isinstance(items, dict):
+                        q_list = items.get("questions_to_consider") or items.get("questionsToConsider")
                 if isinstance(q_list, list):
                     for q in q_list:
                         if isinstance(q, dict):
@@ -775,13 +846,21 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
 
                 # tests
                 t_list = payload.get("tests")
+                if not isinstance(t_list, list):
+                    t_list = payload.get("test")
+                if not isinstance(t_list, list):
+                    items = payload.get("items")
+                    if isinstance(items, dict):
+                        arr = items.get("tests") or items.get("test")
+                        if isinstance(arr, list):
+                            t_list = arr
                 if isinstance(t_list, list):
                     for t in t_list:
                         if not isinstance(t, dict):
                             continue
                         tq = str(t.get("question", "")).strip()
-                        opts_raw = t.get("options")
-                        corr_raw = t.get("correct")
+                        opts_raw = t.get("options") or t.get("variants") or t.get("choices")
+                        corr_raw = t.get("correct") or t.get("answers") or t.get("answer")
                         hint = str(t.get("hint", "")).strip() if isinstance(t.get("hint"), str) else None
                         expl = str(t.get("explanation", "")).strip() if isinstance(t.get("explanation"), str) else None
                         options: list[str] = []
@@ -800,6 +879,16 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                                         correct.append(idx)
                                     except Exception:
                                         continue
+                        elif isinstance(corr_raw, (int, float, str)):
+                            # single answer
+                            try:
+                                correct.append(int(corr_raw))
+                            except Exception:
+                                try:
+                                    idx = options.index(str(corr_raw))
+                                    correct.append(idx)
+                                except Exception:
+                                    pass
                         if tq and options:
                             tests_out.append(Tests(question=tq, options=options, correct=correct, hint=hint, explanation=expl))
 
@@ -1181,4 +1270,3 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
         pass
 
     return MetaExpandResponse(chat_id=chat_id, items=items_out)
-

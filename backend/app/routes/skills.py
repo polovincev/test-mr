@@ -49,7 +49,9 @@ async def get_skills() -> SkillsResponse:  # noqa: D401
         from openai import OpenAI  # type: ignore
 
         client = OpenAI(api_key=api_key)
-        completion = client.chat.completions.create(
+        import asyncio
+        completion = await asyncio.to_thread(
+            client.chat.completions.create,
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},

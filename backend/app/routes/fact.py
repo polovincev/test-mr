@@ -56,6 +56,8 @@ def _generate_fact_via_openai() -> str:
 @router.get("/fact", response_model=FactResponse)
 async def read_fact() -> FactResponse:  # noqa: D401
     """Возвращает факт дня, сгенерированный через OpenAI (или статический)."""
-    return FactResponse(content=_generate_fact_via_openai())
+    import asyncio
+    content = await asyncio.to_thread(_generate_fact_via_openai)
+    return FactResponse(content=content)
 
 

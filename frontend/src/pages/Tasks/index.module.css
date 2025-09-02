@@ -406,8 +406,8 @@
     letter-spacing: -0.1px;
     cursor: pointer;
     position: relative;
-    padding-right: 16px;
-    /* padding-right: 24px; space for custom arrow */
+    /* padding-right: 16px; */
+    padding-right: 24px; /* space for custom arrow */
 }
 
 /* hide default disclosure triangle */
