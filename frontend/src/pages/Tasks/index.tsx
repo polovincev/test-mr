@@ -116,7 +116,6 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
       }
     } catch { /* ignore */ }
     setTestFinished(false);
-    testCheckRef.current = null;
     setTestFailed(false);
   }, [selected]);
 
