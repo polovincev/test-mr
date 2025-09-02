@@ -261,6 +261,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           return null;
                         })()}
                         {Array.isArray((current as any).tests) && (current as any).tests.length > 0 && !testFailed && (
+                          // After CHECK: always show Далее for level 2 when not last
                           testFinished && (tasks && selected < (tasks.length - 1)) ? (
                             <button
                               type="button"
@@ -295,12 +296,14 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                   needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false;
                                   console.log("CHECK: needRetry=", needRetry);
                                 } catch (e) { console.log("CHECK: testCheckRef error", e); }
-                                // For base-level test: if no retry needed (>=3 correct), mark passed immediately
+                                // For base-level test: if it's the LAST task and no retry needed (>=3 correct),
+                                // mark passed immediately (spec requirement)
                                 try {
                                   const title = String((current as any)?.title || "").toLowerCase();
                                   const isBaseTest = title.includes("тест по базовому уровню");
-                                  console.log("CHECK: isBaseTest=", isBaseTest, "chatId=", chatId);
-                                  if (isBaseTest && !needRetry && typeof chatId === 'number') {
+                                  const isLast = (Array.isArray(tasks) ? selected === (tasks.length - 1) : false);
+                                  console.log("CHECK: isBaseTest=", isBaseTest, "isLast=", isLast, "chatId=", chatId);
+                                  if (isBaseTest && isLast && !needRetry && typeof chatId === 'number') {
                                     console.log("CHECK: calling updateTaskPassed");
                                     await updateTaskPassed(chatId, finalTopic, selected, true);
                                     setTasks((prev) => {
@@ -334,6 +337,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                 if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
                                 return next;
                               });
+                              // Immediately count 3/4 level as passed; advance only if NOT last
                               if (tasks && selected < (tasks.length - 1)) {
                                 setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
                               }
