@@ -147,6 +147,30 @@ const Trajectory = () => {
     return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
   }
 
+  const hasAnyPassed = (() => {
+    try {
+      return (traj?.items || []).some((it: any) => {
+        if (typeof it?.passedCount === 'number') {
+          return it.passedCount > 0; // backend already excludes basic test
+        }
+        // Fallback: scan tasks up to any level; exclude "Тест по базовому уровню"
+        const lvls = (it?.skills?.levels || []) as any[];
+        for (const lv of lvls) {
+          const tasks = Array.isArray(lv?.tasks) ? lv.tasks : [];
+          for (const t of tasks) {
+            const title = String((t as any)?.title || '').toLowerCase();
+            if (!title.includes('тест по базовому уровню') && Boolean((t as any)?.passed)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+    } catch {
+      return false;
+    }
+  })();
+
   return (
     <div className={styles.page}>
       <div className={styles.layout}>
@@ -335,7 +359,7 @@ const Trajectory = () => {
           )}
         </div>
       </div>
-      <AgentButton onClick={() => setChatOpen(true)} />
+      {hasAnyPassed && <AgentButton onClick={() => setChatOpen(true)} />}
       <ChatModal open={chatOpen} onClose={() => setChatOpen(false)} chatId={chatId} />
     </div>
   );
