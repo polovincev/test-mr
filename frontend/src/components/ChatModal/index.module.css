@@ -72,6 +72,10 @@
   padding: 16px;
   overflow-y: auto;           /* scroll messages */
   position: relative;
+  display: flex;              /* bottom align when few messages */
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .bubble {
@@ -83,6 +87,31 @@
   font-size: 14px;
   color: #2a2c3a;
   max-width: 85%;
+}
+
+/* typing indicator */
+.typing {
+  background: #ffffff;
+}
+.dots {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9399bd;
+  opacity: 0.6;
+  animation: chatDots 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes chatDots {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-4px); opacity: 1; }
 }
 
 .floatBtn {
@@ -101,7 +130,7 @@
 }
 
 .inputRow {
-  padding: 14px 16px;
+  padding: 12px 16px;
   display: flex;
   gap: 10px;
   align-items: center;

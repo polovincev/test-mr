@@ -336,7 +336,7 @@ const Trajectory = () => {
         </div>
       </div>
       <AgentButton onClick={() => setChatOpen(true)} />
-      <ChatModal open={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatModal open={chatOpen} onClose={() => setChatOpen(false)} chatId={chatId} />
     </div>
   );
 };

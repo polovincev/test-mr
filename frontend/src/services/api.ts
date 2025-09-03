@@ -191,3 +191,23 @@ export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
   return (await res.json()) as MetaExpandResponse;
 }
 // end
+
+export interface SummaryMessage { role: "user" | "assistant"; content: string }
+export interface SummaryChatOut { chat_id: number; messages: SummaryMessage[] }
+
+export async function startSummaryChat(chatId: number): Promise<SummaryChatOut> {
+  const res = await fetch(`${API_URL}/summary_chat/start?chat_id=${chatId}`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to start summary chat");
+  return (await res.json()) as SummaryChatOut;
+}
+
+export async function sendSummaryMessage(chatId: number, content: string): Promise<SummaryChatOut> {
+  const res = await fetch(`${API_URL}/summary_chat/message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, content })
+  });
+  if (!res.ok) throw new Error("Failed to send summary message");
+  return (await res.json()) as SummaryChatOut;
+}
+// end

@@ -138,7 +138,6 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
           <button className={styles.backButton} onClick={() => navigate(`/trajectory${chatId ? `?chat_id=${chatId}` : ""}`)}>← Назад</button>
           <div className={styles.container}>
             <div className={styles.sidebar}>
-              <div className={styles.sidebarTitle}>Описание</div>
               <ul className={styles.sidebarList}>
                 {(tasks || []).map((t, i) => (
                   <li
