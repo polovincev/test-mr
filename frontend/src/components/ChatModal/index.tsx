@@ -9,32 +9,69 @@ interface Props {
   chatId?: number;
 }
 
+function cleanseText(text: string): string {
+  return String(text || "").replace(/\[COMMAND:SUMMARY_DONE\]/gi, "").trim();
+}
+
+function formatMessageHtml(text: string): string {
+  // Escape HTML first
+  let s = cleanseText(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  // Bold **text**
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  // Italic *text* or _text_
+  s = s.replace(/\*(?!\*)([^*]+)\*/g, "<em>$1</em>");
+  s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
+  // Line breaks
+  s = s.replace(/\n/g, "<br/>");
+  return s;
+}
+
 const ChatModal: React.FC<Props> = ({ open, onClose, chatId }) => {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<SummaryMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const stickToBottomRef = useRef(true);
 
   const showTyping = loading;
 
   useEffect(() => {
     if (!open) return;
+    // reset conversation and show typing while fetching first assistant message
+    setMessages([]);
+    stickToBottomRef.current = true; // start stuck to bottom
     if (typeof chatId === "number") {
       setLoading(true);
       startSummaryChat(chatId)
-        .then((r) => setMessages(r.messages || []))
+        .then((r) => setMessages((r.messages || []).map((m) => ({ ...m, content: cleanseText(m.content) }))))
         .catch(() => setMessages([]))
         .finally(() => setLoading(false));
     } else {
+      setLoading(false);
       setMessages([]);
     }
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [open, chatId]);
 
+  // track whether user is near bottom; if scrolled up, pause autoscroll
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+      stickToBottomRef.current = nearBottom;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
+    return () => el.removeEventListener("scroll", onScroll as any);
+  }, [listRef.current]);
+
   useEffect(() => {
     try {
       const el = listRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
     } catch {}
   }, [messages.length, loading]);
 
@@ -48,12 +85,13 @@ const ChatModal: React.FC<Props> = ({ open, onClose, chatId }) => {
     setMessages((m) => [...m, { role: "user", content: val }]);
     try {
       const r = await sendSummaryMessage(chatId, val);
-      setMessages(r.messages || []);
+      setMessages((r.messages || []).map((m) => ({ ...m, content: cleanseText(m.content) })));
     } catch {
       // keep optimistic message
     } finally {
       setLoading(false);
       inputRef.current?.focus();
+      // After assistant reply, stick to bottom only if user was near bottom
     }
   };
 
@@ -72,22 +110,27 @@ const ChatModal: React.FC<Props> = ({ open, onClose, chatId }) => {
           </button>
         </div>
         <div className={styles.messages} ref={listRef}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ marginBottom: 10, display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div className={styles.bubble}>{m.content}</div>
-            </div>
-          ))}
-          {showTyping && (
-            <div style={{ marginBottom: 10, display: "flex", justifyContent: "flex-start" }}>
-              <div className={`${styles.bubble} ${styles.typing}`}>
-                <span className={styles.dots}>
-                  <span className={styles.dot}></span>
-                  <span className={styles.dot}></span>
-                  <span className={styles.dot}></span>
-                </span>
+          <div className={styles.list}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div
+                  className={`${styles.bubble} ${m.role === "user" ? styles.msgUser : styles.msgAssistant}`}
+                  dangerouslySetInnerHTML={{ __html: formatMessageHtml(m.content) }}
+                />
               </div>
-            </div>
-          )}
+            ))}
+            {showTyping && (
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <div className={`${styles.bubble} ${styles.msgAssistant} ${styles.typing}`}>
+                  <span className={styles.dots}>
+                    <span className={styles.dot}></span>
+                    <span className={styles.dot}></span>
+                    <span className={styles.dot}></span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className={styles.inputRow}>
           <textarea

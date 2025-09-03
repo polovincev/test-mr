@@ -17,8 +17,8 @@
   background: rgba(255, 255, 255, 1);
   box-shadow: 0 2px 8px 0 rgba(122, 130, 161, 0.2);
   backdrop-filter: blur(4px);
-  display: flex;              /* ensure vertical layout */
-  flex-direction: column;     /* header, messages, input stacked */
+  display: flex; /* ensure vertical layout */
+  flex-direction: column; /* header, messages, input stacked */
 }
 
 .header {
@@ -68,11 +68,20 @@
 }
 
 .messages {
-  flex: 1;                    /* take available space */
+  flex: 1;
   padding: 16px;
-  overflow-y: auto;           /* scroll messages */
+  overflow-y: auto;
   position: relative;
-  display: flex;              /* bottom align when few messages */
+  display: block; /* scrolling container */
+  min-height: 0; /* allow scrolling inside flex parent */
+  max-height: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.list {
+  min-height: 100%;
+  display: flex; /* bottom align content */
   flex-direction: column;
   justify-content: flex-end;
   gap: 10px;
@@ -80,13 +89,31 @@
 
 .bubble {
   display: inline-block;
-  background: #ffffff;
-  border: 1px solid #eef0f6;
-  border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   font-size: 14px;
   color: #2a2c3a;
   max-width: 85%;
+  color: var(--text-text-default, #161a33);
+
+  /* Body/Medium */
+  font-family: var(--family-onest, Onest);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: var(--weight-regular, 400);
+  line-height: 24px; /* 150% */
+}
+
+/* message modifiers for customization */
+.msgUser {
+  display: flex;
+  justify-content: flex-end;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--background-bg-secondary, #f0f2ff);
+}
+
+.msgAssistant {
+  display: flex;
+  justify-content: flex-start;
 }
 
 /* typing indicator */
@@ -106,12 +133,24 @@
   opacity: 0.6;
   animation: chatDots 1.2s infinite ease-in-out;
 }
-.dot:nth-child(2) { animation-delay: 0.15s; }
-.dot:nth-child(3) { animation-delay: 0.3s; }
+.dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 @keyframes chatDots {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
-  40% { transform: translateY(-4px); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 .floatBtn {
@@ -130,12 +169,12 @@
 }
 
 .inputRow {
-  padding: 12px 16px;
+  padding: 14px 16px;
   display: flex;
   gap: 10px;
   align-items: center;
   background: #ffffff;
-  position: relative;  
+  position: relative;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
 }
