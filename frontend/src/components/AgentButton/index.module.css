@@ -1,0 +1,25 @@
+.btn {
+  position: fixed;
+  right: 32px;
+  bottom: 40px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #ffffff;
+  fill: linear-gradient(143deg, #fff 19.54%, rgba(255, 255, 255, 0) 102.53%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: none;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.icon {
+  width: 90px;
+  height: 90px;
+}

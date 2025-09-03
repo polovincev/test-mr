@@ -4,12 +4,15 @@ import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
 import { getTrajectory, updateGoalLevels, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
+import AgentButton from "../../components/AgentButton";
+import ChatModal from "../../components/ChatModal";
 
 const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const levels = (skillLevels?: { level_name?: string | null; meta?: string | null; description?: string | null }[]) => {
     const present = Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
@@ -332,6 +335,8 @@ const Trajectory = () => {
           )}
         </div>
       </div>
+      <AgentButton onClick={() => setChatOpen(true)} />
+      <ChatModal open={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 };

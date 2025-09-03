@@ -44,3 +44,25 @@ def set_tasks(chat_id: int, topic: str, tasks: Any) -> None:
     if isinstance(tasks_by_topic, dict):
         tasks_by_topic[str(topic).strip()] = tasks
 
+
+# --- Summary chat storage -------------------------------------------------
+
+def get_summary_messages(chat_id: int) -> list[dict]:
+    ctx = _context_by_chat_id.get(chat_id, {})
+    msgs = ctx.get("summary_chat_messages")
+    if isinstance(msgs, list):
+        return msgs  # type: ignore[return-value]
+    return []
+
+
+def append_summary_message(chat_id: int, role: str, content: str) -> None:
+    ctx = _context_by_chat_id.setdefault(chat_id, {})
+    msgs = ctx.setdefault("summary_chat_messages", [])
+    if isinstance(msgs, list):
+        msgs.append({"role": str(role), "content": str(content)})
+
+
+def clear_summary_messages(chat_id: int) -> None:
+    ctx = _context_by_chat_id.setdefault(chat_id, {})
+    ctx["summary_chat_messages"] = []
+
