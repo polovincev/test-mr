@@ -299,6 +299,10 @@
   font-size: 14px;
 }
 
+.testResult p {
+  margin: 0;
+}
+
 .testOk {
   color: #0db56c;
 }

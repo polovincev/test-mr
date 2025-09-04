@@ -574,7 +574,16 @@ const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options
                       <div className={styles.explBlock}>
                         <img className={styles.explIcon} src={lamp} alt="" />
                         <div className={styles.explTitle}>Объяснение</div>
-                        <div className={styles.explText}>{t.explanation}</div>
+                        <div
+                          className={styles.explText}
+                          dangerouslySetInnerHTML={{ __html: (() => {
+                            try {
+                              const md = String(t.explanation || "").replace(/\r\n/g, "\n");
+                              const file = (processor as any)?.processSync ? (processor as any).processSync(md) : md;
+                              return String(file);
+                            } catch { return String(t.explanation || ""); }
+                          })() }}
+                        />
                       </div>
                     )}
                   </div>
