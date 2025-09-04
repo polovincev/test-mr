@@ -144,7 +144,7 @@ export interface GeneratedTask {
   level: number;
   content_md: string;
   questions_to_consider?: { question: string; answer?: string }[];
-  tests?: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[];
+  tests?: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string; answer?: number[] }[];
   payload?: Record<string, unknown>;
   passed?: boolean;
 }
@@ -167,11 +167,19 @@ export async function generateTasks(chatId: number, topic: string): Promise<Gene
   return (await res.json()) as GenerateTasksResponse;
 }
 
-export async function updateTaskPassed(chatId: number, topic: string, index: number, passed: boolean): Promise<GenerateTasksResponse> {
+export type TestAnswerPayload = { index: number; answer: number[] };
+
+export async function updateTaskPassed(
+  chatId: number,
+  topic: string,
+  index: number,
+  passed: boolean,
+  answer?: TestAnswerPayload[]
+): Promise<GenerateTasksResponse> {
   const res = await fetch(`${API_URL}/trajectory/tasks/passed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, topic, index, passed }),
+    body: JSON.stringify({ chat_id: chatId, topic, index, passed, ...(Array.isArray(answer) ? { answer } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to update task passed status");
   return (await res.json()) as GenerateTasksResponse;

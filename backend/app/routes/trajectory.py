@@ -648,6 +648,7 @@ class Tests(BaseModel):
     correct: list[int] = Field(default_factory=list)
     hint: str | None = None
     explanation: str | None = None
+    answer: list[int] = Field(default_factory=list, description="User selected option indices")
 
 
 class GenerateTasksResponse(BaseModel):
@@ -992,9 +993,13 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
 class UpdateTaskPassedRequest(BaseModel):
     chat_id: int
     topic: str
-    index: int = Field(description="Zero-based task index in tasks array")
+    index: int = Field(description="Zero-based task index in tasks array (task)")
     passed: bool
+    answer: list[TaskAnswer] | None = Field(default=None, description="Array of selected option indices for given test")
 
+class TaskAnswer(BaseModel):
+    index: int
+    answer: list[int]
 
 @router.post("/tasks/passed")
 async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksResponse:
@@ -1026,7 +1031,21 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
     idx = max(0, min(req.index, len(resp.tasks) - 1)) if resp.tasks else 0
     if resp.tasks:
         try:
+            # 1) Обновляем флаг passed для задачи по индексу idx
             resp.tasks[idx].passed = bool(req.passed)
+
+            # 2) Если пришёл массив ответов (пары {index, answer}), записываем каждый в соответствующий вопрос
+            if req.answer is not None and isinstance(req.answer, list):
+                target_task = resp.tasks[idx]
+                if isinstance(getattr(target_task, "tests", None), list):
+                    for entry in req.answer:
+                        try:
+                            q_idx = int(getattr(entry, "index", -1))
+                            ans = getattr(entry, "answer", [])
+                            if 0 <= q_idx < len(target_task.tests):
+                                target_task.tests[q_idx].answer = [int(x) for x in (ans or [])]
+                        except Exception:
+                            continue
         except Exception:
             pass
 

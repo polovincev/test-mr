@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { generateTasks, type GeneratedTask, getTrajectory, updateTaskPassed } from "../../services/api";
+import { generateTasks, type GeneratedTask, getTrajectory, updateTaskPassed, type TestAnswerPayload } from "../../services/api";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMath from "remark-math";
@@ -129,6 +129,18 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
 
   const current = tasks && tasks.length > 0 ? tasks[Math.min(selected, tasks.length - 1)] : null;
 
+  // If task already passed and it is a test → mark as finished to show hints and "Далее"
+  useEffect(() => {
+    try {
+      const isTest = !!(current && Array.isArray((current as any).tests) && (current as any).tests.length > 0);
+      if (isTest && (current as any)?.passed) {
+        setTestFinished(true);
+        setTestFailed(false);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
 
   return (
     <div className={styles.page}>
@@ -211,7 +223,17 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                       {current.level === 2 && Array.isArray((current as any).tests) && (current as any).tests.length > 0 && (
                         <TestsBlock
                           key={selected}
+                          processor={processorRef.current}
                           tests={(current as any).tests}
+                          initialAnswers={(() => {
+                            try {
+                              const list = (current as any).tests as any[];
+                              const map: Record<number, number[]> = {};
+                              list.forEach((t, i) => { if (Array.isArray(t?.answer)) map[i] = t.answer as number[]; });
+                              return map;
+                            } catch { return undefined as any; }
+                          })()}
+                          initialChecked={Boolean((current as any)?.passed)}
                           onAttachCheckHandler={(fn) => { testCheckRef.current = fn; }}
                           onChecked={() => setTestFinished(true)}
                           suppressExplanation={(() => {
@@ -278,7 +300,20 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
 
                                   // If base test is last item and passed -> update backend immediately
                                   if (isBaseTest && !needRetry && !hasNext && typeof chatId === 'number') {
-                                    try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
+                                    // collect user's answers for ALL questions (use document root to avoid scoping issues)
+                                    let packed: TestAnswerPayload[] | undefined = undefined;
+                                    try {
+                                      const total = Array.isArray((current as any).tests) ? (current as any).tests.length : 0;
+                                      const answers: TestAnswerPayload[] = [];
+                                      for (let qi = 0; qi < total; qi++) {
+                                        const inputs = document.querySelectorAll(`input[name="test-${qi}"]`);
+                                        const arr: number[] = [];
+                                        inputs.forEach((inp, idx) => { const el = inp as HTMLInputElement; if (el.checked) arr.push(idx); });
+                                        answers.push({ index: qi, answer: arr });
+                                      }
+                                      packed = answers;
+                                    } catch {}
+                                    try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
                                     setTasks((prev) => {
                                       if (!prev) return prev;
                                       const next = prev.slice();
@@ -302,7 +337,20 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                               <button type="button" className={styles.testBtn} onClick={async () => {
                                 // mark passed and move next
                                 if (typeof chatId === 'number') {
-                                  try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
+                                  // collect user's answers for ALL questions (use document root to avoid scoping issues)
+                                  let packed: TestAnswerPayload[] | undefined = undefined;
+                                  try {
+                                    const total = Array.isArray((current as any).tests) ? (current as any).tests.length : 0;
+                                    const answers: TestAnswerPayload[] = [];
+                                    for (let qi = 0; qi < total; qi++) {
+                                      const inputs = document.querySelectorAll(`input[name="test-${qi}"]`);
+                                      const arr: number[] = [];
+                                      inputs.forEach((inp, idx) => { const el = inp as HTMLInputElement; if (el.checked) arr.push(idx); });
+                                      answers.push({ index: qi, answer: arr });
+                                    }
+                                    packed = answers;
+                                  } catch {}
+                                  try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
                                 }
                                 setTasks((prev) => {
                                   if (!prev) return prev;
@@ -398,10 +446,18 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string }[]; onAttachCheckHandler?: (fn: () => boolean) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void }>
-  = ({ tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset }) => {
-    const [answers, setAnswers] = useState<Record<number, Set<number>>>({});
-    const [checked, setChecked] = useState(false);
+const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string; answer?: number[] }[]; onAttachCheckHandler?: (fn: () => boolean) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void; initialAnswers?: Record<number, number[]>; initialChecked?: boolean }>
+  = ({ processor, tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset, initialAnswers, initialChecked }) => {
+    const [answers, setAnswers] = useState<Record<number, Set<number>>>(() => {
+      const map: Record<number, Set<number>> = {};
+      try {
+        if (initialAnswers) {
+          Object.keys(initialAnswers).forEach((k) => { map[Number(k)] = new Set(initialAnswers[Number(k)] || []); });
+        }
+      } catch { /* ignore */ }
+      return map;
+    });
+    const [checked, setChecked] = useState(Boolean(initialChecked));
     const [correctCount, setCorrectCount] = useState<number>(0);
     const [failed, setFailed] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -501,7 +557,13 @@ const TestsBlock: React.FC<{ tests: { question: string; options: string[]; corre
                           disabled={checked}
                           onChange={() => { if (checked) return; toggle(qi, oi, single); }}
                         />
-                        <span>{opt}</span>
+                        <span dangerouslySetInnerHTML={{ __html: (() => {
+                          try {
+                            const md = String(opt || "").replace(/\r\n/g, "\n");
+                            const file = (processor as any)?.processSync ? (processor as any).processSync(md) : md;
+                            return String(file);
+                          } catch { return String(opt || ""); }
+                        })() }} />
                       </label>
                     );
                   })}
