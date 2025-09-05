@@ -1,9 +1,9 @@
 .btn {
   position: fixed;
-  right: 32px;
-  bottom: 40px;
-  width: 100px;
-  height: 100px;
+  right: 28px;
+  bottom: 32px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background: #ffffff;
   fill: linear-gradient(143deg, #fff 19.54%, rgba(255, 255, 255, 0) 102.53%);
@@ -20,6 +20,6 @@
 }
 
 .icon {
-  width: 90px;
-  height: 90px;
+  width: 80px;
+  height: 80px;
 }
