@@ -292,6 +292,15 @@
     margin-top: 12px;
 }
 
+/* Inline goal block */
+.goalBlock {
+    margin: 12px 0 16px 0;
+}
+
+.goalText {
+    margin-bottom: 10px;
+}
+
 @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: 0 0; }

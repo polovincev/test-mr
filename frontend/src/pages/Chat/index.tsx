@@ -223,6 +223,50 @@ const Chat = () => {
     return clean;
   };
 
+  // Render assistant content with inline goal block at [COMMAND:FIX_GOAL]
+  const renderAssistantContent = (raw: string) => {
+    const hasFixTag = raw.includes("[COMMAND:FIX_GOAL]");
+    const goal = extractGoalText(raw);
+
+    const renderTextBlock = (text: string) =>
+      text
+        .split("\n")
+        .map((line, i) => {
+          const html = line
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, "$1<em>$2</em>");
+          return (
+            <p key={`t-${i}`} style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }} dangerouslySetInnerHTML={{ __html: html }} />
+          );
+        });
+
+    if (hasFixTag) {
+      const parts = raw.split("[COMMAND:FIX_GOAL]");
+      const before = stripBracketBlocks(parts[0] || "").trim();
+      const after = stripBracketBlocks(parts.slice(1).join("[COMMAND:FIX_GOAL]") || "").trim();
+      return (
+        <>
+          {before && renderTextBlock(before)}
+          <div className={styles.goalBlock}>
+            <div className={styles.goalTitle}></div>
+            {goal && <div className={styles.goalText}>Твоя цель: <b>{goal}</b></div>}
+            <button
+              type="button"
+              className={styles.suggestionBtn}
+              onClick={() => navigate(`/trajectory${chat?.id ? `?chat_id=${chat.id}` : ""}`)}
+            >
+              Посмотреть траекторию
+            </button>
+          </div>
+          {after && renderTextBlock(after)}
+        </>
+      );
+    }
+
+    // Fallback to simple processing if no tag
+    return <>{renderTextBlock(processAssistantContent(raw))}</>;
+  };
+
   const activeId = chat?.id ?? null;
   const latestChat = chats.length > 0 ? [...chats].sort((a, b) => b.id - a.id)[0] : null;
 
@@ -314,19 +358,13 @@ const Chat = () => {
                           {group.items.map((m, idx) => (
                             <div key={`${group.dateKey}-${idx}`} className={`${styles.messageRow} ${m.role === "assistant" ? styles.leftRow : styles.rightRow}`}>
                               <div className={`${styles.message} ${m.role === "assistant" ? styles.assistant : styles.user}`}> 
-                                {processAssistantContent(m.content)
-                                  .split("\n")
-                                  .map((line, i) => {
-                                    const html = line
-                                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold
-                                      .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, "$1<em>$2</em>"); // italic for single *...*
-                                    return (
-                                      <p key={i} style={{ margin: 0, marginBottom: line.trim() ? 8 : 0 }} dangerouslySetInnerHTML={{ __html: html }} />
-                                    );
-                                  })}
+                                {renderAssistantContent(m.content)}
                                 {m.role === "assistant" && Array.isArray((m as any).suggestions) && (m as any).suggestions.length > 0 && (
                                   <div className={styles.suggestions}>
-                                    {(m as any).suggestions.map((s: { label: string; action: "redirect" | "send_message"; href?: string; message?: string }, i: number) => {
+                                    {((m as any).content?.includes?.("[COMMAND:FIX_GOAL]")
+                                      ? (m as any).suggestions.filter((s: any) => !(s.action === "redirect" && typeof s.href === "string" && s.href.includes("/trajectory")))
+                                      : (m as any).suggestions
+                                    ).map((s: { label: string; action: "redirect" | "send_message"; href?: string; message?: string }, i: number) => {
                                       const handleClick = async () => {
                                         if (s.action === "send_message" && s.message) {
                                           await onSend(s.message);
