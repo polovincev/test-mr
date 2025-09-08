@@ -22,8 +22,8 @@ const GoalNode: React.FC<NodeProps<{ title?: string }>> = ({ data }) => {
   return (
     <div className={styles.goalNode} onClick={(e) => e.stopPropagation()}>
       <div className={styles.goalTitle}>{title}</div>
-      <Handle type="target" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
-      <Handle type="source" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
+      <Handle type="source" position={Position.Left} id="goal-left" className={styles.handleInvisible} />
+      <Handle type="source" position={Position.Right} id="goal-right" className={styles.handleInvisible} />
     </div>
   );
 };
@@ -52,9 +52,11 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           <div className={styles.topicBadge}>Тема</div>
           <div className={data?.noImage ? styles.topicTitleSmall : styles.topicTitle}>{title}</div>
         </div>
-        {/* Centered overlapping handles for both input and output */}
-        <Handle type="target" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
-        <Handle type="source" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
+        {/* Target handles on both sides; source handles on opposite sides for outgoing */}
+        <Handle type="target" position={Position.Left} id="topic-left" className={styles.handleInvisible} />
+        <Handle type="target" position={Position.Right} id="topic-right" className={styles.handleInvisible} />
+        <Handle type="source" position={Position.Left} id="topic-src-left" className={styles.handleInvisible} />
+        <Handle type="source" position={Position.Right} id="topic-src-right" className={styles.handleInvisible} />
       </div>
       {data?.levelCounts && !data?.noImage && (
         <div
@@ -132,14 +134,6 @@ const My: React.FC = () => {
   // Force layout/resize and fit graph on initial mount
   useEffect(() => {
     try { window.dispatchEvent(new Event("resize")); } catch { /* ignore */ }
-    const id1 = window.setTimeout(() => {
-      try { rfRef.current && rfRef.current.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ }
-    }, 0);
-    // second tick for images/fonts
-    const id2 = window.setTimeout(() => {
-      try { rfRef.current && rfRef.current.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ }
-    }, 200);
-    return () => { window.clearTimeout(id1); window.clearTimeout(id2); };
   }, []);
 
   const nodeTypes = useMemo(() => ({ topic: TopicNode, goal: GoalNode }), []);
@@ -172,10 +166,18 @@ const My: React.FC = () => {
         { title: "Экосистемы и биосфера", imageUrl: new URL("../../icon/profile.png", import.meta.url).href, levelCounts: { total: 4, l2: 1, l3: 2, l4: 1 }, goalLevel: 2, onOpen: () => setSelectedIdx(3) },
       ];
     const nodes: Node<TopicNodeData>[] = [];
-    const leftX = 100;
-    const rightX = 900;
-    const startY = 40;
-    const stepY = 160;
+    const anchorCenterX = 0;
+    const anchorCenterY = 0;
+    const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 720;
+    const goalHalf = 70; // 140x140 goal node
+    const topicWidth = 380; // approx width of topic node
+    const baseGap = Math.max(120, Math.min(280, Math.round(viewportW * 0.08)));
+    const leftX = anchorCenterX - goalHalf - baseGap - topicWidth;
+    const rightX = anchorCenterX + goalHalf + baseGap;
+    const contentH = Math.max(400, Math.round(viewportH * 0.8));
+    const stepY = Math.max(120, Math.min(220, Math.round(contentH / Math.max(1, items.length))));
+    const startY = anchorCenterY - Math.round(((items.length - 1) * stepY) / 2);
     items.forEach((t, i) => {
       const isLeft = i % 2 === 0;
       const x = isLeft ? leftX : rightX;
@@ -218,10 +220,12 @@ const My: React.FC = () => {
 
       // expansion children below the parent node if any
       const exps = expansions[t.title] || [];
+      const expStepY = Math.max(72, Math.min(200, Math.round(stepY * 0.5)));
       exps.forEach((title, idx) => {
         const id = `${i + 1}-e${idx + 1}`;
-        const exX = x + (isLeft ? -280 : 500);
-        const exY = y + 40 + idx * 84;
+        const expOffsetX = isLeft ? -(topicWidth / 2 + Math.max(140, baseGap)) : (topicWidth + Math.max(140, baseGap));
+        const exX = x + expOffsetX;
+        const exY = y + Math.round(stepY * 0.25) + idx * expStepY;
         nodes.push({
           id,
           type: "topic",
@@ -237,38 +241,52 @@ const My: React.FC = () => {
         });
       });
     });
-    // Add centered goal node
-    const centerX = (leftX + rightX) / 2;
-    const centerY = startY + (Math.max(1, items.length) - 1) * (stepY / 2);
+    // Add centered goal node at flow center (top-left offset for 140x140)
     nodes.push({
       id: "goal",
       type: "goal" as any,
-      position: { x: centerX, y: centerY },
+      position: { x: anchorCenterX - 70, y: anchorCenterY - 70 },
       data: { title: "Генетика" } as any,
+      draggable: false,
     });
     return nodes;
   }, [trajectory, expansions]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
-    // connect each main node to the central goal node
+    // connect each main node to the central goal node, attach to left/right handle based on x
+    const goalNode = computedNodes.find((n) => n.id === "goal");
+    const goalX = goalNode ? goalNode.position.x : 0;
     computedNodes.forEach((node) => {
       if (/^\d+$/.test(node.id)) {
-        edges.push({ id: `goal-${node.id}`, source: "goal", target: node.id, type: "bezier" } as any);
+        const isRight = node.position.x > goalX;
+        edges.push({
+          id: `goal-${node.id}`,
+          source: "goal",
+          sourceHandle: isRight ? "goal-right" : "goal-left",
+          target: node.id,
+          targetHandle: isRight ? "topic-left" : "topic-right",
+          type: "bezier",
+        } as any);
       }
     });
-    // connect expansions to their parents
+    // connect expansions to their parents with side-specific handles
     computedNodes.forEach((node) => {
       if (node.id.includes("-e")) {
         const parentId = node.id.split("-e")[0];
         const parent = computedNodes.find((n) => n.id === parentId);
         const child = node;
         if (parent) {
+          const isParentRight = goalX !== undefined ? parent.position.x > goalX : parent.position.x > 0;
+          const sourceHandle = isParentRight ? "topic-src-right" : "topic-src-left";
+          const targetHandle = child.position.x > parent.position.x ? "topic-left" : "topic-right";
           edges.push({
             id: `p${parentId}-${node.id}`,
             source: parentId,
+            sourceHandle,
             target: node.id,
-            type: "straight",
+            targetHandle,
+            type: "bezier",
             style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
           } as any);
         }
@@ -308,35 +326,25 @@ const My: React.FC = () => {
   }, [computedEdges, setEdges]);
 
   // Fit viewport to show the whole map on mount and after graph changes
-  useEffect(() => {
-    if (rfRef.current) {
-      try { rfRef.current.fitView({ padding: 0.2, duration: 400, includeHiddenNodes: true } as any); } catch { /* ignore */ }
-    }
-  }, [computedNodes.length, computedEdges.length, loadingExpansions]);
+  // intentionally skip fitView to keep goal centered
 
-  // Defer fitView until after nodes/edges are rendered to DOM
+  // Center viewport on the goal node after render and on resize
   useEffect(() => {
-    if (!rfRef.current) return;
-    const id = window.setTimeout(() => {
-      try { rfRef.current?.fitView({ padding: 0.2, duration: 300, includeHiddenNodes: true } as any); } catch { /* ignore */ }
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [nodes.length, edges.length, loadingExpansions]);
-
-  // Keep the goal node centered in the viewport
-  useEffect(() => {
-    if (!rfRef.current) return;
-    const id = window.setTimeout(() => {
+    const centerOnGoal = () => {
       try {
         const rf = rfRef.current as any;
-        const screenCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-        const flowCenter = rf.project(screenCenter);
-        const halfSize = 70; // goal node is 140x140
-        setNodes((nds) => nds.map((n) => n.id === "goal" ? { ...n, position: { x: flowCenter.x - halfSize, y: flowCenter.y - halfSize } } : n));
+        if (!rf) return;
+        const goal = nodes.find((n) => n.id === "goal");
+        if (!goal) return;
+        const x = goal.position.x; // center of 140px node
+        const y = goal.position.y;
+        rf.setCenter(0, 0, { zoom: 0.7 });
       } catch { /* ignore */ }
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [setNodes, nodes.length, edges.length, loadingExpansions]);
+    };
+    const id = window.setTimeout(centerOnGoal, 0);
+    window.addEventListener('resize', centerOnGoal);
+    return () => { window.clearTimeout(id); window.removeEventListener('resize', centerOnGoal); };
+  }, [nodes.length, edges.length]);
 
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
