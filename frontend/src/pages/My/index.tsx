@@ -17,11 +17,20 @@ type TopicNodeData = {
   onSetLevel?: (level: 2 | 3 | 4) => void;
 };
 
+const GoalNode: React.FC<NodeProps<{ title?: string }>> = ({ data }) => {
+  const title = data?.title || "Цель";
+  return (
+    <div className={styles.goalNode} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.goalTitle}>{title}</div>
+      <Handle type="target" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
+      <Handle type="source" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
+    </div>
+  );
+};
+
 const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
   const title = data?.title || "Тема";
   const imageUrl = data?.imageUrl; // for expansion nodes we intentionally omit image
-  const side: "left" | "right" = data?.handleSide || "left";
-  const positionForHandles = side === "left" ? Position.Left : Position.Right;
 
   const formatTasksCount = (n: number): string => {
     const abs = Math.abs(n) % 100;
@@ -43,23 +52,9 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           <div className={styles.topicBadge}>Тема</div>
           <div className={data?.noImage ? styles.topicTitleSmall : styles.topicTitle}>{title}</div>
         </div>
-        {data?.noImage ? (
-          <>
-            <Handle type="target" position={Position.Left} id="left" className={styles.handleInvisible} />
-            <Handle type="source" position={Position.Left} id="left" className={styles.handleInvisible} />
-            <Handle type="target" position={Position.Right} id="right" className={styles.handleInvisible} />
-            <Handle type="source" position={Position.Right} id="right" className={styles.handleInvisible} />
-            <Handle type="target" position={Position.Top} id="top" className={styles.handleInvisible} />
-            <Handle type="source" position={Position.Top} id="top" className={styles.handleInvisible} />
-            <Handle type="target" position={Position.Bottom} id="bottom" className={styles.handleInvisible} />
-            <Handle type="source" position={Position.Bottom} id="bottom" className={styles.handleInvisible} />
-          </>
-        ) : (
-          <>
-            <Handle type="target" position={positionForHandles} className={styles.handleInvisible} />
-            <Handle type="source" position={positionForHandles} className={styles.handleInvisible} />
-          </>
-        )}
+        {/* Centered overlapping handles for both input and output */}
+        <Handle type="target" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
+        <Handle type="source" position={Position.Top} className={`${styles.handleInvisible} ${styles.handleCenter}`} />
       </div>
       {data?.levelCounts && !data?.noImage && (
         <div
@@ -147,7 +142,7 @@ const My: React.FC = () => {
     return () => { window.clearTimeout(id1); window.clearTimeout(id2); };
   }, []);
 
-  const nodeTypes = useMemo(() => ({ topic: TopicNode }), []);
+  const nodeTypes = useMemo(() => ({ topic: TopicNode, goal: GoalNode }), []);
 
   const defaultEdgeOptions = useMemo(() => ({
     type: "bezier",
@@ -242,15 +237,26 @@ const My: React.FC = () => {
         });
       });
     });
+    // Add centered goal node
+    const centerX = (leftX + rightX) / 2;
+    const centerY = startY + (Math.max(1, items.length) - 1) * (stepY / 2);
+    nodes.push({
+      id: "goal",
+      type: "goal" as any,
+      position: { x: centerX, y: centerY },
+      data: { title: "Генетика" } as any,
+    });
     return nodes;
   }, [trajectory, expansions]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
-    const n = computedNodes.length;
-    for (let i = 0; i < n - 1; i++) {
-      edges.push({ id: `e${i + 1}-${i + 2}`, source: String(i + 1), target: String(i + 2), type: "bezier" });
-    }
+    // connect each main node to the central goal node
+    computedNodes.forEach((node) => {
+      if (/^\d+$/.test(node.id)) {
+        edges.push({ id: `goal-${node.id}`, source: "goal", target: node.id, type: "bezier" } as any);
+      }
+    });
     // connect expansions to their parents
     computedNodes.forEach((node) => {
       if (node.id.includes("-e")) {
@@ -258,21 +264,10 @@ const My: React.FC = () => {
         const parent = computedNodes.find((n) => n.id === parentId);
         const child = node;
         if (parent) {
-          const dx = child.position.x - parent.position.x;
-          const dy = child.position.y - parent.position.y;
-          const useHorizontal = Math.abs(dx) >= Math.abs(dy);
-          const sourceHandle = useHorizontal
-            ? (dx >= 0 ? "right" : "left")
-            : (dy >= 0 ? "bottom" : "top");
-          const targetHandle = useHorizontal
-            ? (dx >= 0 ? "left" : "right")
-            : (dy >= 0 ? "top" : "bottom");
           edges.push({
             id: `p${parentId}-${node.id}`,
             source: parentId,
             target: node.id,
-            sourceHandle,
-            targetHandle,
             type: "straight",
             style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
           } as any);
@@ -327,6 +322,21 @@ const My: React.FC = () => {
     }, 0);
     return () => window.clearTimeout(id);
   }, [nodes.length, edges.length, loadingExpansions]);
+
+  // Keep the goal node centered in the viewport
+  useEffect(() => {
+    if (!rfRef.current) return;
+    const id = window.setTimeout(() => {
+      try {
+        const rf = rfRef.current as any;
+        const screenCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const flowCenter = rf.project(screenCenter);
+        const halfSize = 70; // goal node is 140x140
+        setNodes((nds) => nds.map((n) => n.id === "goal" ? { ...n, position: { x: flowCenter.x - halfSize, y: flowCenter.y - halfSize } } : n));
+      } catch { /* ignore */ }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [setNodes, nodes.length, edges.length, loadingExpansions]);
 
   const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 

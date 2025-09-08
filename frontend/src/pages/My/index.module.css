@@ -1,470 +1,513 @@
 .wrapper {
-    width: 100vw;
-    background: rgba(247, 249, 255, 1);
-    height: calc(100vh - 0px);
+  width: 100vw;
+  background: rgba(247, 249, 255, 1);
+  height: calc(100vh - 0px);
 }
 
 /* React Flow built-in controls customization */
 :global(.react-flow__controls) {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: row !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: row !important;
 }
 
 :global(.react-flow__controls-button) {
-    background: #FFFFFF !important;
-    border: 1px solid #E6E8F2 !important;
-    width: 40px !important;
-    height: 40px !important;
+  background: #ffffff !important;
+  border: 1px solid #e6e8f2 !important;
+  width: 40px !important;
+  height: 40px !important;
 }
 
 :global(.react-flow__controls-button:hover) {
-    background: #F5F6FF !important;
+  background: #f5f6ff !important;
 }
 
 :global(.react-flow__controls svg) {
-    fill: #101828 !important;
+  fill: #101828 !important;
 }
 
 .backButton {
-    position: fixed;
-    top: 24px;
-    left: 24px;
-    z-index: 10;
-    height: 48px;
-    padding: 12px 18px 12px 14px;
-    border-radius: var(--Medium, 16px);
-    background: var(--Surface-Primary, #FFF);
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 2px 3.2px 0 rgba(202, 211, 238, 0.35);
-    color: var(--Text-Primary, #101828);
-    font-family: Onest;
-    font-size: 16px;
-    font-weight: 200;
-    line-height: 24px;
-    /* 150% */
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 10;
+  height: 48px;
+  padding: 12px 18px 12px 14px;
+  border-radius: var(--Medium, 16px);
+  background: var(--Surface-Primary, #fff);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 3.2px 0 rgba(202, 211, 238, 0.35);
+  color: var(--Text-Primary, #101828);
+  font-family: Onest;
+  font-size: 16px;
+  font-weight: 200;
+  line-height: 24px;
+  /* 150% */
 }
 
 .goalBlock {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 425px;
-    height: 60px;
-    z-index: 10;
-    background: #DBE5FF;
-    border-radius: 12px;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 425px;
+  height: 60px;
+  z-index: 10;
+  background: #dbe5ff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goalNode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1.692px 3.384px 0 rgba(103, 212, 245, 0.04),
+    0 4px 8px 0 rgba(80, 58, 224, 0.12);
+  border: 4px solid #b9cafa;
+  position: relative;
+  padding: 16px 40px;
+  color: #101828;
+  text-align: center;
+  width: 160px;
+  height: 80px;
+  /* Heading/H3 */
+  font-family: var(--family-onest, Onest);
+  font-size: 24px;
+  font-style: normal;
+  font-weight: var(--weight-medium, 500);
+  line-height: 28px; /* 116.667% */
+  letter-spacing: -0.2px;
+  overflow: hidden;
 }
 
 .goalText {
-    text-align: center;
-    color: #101828;
-    font-family: Onest;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 20px;
-    /* 125% */
+  text-align: center;
+  color: #101828;
+  font-family: Onest;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  /* 125% */
 }
 
 .levelFilterWrap {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 11;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .levelFilterBtn {
-    /* display: inline-flex; */
-    align-items: center;
-    gap: 8px;
-    height: 48px;
-    padding: 0px 16px;
-    border-radius: var(--Medium, 12px);
-    background: #E4E6F7;
-    border: 2px solid #E4E6F7;
-    color: #101828;
-    font-family: Onest;
-    font-size: 16px;
-    font-weight: 300;
-    cursor: pointer;
+  /* display: inline-flex; */
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0px 16px;
+  border-radius: var(--Medium, 12px);
+  background: #e4e6f7;
+  border: 2px solid #e4e6f7;
+  color: #101828;
+  font-family: Onest;
+  font-size: 16px;
+  font-weight: 300;
+  cursor: pointer;
 }
 
 .levelFilterBtn:hover {
-    background: #FFF;
-    border: 2px solid #503AE0;
+  background: #fff;
+  border: 2px solid #503ae0;
 }
 
 .levelFilterLabel {
-    color: #7A87A1;
-    font-weight: 300;
+  color: #7a87a1;
+  font-weight: 300;
 }
 
 .levelFilterValue {
-    font-weight: 500;
+  font-weight: 500;
 }
 
 .levelCaret {
-    transition: transform .15s ease;
+  transition: transform 0.15s ease;
 }
 
 .levelCaretOpen {
-    transform: rotate(180deg);
+  transform: rotate(180deg);
 }
 
 .levelDropdown {
-    margin-top: 8px;
-    width: 220px;
-    background: #FFF;
-    border-radius: 16px;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  margin-top: 8px;
+  width: 220px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .levelItem {
-    width: 100%;
-    padding: 12px 16px;
-    font-family: Onest;
-    font-size: 16px;
-    color: #161A33;
-    border-radius: 16px;
-    cursor: pointer;
+  width: 100%;
+  padding: 12px 16px;
+  font-family: Onest;
+  font-size: 16px;
+  color: #161a33;
+  border-radius: 16px;
+  cursor: pointer;
 }
 
 .levelItem:hover {
-    background: #F5F6FF;
+  background: #f5f6ff;
 }
 
 .levelItemSelected {
-    color: #503AE0;
-    font-weight: 600;
+  color: #503ae0;
+  font-weight: 600;
 }
 
 .topicNode {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: #fff;
-    border: 1px solid #7562F0;
-    box-shadow: 0px 4px 8px 0px #503AE01F;
-    backdrop-filter: blur(13.536466598510742px);
-    border-radius: 16px;
-    min-width: 360px;
-    max-width: 420px;
-    position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #7562f0;
+  box-shadow: 0px 4px 8px 0px #503ae01f;
+  backdrop-filter: blur(13.536466598510742px);
+  border-radius: 16px;
+  min-width: 360px;
+  max-width: 420px;
+  position: relative;
 }
 
 .topicNodeCompact {
-    padding: 10px;
-    gap: 8px;
-    min-width: 200px;
-    max-width: 340px;
+  padding: 10px;
+  gap: 8px;
+  min-width: 200px;
+  max-width: 340px;
 }
 
 .topicImage {
-    width: 74px;
-    height: 74px;
-    object-fit: cover;
-    border-radius: 12px;
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .topicContent {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .topicBadge {
-    font-size: 12px;
-    color: #656C94;
-    font-weight: 200;
+  font-size: 12px;
+  color: #656c94;
+  font-weight: 200;
 }
 
 .topicTitle {
-    font-size: 20px;
-    line-height: 1.2;
-    font-weight: 600;
-    color: #101828;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #101828;
 }
 
 .topicTitleSmall {
-    font-size: 14px;
-    line-height: 1.2;
-    font-weight: 500;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
 }
 
 .nodeTasksBox {
-    position: absolute;
-    left: 0px;
-    bottom: -100px;
-    border-radius: 12px;
-    padding: 8px 12px;
-    border: 1px solid #CAC2FF;
-    background: linear-gradient(138deg, rgba(255, 255, 255, 0.64) 14.55%, rgba(255, 255, 255, 0.38) 92.27%);
-    box-shadow: 0 2px 4px 0 rgba(185, 202, 250, 0.12);
-    backdrop-filter: blur(12px);
+  position: absolute;
+  left: 0px;
+  bottom: -100px;
+  border-radius: 12px;
+  padding: 8px 12px;
+  border: 1px solid #cac2ff;
+  background: linear-gradient(
+    138deg,
+    rgba(255, 255, 255, 0.64) 14.55%,
+    rgba(255, 255, 255, 0.38) 92.27%
+  );
+  box-shadow: 0 2px 4px 0 rgba(185, 202, 250, 0.12);
+  backdrop-filter: blur(12px);
 }
 
 .nodeTasksHeader {
-    color: #101828;
-    font-family: Onest;
-    font-size: 12px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 14px;
-    /* 116.667% */
-    letter-spacing: -0.12px;
-    margin-bottom: 12px;
-    display: flex;
-    gap: 6px
+  color: #101828;
+  font-family: Onest;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 14px;
+  /* 116.667% */
+  letter-spacing: -0.12px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 6px;
 }
 
 .nodeTasksNum {
-    color: #656C94;
-    font-family: Onest;
-    font-size: 12px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 14px;
-    /* 116.667% */
-    letter-spacing: -0.12px;
+  color: #656c94;
+  font-family: Onest;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 14px;
+  /* 116.667% */
+  letter-spacing: -0.12px;
 }
 
 .nodeChipRow {
-    display: flex;
-    gap: 10px;
+  display: flex;
+  gap: 10px;
 }
 
 .nodeChip {
-    display: flex;
-    align-items: left;
-    justify-content: center;
-    flex-direction: column;
-    gap: 10px;
-    padding: 6px 20px 6px 10px;
-    border-radius: 12px;
-    color: #656C94;
+  display: flex;
+  align-items: left;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 20px 6px 10px;
+  border-radius: 12px;
+  color: #656c94;
 
-    font-family: Onest;
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 400;
-    line-height: 12px;
-    /* 120% */
-    letter-spacing: -0.1px;
+  font-family: Onest;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 12px;
+  /* 120% */
+  letter-spacing: -0.1px;
 }
 
 .nodeChipActive {
-    border-radius: 8px;
-    border: 1px solid #E257BF;
+  border-radius: 8px;
+  border: 1px solid #e257bf;
 }
 
 .nodeChipTitle {
-    font-size: 16px;
-
+  font-size: 16px;
 }
 
 .nodeChipCount {
-    color: #656C94;
-    font-family: Onest;
-    font-size: 13px;
+  color: #656c94;
+  font-family: Onest;
+  font-size: 13px;
 }
 
 .handleInvisible {
-    background: transparent;
-    border: none;
-    width: 8px;
-    height: 8px;
+  background: transparent;
+  border: none;
+  width: 8px;
+  height: 8px;
+}
+
+.handleCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  pointer-events: all;
 }
 
 /* Small UI block for spacing/radius controls */
 .flowControlsWrap {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 12;
-    display: flex;
-    gap: 8px;
-    padding: 8px 10px;
-    background: #FFFFFF;
-    border: 1px solid #E6E8F2;
-    border-radius: 12px;
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.04);
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 12;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e6e8f2;
+  border-radius: 12px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.04);
 }
 
 .flowControlsWrap label {
-    font-family: Onest;
-    font-size: 12px;
-    color: #656C94;
-    margin-right: 4px;
+  font-family: Onest;
+  font-size: 12px;
+  color: #656c94;
+  margin-right: 4px;
 }
 
 .flowControlsWrap input {
-    vertical-align: middle;
+  vertical-align: middle;
 }
 
 /* --- Modal styles --- */
 .modalOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(7, 12, 26, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 24px;
-    z-index: 1000;
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 12, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 24px;
+  z-index: 1000;
 }
 
 .modal {
-    width: 720px;
-    max-width: 92vw;
-    max-height: 86vh;
-    overflow: auto;
-    background: #FFFFFF;
-    border-radius: 16px;
-    box-shadow: 0px 12px 32px rgba(0, 0, 0, 0.15);
-    padding: 20px 20px 16px 20px;
+  width: 720px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0px 12px 32px rgba(0, 0, 0, 0.15);
+  padding: 20px 20px 16px 20px;
 }
 
 .modalHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .modalBreadcrumb {
-    color: #656C94;
-    font-family: Onest;
-    font-size: 12px;
-    font-weight: 300;
+  color: #656c94;
+  font-family: Onest;
+  font-size: 12px;
+  font-weight: 300;
 }
 
 .modalTitle {
-    color: #161A33;
-    font-family: Onest;
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.2;
-    margin-top: 4px;
+  color: #161a33;
+  font-family: Onest;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-top: 4px;
 }
 
 .modalClose {
-    appearance: none;
-    background: transparent;
-    border: none;
-    border-radius: 12px;
-    width: 36px;
-    height: 36px;
-    font-size: 24px;
-    color: #2F2354;
-    cursor: pointer;
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+  color: #2f2354;
+  cursor: pointer;
 }
 
 .modalProgress {
-    color: #656C94;
-    font-family: Onest;
-    font-size: 14px;
-    font-weight: 400;
-    margin: 8px 0 12px 0;
+  color: #656c94;
+  font-family: Onest;
+  font-size: 14px;
+  font-weight: 400;
+  margin: 8px 0 12px 0;
 }
 
 .modalIntro {
-    color: #161A33;
-    font-family: Onest;
-    font-size: 14px;
-    line-height: 1.5;
-    font-weight: 300;
-    margin: 6px 0 12px 0;
+  color: #161a33;
+  font-family: Onest;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 300;
+  margin: 6px 0 12px 0;
 }
 
 .modalLevelTitle {
-    color: #161A33;
-    font-family: Onest;
-    font-size: 16px;
-    font-weight: 600;
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  color: #161a33;
+  font-family: Onest;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .modalList {
-    margin: 8px 0 12px 16px;
-    padding-left: 6px;
-    color: #2F2354;
-    font-family: Onest;
-    font-size: 14px;
-    line-height: 1.5;
-    font-weight: 300;
+  margin: 8px 0 12px 16px;
+  padding-left: 6px;
+  color: #2f2354;
+  font-family: Onest;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 300;
 }
 
 .modalBadge {
-    border-radius: 999px;
-    display: flex;
-    flex-direction: column;
-    transform: rotate(-5.678deg);
-    justify-content: center;
-    align-items: center;
-    border-radius: 12px;
-    width: 68px;
-    height: 28px;
-    border: 2px solid #FFF;
-    background: radial-gradient(101.34% 192.1% at 15.7% 91.13%, #7562F0 0%, rgba(98, 136, 240, 0.00) 100%), #E2579F;
-    box-shadow: 0 4px 12px 0 rgba(143, 167, 215, 0.35);
-    color: var(--content-invert-primary, #F7FAFF);
-    font-variant-numeric: lining-nums tabular-nums;
-    font-family: Onest;
-    font-size: 12px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 14px;
-    /* 116.667% */
-    letter-spacing: -0.24px;
+  border-radius: 999px;
+  display: flex;
+  flex-direction: column;
+  transform: rotate(-5.678deg);
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  width: 68px;
+  height: 28px;
+  border: 2px solid #fff;
+  background: radial-gradient(
+      101.34% 192.1% at 15.7% 91.13%,
+      #7562f0 0%,
+      rgba(98, 136, 240, 0) 100%
+    ),
+    #e2579f;
+  box-shadow: 0 4px 12px 0 rgba(143, 167, 215, 0.35);
+  color: var(--content-invert-primary, #f7faff);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-family: Onest;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 14px;
+  /* 116.667% */
+  letter-spacing: -0.24px;
 }
 
 .modalFooter {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .modalCta {
-    appearance: none;
-    background: #503AE0;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 12px;
-    height: 44px;
-    padding: 0 16px;
-    font-family: Onest;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
+  appearance: none;
+  background: #503ae0;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 16px;
+  font-family: Onest;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .modalCtaSecondary {
-    appearance: none;
-    background: #F5F6FF;
-    color: #2F2354;
-    border: none;
-    border-radius: 12px;
-    height: 44px;
-    padding: 0 16px;
-    font-family: Onest;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
+  appearance: none;
+  background: #f5f6ff;
+  color: #2f2354;
+  border: none;
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 16px;
+  font-family: Onest;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }
