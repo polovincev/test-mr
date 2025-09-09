@@ -83,7 +83,7 @@
   font-family: var(--family-onest, Onest);
   font-size: 24px;
   font-style: normal;
-  font-weight: var(--weight-medium, 500);
+  font-weight: var(--weight-medium, 600);
   line-height: 28px; /* 116.667% */
   letter-spacing: -0.2px;
   overflow: hidden;
@@ -205,8 +205,11 @@
 .topicNodeCompact {
   padding: 10px;
   gap: 8px;
-  min-width: 200px;
-  max-width: 340px;
+  min-width: 150px;
+  max-width: 220px;
+  white-space: nowrap;       /* текст не переносится */
+  overflow: hidden;          /* скрыть лишнее */
+  text-overflow: ellipsis;   /* добавить "..." */
 }
 
 .topicImage {
@@ -239,6 +242,12 @@
   font-size: 14px;
   line-height: 1.2;
   font-weight: 500;
+  min-width: 150px;
+  max-width: 220px;
+  padding-right: 10px;
+  white-space: nowrap;       /* текст не переносится */
+  overflow: hidden;          /* скрыть лишнее */
+  text-overflow: ellipsis;   /* добавить "..." */
 }
 
 .nodeTasksBox {
