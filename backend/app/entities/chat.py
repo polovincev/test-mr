@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Literal, List, Optional
 
 from pydantic import BaseModel, Field
@@ -16,7 +17,7 @@ class Suggestion(BaseModel):
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(ZoneInfo("Europe/Moscow")))
     suggestions: List[Suggestion] = Field(default_factory=list)
 
 

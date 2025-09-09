@@ -54,13 +54,14 @@ def _build_suggestions(mode: str, content: str) -> List[Suggestion]:
         if has_fix_goal:
             suggestions.extend([
                 Suggestion(label="Посмотреть траекторию", action="redirect", href="/trajectory"),
+                Suggestion(label="Перейти в метаучебник", action="redirect", href="/my"),
                 Suggestion(label="Ответить на вопросы", action="send_message", message="Ответить на вопросы"),
             ])
         if has_profile_done:
-            suggestions.append(Suggestion(label="К траектории", action="redirect", href="/trajectory"))
+            suggestions.append([Suggestion(label="К траектории", action="redirect", href="/trajectory"), Suggestion(label="Перейти в метаучебник", action="redirect", href="/my")])
     elif mode == "profile_goal":
         if has_fix_goal:
-            suggestions.append(Suggestion(label="К траектории", action="redirect", href="/trajectory"))
+            suggestions.append([Suggestion(label="К траектории", action="redirect", href="/trajectory"), Suggestion(label="Перейти в метаучебник", action="redirect", href="/my")])
 
     return suggestions
 

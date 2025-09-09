@@ -81,8 +81,8 @@ const Home = () => {
             <div className="row justify-content-center">
               <div className="col-12 col-lg-8">
                 <div className={styles.contentBlock}>
-                  <div className={styles.contentTitle}>Твоя цель</div>
-                  <div className={styles.contentBlockDescription}>Давай поставим цель, и будем отслеживать прогресс, чтобы видеть, насколько ты приблизился к желаемому результату</div>
+                  <div className={styles.contentTitle}>Тут будет твоя цель обучения</div>
+                  <div className={styles.contentBlockDescription}>ИИ-помощник посоветует конкретные шаги, а ты увидишь, как быстро приближаешься к результату</div>
                   <button className={styles.setGoalButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal" } })}>Поставить</button>
                   <img src={new URL("../../icon/goal.png", import.meta.url).href} alt="Goal" className={styles.goalImage} />
                 </div>

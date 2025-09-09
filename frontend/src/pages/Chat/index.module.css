@@ -313,6 +313,12 @@
     gap: 4px;
 }
 
+.suggestionBtnWrap {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+}
+
 .dot {
     width: 6px;
     height: 6px;

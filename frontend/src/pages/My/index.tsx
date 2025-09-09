@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { metaExpand, updateGoalLevels, metaCentral } from "../../services/api";
+import { metaExpand, updateGoalLevels, metaCentral, getTrajectory, type TrajectoryResponse } from "../../services/api";
 import ReactFlow, {
   Background,
   Controls,
@@ -208,7 +208,7 @@ const wrapperStyle: React.CSSProperties = {
 const My: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const trajectory = (location.state as any)?.trajectory as
+  const trajectoryInit = (location.state as any)?.trajectory as
     | {
         items?: {
           title: string;
@@ -229,10 +229,12 @@ const My: React.FC = () => {
     : (location.state as any)?.chatId
     ? Number((location.state as any)?.chatId)
     : undefined;
+  const [trajectory, setTrajectory] = useState<TrajectoryResponse | undefined>(trajectoryInit as any);
+  const trajFetchedRef = useRef<boolean>(Boolean(trajectoryInit));
+  const fetchingRef = useRef<boolean>(false);
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
-  const [loadingExpansions, setLoadingExpansions] = useState(false);
-  const [loadingMeta, setLoadingMeta] = useState(false);
   const [metaText, setMetaText] = useState<string>("");
+  const [loading, setLoading] = useState(true);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
@@ -249,51 +251,47 @@ const My: React.FC = () => {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
+  // Sequential fetching: trajectory -> expansions -> metaCentral (StrictMode-safe)
   useEffect(() => {
-    let ignore = false;
-    const run = async () => {
-      try {
-        if (typeof chatId === "number") {
-          if (!ignore) setLoadingExpansions(true);
-          const resp = await metaExpand(chatId);
-          const map: Record<string, string[]> = {};
-          (resp.items || []).forEach((it) => {
-            map[it.title] = it.expansions || [];
-          });
-          if (!ignore) setExpansions(map);
-        }
-      } catch {
-        /* ignore */
-      } finally {
-        if (!ignore) setLoadingExpansions(false);
+    const fetchAll = async () => {
+      if (!chatId) {
+        setLoading(false);
+        return;
       }
-    };
-    run();
-    return () => {
-      ignore = true;
-    };
-  }, [chatId]);
+      if (fetchingRef.current) {
+        return;
+      }
+      fetchingRef.current = true;
+      try {
+        setLoading(true);
+        // 1) trajectory
+        let tr = trajectory;
+        if (!trajFetchedRef.current) {
+          trajFetchedRef.current = true; // lock before starting request (prevents double call under StrictMode)
+          tr = await getTrajectory(chatId);
+          setTrajectory(tr);
+        }
 
-  // Load central meta content (goal summary)
-  useEffect(() => {
-    let ignore = false;
-    const run = async () => {
-      try {
-        if (typeof chatId === "number") {
-          if (!ignore) setLoadingMeta(true);
-          const resp = await metaCentral(chatId);
-          if (!ignore) setMetaText(String(resp?.content || ""));
-        }
+        // 2) expansions
+        const expResp = await metaExpand(chatId);
+        const map: Record<string, string[]> = {};
+        (expResp.items || []).forEach((it) => {
+          map[it.title] = it.expansions || [];
+        });
+        setExpansions(map);
+
+        // 3) meta central
+        const mc = await metaCentral(chatId);
+        setMetaText(String(mc.content || ""));
       } catch {
-        /* ignore */
+        // ignore errors, leave what we could load
       } finally {
-        if (!ignore) setLoadingMeta(false);
+        setLoading(false);
+        fetchingRef.current = false;
       }
     };
-    run();
-    return () => {
-      ignore = true;
-    };
+    fetchAll();
+    // No cleanup needed; we intentionally allow async to finish even after unmount (StrictMode first pass)
   }, [chatId]);
 
   // Force layout/resize and fit graph on initial mount
@@ -593,7 +591,7 @@ const My: React.FC = () => {
   const selectedItem =
     selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
-  if (loadingExpansions || loadingMeta) {
+  if (loading) {
     return <LoaderOverlay text="Формирую тематические связи..." />;
   }
 

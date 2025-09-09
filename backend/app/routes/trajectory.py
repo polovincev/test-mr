@@ -97,21 +97,37 @@ def map_tasks_to_levels(sr: SkillRequirement, mapping: dict[str, list[TaskInfo]]
 
 
 async def enrich_items_with_images(items: List[TrajectoryItem]) -> None:
-    """Populate unique image_url for each item using external search service."""
+    """Populate unique image_url for each item using external search service.
+
+    The original implementation made HTTP requests *sequentially*, which slowed the
+    whole /trajectory response (especially when OpenAI part had already finished).
+    This version runs up-to 10 requests concurrently using asyncio.gather and a
+    semaphore to avoid overloading the external service.
+    """
+
     try:
-        import httpx
+        import httpx, asyncio
+
         used_urls: set[str] = set()
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            for idx, it in enumerate(items):
+
+        async def fetch_and_choose(it: TrajectoryItem, idx: int, sem: asyncio.Semaphore) -> None:
+            # One item → one external POST request guarded by semaphore
+            async with sem:
                 try:
-                    resp = await client.post("http://158.160.19.226:8000/search", json={"text": it.tags, "top_k": 5})
-                    resp.raise_for_status()
-                    data = resp.json()
-                    images = []
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(
+                            "http://158.160.19.226:8000/search",
+                            json={"text": it.tags, "top_k": 5},
+                        )
+                        resp.raise_for_status()
+                        data = resp.json()
+
+                    images: list = []
                     if isinstance(data, dict):
                         images = data.get("images") or data.get("results") or data.get("items") or []
                     elif isinstance(data, list):
                         images = data
+
                     urls: list[str] = []
                     for v in images:
                         if isinstance(v, str):
@@ -120,6 +136,7 @@ async def enrich_items_with_images(items: List[TrajectoryItem]) -> None:
                             u = v.get("url") or v.get("image") or v.get("link")
                             if isinstance(u, str):
                                 urls.append(u)
+
                     chosen: str | None = None
                     if urls:
                         candidate = urls[idx % len(urls)]
@@ -132,12 +149,20 @@ async def enrich_items_with_images(items: List[TrajectoryItem]) -> None:
                                 break
                     if chosen is None and urls:
                         chosen = urls[0]
+
                     if isinstance(chosen, str):
                         it.image_url = chosen
                         used_urls.add(chosen)
                 except Exception:
-                    continue
+                    # Ignore individual failures; leave image_url empty
+                    return
+
+        # Limit concurrency to 10 to be gentle on the image service
+        sem = asyncio.Semaphore(10)
+        await asyncio.gather(*(fetch_and_choose(it, idx, sem) for idx, it in enumerate(items)))
+
     except Exception:
+        # On any import / runtime error just leave images empty
         return
 
 
