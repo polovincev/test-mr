@@ -298,22 +298,24 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                   let needRetry = false;
                                   try { needRetry = testCheckRef.current ? Boolean(testCheckRef.current()) : false; } catch {}
 
-                                  // If base test is last item and passed -> update backend immediately
-                                  if (isBaseTest && !needRetry && !hasNext && typeof chatId === 'number') {
-                                    // collect user's answers for ALL questions (use document root to avoid scoping issues)
-                                    let packed: TestAnswerPayload[] | undefined = undefined;
-                                    try {
-                                      const total = Array.isArray((current as any).tests) ? (current as any).tests.length : 0;
-                                      const answers: TestAnswerPayload[] = [];
-                                      for (let qi = 0; qi < total; qi++) {
-                                        const inputs = document.querySelectorAll(`input[name="test-${qi}"]`);
-                                        const arr: number[] = [];
-                                        inputs.forEach((inp, idx) => { const el = inp as HTMLInputElement; if (el.checked) arr.push(idx); });
-                                        answers.push({ index: qi, answer: arr });
-                                      }
-                                      packed = answers;
-                                    } catch {}
-                                    try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
+                                  // If test passed on check → mark passed immediately and persist
+                                  if (!needRetry) {
+                                    if (typeof chatId === 'number') {
+                                      // collect user's answers for ALL questions
+                                      let packed: TestAnswerPayload[] | undefined = undefined;
+                                      try {
+                                        const total = Array.isArray((current as any).tests) ? (current as any).tests.length : 0;
+                                        const answers: TestAnswerPayload[] = [];
+                                        for (let qi = 0; qi < total; qi++) {
+                                          const inputs = document.querySelectorAll(`input[name="test-${qi}"]`);
+                                          const arr: number[] = [];
+                                          inputs.forEach((inp, idx) => { const el = inp as HTMLInputElement; if (el.checked) arr.push(idx); });
+                                          answers.push({ index: qi, answer: arr });
+                                        }
+                                        packed = answers;
+                                      } catch {}
+                                      try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
+                                    }
                                     setTasks((prev) => {
                                       if (!prev) return prev;
                                       const next = prev.slice();

@@ -1089,8 +1089,23 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
 
             # compute progression
             any_passed = any(bool(getattr(t, "passed", False)) for t in all_tasks)
+            def _is_base_test(t) -> bool:
+                try:
+                    return (
+                        int(getattr(t, "level", 0)) == 2
+                        and isinstance(getattr(t, "title", None), str)
+                        and "тест по базовому уровню" in str(getattr(t, "title")).lower()
+                    )
+                except Exception:
+                    return False
+
             def level_passed(L: int) -> tuple[int, int]:
-                sel = [t for t in all_tasks if int(getattr(t, "level", 0)) == L]
+                # Exclude base-level summary test from L2 counts
+                sel = [
+                    t
+                    for t in all_tasks
+                    if int(getattr(t, "level", 0)) == L and not (_is_base_test(t) if L == 2 else False)
+                ]
                 total = len(sel)
                 done = sum(1 for t in sel if bool(getattr(t, "passed", False)))
                 return done, total
@@ -1098,7 +1113,8 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
             l2_done, l2_total = level_passed(2)
             l3_done, l3_total = level_passed(3)
             l4_done, l4_total = level_passed(4)
-            # special: level-2 test passed
+
+            # пройден ли тест по базовому уровню (уровень 2, название содержит), passed=true
             l2_test_passed = any(
                 int(getattr(t, "level", 0)) == 2
                 and isinstance(getattr(t, "title", None), str)
@@ -1107,17 +1123,19 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
                 for t in all_tasks
             )
 
+            # удобные флаги завершения уровней (если заданий нет — считаем уровень завершён)
+            l2_completed = ((l2_total > 0) and (l2_done == l2_total)) or l2_test_passed
+            l3_completed = (l3_total > 0) and (l3_done == l3_total)
+            l4_completed = (l4_total > 0) and (l4_done == l4_total)
+
             new_user_level: float = 0.1
             if any_passed:
                 new_user_level = 1
-            # rule 1: all L2 or L2 test
-            if (l2_total > 0 and l2_done == l2_total) or l2_test_passed:
+            if l2_completed:
                 new_user_level = max(new_user_level, 2)
-            # rule 2: L2 complete AND all L3
-            if ((l2_total > 0 and l2_done == l2_total) or l2_test_passed) and (l3_total > 0 and l3_done == l3_total):
+            if l2_completed and l3_completed:
                 new_user_level = max(new_user_level, 3)
-            # rule 3: L2 complete AND all L3 AND all L4
-            if ((l2_total > 0 and l2_done == l2_total) or l2_test_passed) and (l3_total > 0 and l3_done == l3_total) and (l4_total > 0 and l4_done == l4_total):
+            if l2_completed and l3_completed and l4_completed:
                 new_user_level = max(new_user_level, 4)
 
             # update in trajectory for matching topic
