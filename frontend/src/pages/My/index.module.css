@@ -99,6 +99,19 @@
   /* 125% */
 }
 
+.goalContent {
+  position: absolute;
+  top: 32px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  overflow: auto;
+  color: #2f2354;
+  font-family: Onest;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
 .levelFilterWrap {
   position: fixed;
   top: 24px;

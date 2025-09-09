@@ -66,3 +66,14 @@ def clear_summary_messages(chat_id: int) -> None:
     ctx = _context_by_chat_id.setdefault(chat_id, {})
     ctx["summary_chat_messages"] = []
 
+
+# --- Meta central summary -------------------------------------------------
+
+def get_meta_central(chat_id: int):
+    return _context_by_chat_id.get(chat_id, {}).get("meta_central")
+
+
+def set_meta_central(chat_id: int, payload) -> None:
+    ctx = _context_by_chat_id.setdefault(chat_id, {})
+    ctx["meta_central"] = payload
+

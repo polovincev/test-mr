@@ -1,7 +1,25 @@
-import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { metaExpand, updateGoalLevels } from "../../services/api";
-import ReactFlow, { Background, Controls, addEdge, useEdgesState, useNodesState, Connection, Edge, Node, Handle, Position, NodeProps } from "reactflow";
+import { metaExpand, updateGoalLevels, metaCentral } from "../../services/api";
+import ReactFlow, {
+  Background,
+  Controls,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  Connection,
+  Edge,
+  Node,
+  Handle,
+  Position,
+  NodeProps,
+} from "reactflow";
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
 import LoaderOverlay from "../../components/LoaderOverlay";
@@ -17,13 +35,28 @@ type TopicNodeData = {
   onSetLevel?: (level: 2 | 3 | 4) => void;
 };
 
-const GoalNode: React.FC<NodeProps<{ title?: string }>> = ({ data }) => {
+const GoalNode: React.FC<
+  NodeProps<{ title?: string; centralText?: string }>
+> = ({ data }) => {
   const title = data?.title || "Цель";
   return (
     <div className={styles.goalNode} onClick={(e) => e.stopPropagation()}>
-      <div className={styles.goalTitle}>{title}</div>
-      <Handle type="source" position={Position.Left} id="goal-left" className={styles.handleInvisible} />
-      <Handle type="source" position={Position.Right} id="goal-right" className={styles.handleInvisible} />
+      {/* <div className={styles.goalTitle}>{title}</div> */}
+      {data?.centralText && (
+        <div className={styles.goalTitle}>{data.centralText}</div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="goal-left"
+        className={styles.handleInvisible}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="goal-right"
+        className={styles.handleInvisible}
+      />
     </div>
   );
 };
@@ -43,40 +76,122 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
 
   return (
     <>
-      <div className={`${styles.topicNode} ${data?.noImage ? styles.topicNodeCompact : ""}`} onClick={(e) => {
-        e.stopPropagation();
-        try { data?.onOpen && data.onOpen(); } catch { /* ignore */ }
-      }}>
-        {!data?.noImage && imageUrl && <img src={imageUrl} alt="" className={styles.topicImage} />}
+      <div
+        className={`${styles.topicNode} ${
+          data?.noImage ? styles.topicNodeCompact : ""
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          try {
+            data?.onOpen && data.onOpen();
+          } catch {
+            /* ignore */
+          }
+        }}
+      >
+        {!data?.noImage && imageUrl && (
+          <img src={imageUrl} alt="" className={styles.topicImage} />
+        )}
         <div className={styles.topicContent}>
           <div className={styles.topicBadge}>Тема</div>
-          <div className={data?.noImage ? styles.topicTitleSmall : styles.topicTitle}>{title}</div>
+          <div
+            className={
+              data?.noImage ? styles.topicTitleSmall : styles.topicTitle
+            }
+          >
+            {title}
+          </div>
         </div>
         {/* Target handles on both sides; source handles on opposite sides for outgoing */}
-        <Handle type="target" position={Position.Left} id="topic-left" className={styles.handleInvisible} />
-        <Handle type="target" position={Position.Right} id="topic-right" className={styles.handleInvisible} />
-        <Handle type="source" position={Position.Left} id="topic-src-left" className={styles.handleInvisible} />
-        <Handle type="source" position={Position.Right} id="topic-src-right" className={styles.handleInvisible} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="topic-left"
+          className={styles.handleInvisible}
+        />
+        <Handle
+          type="target"
+          position={Position.Right}
+          id="topic-right"
+          className={styles.handleInvisible}
+        />
+        <Handle
+          type="source"
+          position={Position.Left}
+          id="topic-src-left"
+          className={styles.handleInvisible}
+        />
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="topic-src-right"
+          className={styles.handleInvisible}
+        />
       </div>
       {data?.levelCounts && !data?.noImage && (
         <div
           className={styles.nodeTasksBox}
-          onMouseDown={(e) => { e.stopPropagation(); }}
-          onClick={(e) => { e.stopPropagation(); }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         >
-          <div className={styles.nodeTasksHeader}>Задания <span className={styles.nodeTasksNum}>{data.levelCounts.total}</span></div>
+          <div className={styles.nodeTasksHeader}>
+            Задания{" "}
+            <span className={styles.nodeTasksNum}>
+              {data.levelCounts.total}
+            </span>
+          </div>
           <div className={styles.nodeChipRow}>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 2 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(2); } catch {} }}>
+            <div
+              className={`${styles.nodeChip} ${
+                data?.goalLevel === 2 ? styles.nodeChipActive : ""
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  data?.onSetLevel && data.onSetLevel(2);
+                } catch {}
+              }}
+            >
               <div className={styles.nodeChipTitle}>⭐</div>
-              <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l2)}</div>
+              <div className={styles.nodeChipCount}>
+                {formatTasksCount(data.levelCounts.l2)}
+              </div>
             </div>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 3 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(3); } catch {} }}>
+            <div
+              className={`${styles.nodeChip} ${
+                data?.goalLevel === 3 ? styles.nodeChipActive : ""
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  data?.onSetLevel && data.onSetLevel(3);
+                } catch {}
+              }}
+            >
               <div className={styles.nodeChipTitle}>⭐⭐</div>
-              <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l3)}</div>
+              <div className={styles.nodeChipCount}>
+                {formatTasksCount(data.levelCounts.l3)}
+              </div>
             </div>
-            <div className={`${styles.nodeChip} ${data?.goalLevel === 4 ? styles.nodeChipActive : ""}`} onClick={(e) => { e.stopPropagation(); try { data?.onSetLevel && data.onSetLevel(4); } catch {} }}>
+            <div
+              className={`${styles.nodeChip} ${
+                data?.goalLevel === 4 ? styles.nodeChipActive : ""
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  data?.onSetLevel && data.onSetLevel(4);
+                } catch {}
+              }}
+            >
               <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
-              <div className={styles.nodeChipCount}>{formatTasksCount(data.levelCounts.l4)}</div>
+              <div className={styles.nodeChipCount}>
+                {formatTasksCount(data.levelCounts.l4)}
+              </div>
             </div>
           </div>
         </div>
@@ -85,17 +200,39 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
   );
 };
 
-const wrapperStyle: React.CSSProperties = { width: "100vw", height: "calc(100vh - 0px)" };
+const wrapperStyle: React.CSSProperties = {
+  width: "100vw",
+  height: "calc(100vh - 0px)",
+};
 
 const My: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const trajectory = (location.state as any)?.trajectory as { items?: { title: string; image_url?: string; skills?: { levels?: { level: number; tasks?: { title: string }[] }[]; name?: string; goal_level?: number } }[]; goal?: string } | undefined;
+  const trajectory = (location.state as any)?.trajectory as
+    | {
+        items?: {
+          title: string;
+          image_url?: string;
+          skills?: {
+            levels?: { level: number; tasks?: { title: string }[] }[];
+            name?: string;
+            goal_level?: number;
+          };
+        }[];
+        goal?: string;
+      }
+    | undefined;
   const search = new URLSearchParams(location.search);
   const chatIdParam = search.get("chat_id");
-  const chatId = chatIdParam ? Number(chatIdParam) : (location.state as any)?.chatId ? Number((location.state as any)?.chatId) : undefined;
+  const chatId = chatIdParam
+    ? Number(chatIdParam)
+    : (location.state as any)?.chatId
+    ? Number((location.state as any)?.chatId)
+    : undefined;
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
   const [loadingExpansions, setLoadingExpansions] = useState(false);
+  const [loadingMeta, setLoadingMeta] = useState(false);
+  const [metaText, setMetaText] = useState<string>("");
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
@@ -105,7 +242,8 @@ const My: React.FC = () => {
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!levelRef.current) return;
-      if (!levelRef.current.contains(e.target as HTMLElement)) setLevelOpen(false);
+      if (!levelRef.current.contains(e.target as HTMLElement))
+        setLevelOpen(false);
     };
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
@@ -119,64 +257,135 @@ const My: React.FC = () => {
           if (!ignore) setLoadingExpansions(true);
           const resp = await metaExpand(chatId);
           const map: Record<string, string[]> = {};
-          (resp.items || []).forEach((it) => { map[it.title] = it.expansions || []; });
+          (resp.items || []).forEach((it) => {
+            map[it.title] = it.expansions || [];
+          });
           if (!ignore) setExpansions(map);
         }
-      } catch { /* ignore */ }
-      finally {
+      } catch {
+        /* ignore */
+      } finally {
         if (!ignore) setLoadingExpansions(false);
       }
     };
     run();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
+  }, [chatId]);
+
+  // Load central meta content (goal summary)
+  useEffect(() => {
+    let ignore = false;
+    const run = async () => {
+      try {
+        if (typeof chatId === "number") {
+          if (!ignore) setLoadingMeta(true);
+          const resp = await metaCentral(chatId);
+          if (!ignore) setMetaText(String(resp?.content || ""));
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!ignore) setLoadingMeta(false);
+      }
+    };
+    run();
+    return () => {
+      ignore = true;
+    };
   }, [chatId]);
 
   // Force layout/resize and fit graph on initial mount
   useEffect(() => {
-    try { window.dispatchEvent(new Event("resize")); } catch { /* ignore */ }
+    try {
+      window.dispatchEvent(new Event("resize"));
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const nodeTypes = useMemo(() => ({ topic: TopicNode, goal: GoalNode }), []);
 
-  const defaultEdgeOptions = useMemo(() => ({
-    type: "bezier",
-    style: { stroke: "#37C5F0", strokeWidth: 3 },
-  }), []);
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: "bezier",
+      style: { stroke: "#37C5F0", strokeWidth: 3 },
+    }),
+    []
+  );
 
   const computedNodes: Node<TopicNodeData>[] = useMemo(() => {
-    const items = Array.isArray(trajectory?.items) && trajectory?.items?.length
-      ? (trajectory?.items as any[]).map((it) => {
-        const levels = (it?.skills?.levels || []) as any[];
-        const counts = { total: 0, l2: 0, l3: 0, l4: 0 };
-        for (const li of levels) {
-          const c = Array.isArray(li?.tasks) ? li.tasks.length : 0;
-          if (li?.level === 2) counts.l2 += c;
-          if (li?.level === 3) counts.l3 += c;
-          if (li?.level === 4) counts.l4 += c;
-          counts.total += c;
-        }
-        const glRaw = Number(it?.skills?.goal_level);
-        const goalLevel = !isNaN(glRaw) && glRaw > 1 ? Math.max(2, Math.min(4, Math.round(glRaw))) : undefined;
-        return { title: String(it?.title || "Тема"), imageUrl: it?.image_url as string | undefined, levelCounts: counts, goalLevel, onOpen: () => setSelectedIdx(trajectory?.items?.indexOf(it) || 0) };
-      })
-      : [
-        { title: "Наследственность и изменчивость организмов", imageUrl: new URL("../../icon/goal.png", import.meta.url).href, levelCounts: { total: 10, l2: 7, l3: 2, l4: 1 }, goalLevel: undefined, onOpen: () => setSelectedIdx(0) },
-        { title: "Молекулярные основы жизни", imageUrl: new URL("../../icon/profile.png", import.meta.url).href, levelCounts: { total: 6, l2: 2, l3: 3, l4: 1 }, goalLevel: 3, onOpen: () => setSelectedIdx(1) },
-        { title: "Эволюционное учение", imageUrl: new URL("../../icon/profile.png", import.meta.url).href, levelCounts: { total: 5, l2: 1, l3: 2, l4: 2 }, goalLevel: 4, onOpen: () => setSelectedIdx(2) },
-        { title: "Экосистемы и биосфера", imageUrl: new URL("../../icon/profile.png", import.meta.url).href, levelCounts: { total: 4, l2: 1, l3: 2, l4: 1 }, goalLevel: 2, onOpen: () => setSelectedIdx(3) },
-      ];
+    const items =
+      Array.isArray(trajectory?.items) && trajectory?.items?.length
+        ? (trajectory?.items as any[]).map((it) => {
+            const levels = (it?.skills?.levels || []) as any[];
+            const counts = { total: 0, l2: 0, l3: 0, l4: 0 };
+            for (const li of levels) {
+              const c = Array.isArray(li?.tasks) ? li.tasks.length : 0;
+              if (li?.level === 2) counts.l2 += c;
+              if (li?.level === 3) counts.l3 += c;
+              if (li?.level === 4) counts.l4 += c;
+              counts.total += c;
+            }
+            const glRaw = Number(it?.skills?.goal_level);
+            const goalLevel =
+              !isNaN(glRaw) && glRaw > 1
+                ? Math.max(2, Math.min(4, Math.round(glRaw)))
+                : undefined;
+            return {
+              title: String(it?.title || "Тема"),
+              imageUrl: it?.image_url as string | undefined,
+              levelCounts: counts,
+              goalLevel,
+              onOpen: () => setSelectedIdx(trajectory?.items?.indexOf(it) || 0),
+            };
+          })
+        : [
+            {
+              title: "Наследственность и изменчивость организмов",
+              imageUrl: new URL("../../icon/goal.png", import.meta.url).href,
+              levelCounts: { total: 10, l2: 7, l3: 2, l4: 1 },
+              goalLevel: undefined,
+              onOpen: () => setSelectedIdx(0),
+            },
+            {
+              title: "Молекулярные основы жизни",
+              imageUrl: new URL("../../icon/profile.png", import.meta.url).href,
+              levelCounts: { total: 6, l2: 2, l3: 3, l4: 1 },
+              goalLevel: 3,
+              onOpen: () => setSelectedIdx(1),
+            },
+            {
+              title: "Эволюционное учение",
+              imageUrl: new URL("../../icon/profile.png", import.meta.url).href,
+              levelCounts: { total: 5, l2: 1, l3: 2, l4: 2 },
+              goalLevel: 4,
+              onOpen: () => setSelectedIdx(2),
+            },
+            {
+              title: "Экосистемы и биосфера",
+              imageUrl: new URL("../../icon/profile.png", import.meta.url).href,
+              levelCounts: { total: 4, l2: 1, l3: 2, l4: 1 },
+              goalLevel: 2,
+              onOpen: () => setSelectedIdx(3),
+            },
+          ];
     const nodes: Node<TopicNodeData>[] = [];
     const anchorCenterX = 0;
     const anchorCenterY = 0;
-    const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1280;
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 720;
+    const viewportW = typeof window !== "undefined" ? window.innerWidth : 1280;
+    const viewportH = typeof window !== "undefined" ? window.innerHeight : 720;
     const goalHalf = 70; // 140x140 goal node
     const topicWidth = 380; // approx width of topic node
     const baseGap = Math.max(120, Math.min(280, Math.round(viewportW * 0.08)));
     const leftX = anchorCenterX - goalHalf - baseGap - topicWidth;
     const rightX = anchorCenterX + goalHalf + baseGap;
     const contentH = Math.max(400, Math.round(viewportH * 0.8));
-    const stepY = Math.max(120, Math.min(220, Math.round(contentH / Math.max(1, items.length))));
+    const stepY = Math.max(
+      120,
+      Math.min(220, Math.round(contentH / Math.max(1, items.length)))
+    );
     const startY = anchorCenterY - Math.round(((items.length - 1) * stepY) / 2);
     items.forEach((t, i) => {
       const isLeft = i % 2 === 0;
@@ -188,7 +397,9 @@ const My: React.FC = () => {
         position: { x, y },
         data: {
           title: t.title,
-          imageUrl: t.imageUrl || new URL("../../icon/profile.png", import.meta.url).href,
+          imageUrl:
+            t.imageUrl ||
+            new URL("../../icon/profile.png", import.meta.url).href,
           handleSide: isLeft ? "right" : "left",
           levelCounts: (t as any).levelCounts,
           goalLevel: (t as any).goalLevel,
@@ -199,21 +410,28 @@ const My: React.FC = () => {
               // Update the real trajectory object in router state if provided
               try {
                 const idx = i;
-                const tr: any = (trajectory as any);
+                const tr: any = trajectory as any;
                 if (tr && Array.isArray(tr.items) && tr.items[idx]) {
-                  tr.items[idx].skills = { ...(tr.items[idx].skills || {}), goal_level: newLevel };
+                  tr.items[idx].skills = {
+                    ...(tr.items[idx].skills || {}),
+                    goal_level: newLevel,
+                  };
                 }
-              } catch { }
+              } catch {}
               // Trigger UI update by updating expansions state (no-op mutate)
               setExpansions((prev) => ({ ...prev }));
               // Persist to backend
-              if (typeof chatId === 'number') {
+              if (typeof chatId === "number") {
                 try {
-                  const levels = (trajectory?.items || []).map((it, k) => (k === i ? newLevel : Math.round(Number(it?.skills?.goal_level || 0.1)) || 0.1));
+                  const levels = (trajectory?.items || []).map((it, k) =>
+                    k === i
+                      ? newLevel
+                      : Math.round(Number(it?.skills?.goal_level || 0.1)) || 0.1
+                  );
                   updateGoalLevels(chatId, levels as any).catch(() => void 0);
-                } catch { }
+                } catch {}
               }
-            } catch { }
+            } catch {}
           },
         },
       });
@@ -223,7 +441,9 @@ const My: React.FC = () => {
       const expStepY = Math.max(72, Math.min(200, Math.round(stepY * 0.5)));
       exps.forEach((title, idx) => {
         const id = `${i + 1}-e${idx + 1}`;
-        const expOffsetX = isLeft ? -(topicWidth / 2 + Math.max(140, baseGap)) : (topicWidth + Math.max(140, baseGap));
+        const expOffsetX = isLeft
+          ? -(topicWidth / 2 + Math.max(140, baseGap))
+          : topicWidth + Math.max(140, baseGap);
         const exX = x + expOffsetX;
         const exY = y + Math.round(stepY * 0.25) + idx * expStepY;
         nodes.push({
@@ -246,11 +466,11 @@ const My: React.FC = () => {
       id: "goal",
       type: "goal" as any,
       position: { x: anchorCenterX - 70, y: anchorCenterY - 70 },
-      data: { title: "Генетика" } as any,
+      data: { title: "", centralText: metaText } as any,
       draggable: false,
     });
     return nodes;
-  }, [trajectory, expansions]);
+  }, [trajectory, expansions, metaText]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -277,9 +497,15 @@ const My: React.FC = () => {
         const parent = computedNodes.find((n) => n.id === parentId);
         const child = node;
         if (parent) {
-          const isParentRight = goalX !== undefined ? parent.position.x > goalX : parent.position.x > 0;
-          const sourceHandle = isParentRight ? "topic-src-right" : "topic-src-left";
-          const targetHandle = child.position.x > parent.position.x ? "topic-left" : "topic-right";
+          const isParentRight =
+            goalX !== undefined
+              ? parent.position.x > goalX
+              : parent.position.x > 0;
+          const sourceHandle = isParentRight
+            ? "topic-src-right"
+            : "topic-src-left";
+          const targetHandle =
+            child.position.x > parent.position.x ? "topic-left" : "topic-right";
           edges.push({
             id: `p${parentId}-${node.id}`,
             source: parentId,
@@ -287,7 +513,11 @@ const My: React.FC = () => {
             target: node.id,
             targetHandle,
             type: "bezier",
-            style: { strokeDasharray: "6 4", stroke: "#37C5F0", strokeWidth: 2 },
+            style: {
+              strokeDasharray: "6 4",
+              stroke: "#37C5F0",
+              strokeWidth: 2,
+            },
           } as any);
         }
       }
@@ -302,9 +532,15 @@ const My: React.FC = () => {
       const levels = it?.skills?.levels || [];
       for (const li of levels) {
         const count = Array.isArray(li?.tasks) ? li.tasks.length : 0;
-        if (li.level === 2) { result.l2 += count; }
-        if (li.level === 3) { result.l3 += count; }
-        if (li.level === 4) { result.l4 += count; }
+        if (li.level === 2) {
+          result.l2 += count;
+        }
+        if (li.level === 3) {
+          result.l3 += count;
+        }
+        if (li.level === 4) {
+          result.l4 += count;
+        }
         result.total += count;
       }
     }
@@ -314,7 +550,10 @@ const My: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(computedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(computedEdges);
 
-  const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
+  const onConnect = useCallback(
+    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
+    [setEdges]
+  );
 
   // Keep state in sync when computed graph changes (e.g., after meta_expand loads)
   useEffect(() => {
@@ -339,16 +578,22 @@ const My: React.FC = () => {
         const x = goal.position.x; // center of 140px node
         const y = goal.position.y;
         rf.setCenter(0, 0, { zoom: 0.7 });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     const id = window.setTimeout(centerOnGoal, 0);
-    window.addEventListener('resize', centerOnGoal);
-    return () => { window.clearTimeout(id); window.removeEventListener('resize', centerOnGoal); };
+    window.addEventListener("resize", centerOnGoal);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("resize", centerOnGoal);
+    };
   }, [nodes.length, edges.length]);
 
-  const selectedItem = selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
+  const selectedItem =
+    selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
-  if (loadingExpansions) {
+  if (loadingExpansions || loadingMeta) {
     return <LoaderOverlay text="Формирую тематические связи..." />;
   }
 
@@ -364,16 +609,67 @@ const My: React.FC = () => {
           </div>
         )}
         <div className={styles.levelFilterWrap} ref={levelRef}>
-          <button className={styles.levelFilterBtn} onClick={() => setLevelOpen(v => !v)}>
+          <button
+            className={styles.levelFilterBtn}
+            onClick={() => setLevelOpen((v) => !v)}
+          >
             <span className={styles.levelFilterLabel}>Уровень: </span>
-            <span className={styles.levelFilterValue}>{level === "all" ? "Все" : level === 2 ? "⭐ Базовый" : level === 3 ? "⭐⭐ Уверенный" : "⭐⭐⭐ Продвинутый"}</span>
+            <span className={styles.levelFilterValue}>
+              {level === "all"
+                ? "Все"
+                : level === 2
+                ? "⭐ Базовый"
+                : level === 3
+                ? "⭐⭐ Уверенный"
+                : "⭐⭐⭐ Продвинутый"}
+            </span>
           </button>
           {levelOpen && (
             <div className={styles.levelDropdown}>
-              <div className={`${styles.levelItem} ${level === "all" ? styles.levelItemSelected : ""}`} onClick={() => { setLevel("all"); setLevelOpen(false); }}>Все</div>
-              <div className={`${styles.levelItem} ${level === 2 ? styles.levelItemSelected : ""}`} onClick={() => { setLevel(2); setLevelOpen(false); }}>⭐ Базовый</div>
-              <div className={`${styles.levelItem} ${level === 3 ? styles.levelItemSelected : ""}`} onClick={() => { setLevel(3); setLevelOpen(false); }}>⭐⭐ Уверенный</div>
-              <div className={`${styles.levelItem} ${level === 4 ? styles.levelItemSelected : ""}`} onClick={() => { setLevel(4); setLevelOpen(false); }}>⭐⭐⭐ Продвинутый</div>
+              <div
+                className={`${styles.levelItem} ${
+                  level === "all" ? styles.levelItemSelected : ""
+                }`}
+                onClick={() => {
+                  setLevel("all");
+                  setLevelOpen(false);
+                }}
+              >
+                Все
+              </div>
+              <div
+                className={`${styles.levelItem} ${
+                  level === 2 ? styles.levelItemSelected : ""
+                }`}
+                onClick={() => {
+                  setLevel(2);
+                  setLevelOpen(false);
+                }}
+              >
+                ⭐ Базовый
+              </div>
+              <div
+                className={`${styles.levelItem} ${
+                  level === 3 ? styles.levelItemSelected : ""
+                }`}
+                onClick={() => {
+                  setLevel(3);
+                  setLevelOpen(false);
+                }}
+              >
+                ⭐⭐ Уверенный
+              </div>
+              <div
+                className={`${styles.levelItem} ${
+                  level === 4 ? styles.levelItemSelected : ""
+                }`}
+                onClick={() => {
+                  setLevel(4);
+                  setLevelOpen(false);
+                }}
+              >
+                ⭐⭐⭐ Продвинутый
+              </div>
             </div>
           )}
         </div>
@@ -384,15 +680,27 @@ const My: React.FC = () => {
           defaultEdgeOptions={defaultEdgeOptions}
           fitView
           fitViewOptions={{ padding: 0.2, includeHiddenNodes: true } as any}
-          onInit={(instance) => { rfRef.current = instance; try { instance.fitView({ padding: 0.2, includeHiddenNodes: true } as any); } catch { /* ignore */ } }}
+          onInit={(instance) => {
+            rfRef.current = instance;
+            try {
+              instance.fitView({
+                padding: 0.2,
+                includeHiddenNodes: true,
+              } as any);
+            } catch {
+              /* ignore */
+            }
+          }}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={(_, node) => {
             try {
               const d: any = node?.data;
-              if (d && typeof d.onOpen === 'function') d.onOpen();
-            } catch { /* ignore */ }
+              if (d && typeof d.onOpen === "function") d.onOpen();
+            } catch {
+              /* ignore */
+            }
           }}
         >
           <Background color="rgba(255, 255, 255, 0.6)" />
@@ -406,30 +714,57 @@ const My: React.FC = () => {
           onGoTasks={() => {
             const it: any = selectedItem;
             const topic = it?.title || it?.skills?.name || "";
-            const goalSelected = typeof it?.skills?.goal_level === "number" && it?.skills?.goal_level > 0.1;
-            const chatQ = typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+            const goalSelected =
+              typeof it?.skills?.goal_level === "number" &&
+              it?.skills?.goal_level > 0.1;
+            const chatQ =
+              typeof chatId === "number" ? `?chat_id=${chatId}` : "";
             if (goalSelected) {
-              const qp = topic ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(topic)}` : chatQ;
-              navigate(`/tasks${qp}` as string, { state: { item: it, chatId } });
+              const qp = topic
+                ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(
+                    topic
+                  )}`
+                : chatQ;
+              navigate(`/tasks${qp}` as string, {
+                state: { item: it, chatId },
+              });
             } else {
-              navigate(`/level-select${chatQ}` as string, { state: { item: it, index: selectedIdx, chatId } });
+              navigate(`/level-select${chatQ}` as string, {
+                state: { item: it, index: selectedIdx, chatId },
+              });
             }
           }}
         />
       )}
       {relatedTitle && (
-        <div className={styles.modalOverlay} onClick={() => setRelatedTitle(null)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setRelatedTitle(null)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
                 <div className={styles.modalBreadcrumb}>Тема</div>
                 <div className={styles.modalTitle}>{relatedTitle}</div>
               </div>
-              <button className={styles.modalClose} onClick={() => setRelatedTitle(null)}>×</button>
+              <button
+                className={styles.modalClose}
+                onClick={() => setRelatedTitle(null)}
+              >
+                ×
+              </button>
             </div>
-            <div className={styles.modalIntro}>Это связанная тема из метаучебника. Выберите основную тему, чтобы продолжить работу с заданиями.</div>
+            <div className={styles.modalIntro}>
+              Это связанная тема из метаучебника. Выберите основную тему, чтобы
+              продолжить работу с заданиями.
+            </div>
             <div className={styles.modalFooter}>
-              <button className={styles.modalCta} onClick={() => setRelatedTitle(null)}>Понятно</button>
+              <button
+                className={styles.modalCta}
+                onClick={() => setRelatedTitle(null)}
+              >
+                Понятно
+              </button>
             </div>
           </div>
         </div>
@@ -448,7 +783,11 @@ const splitBullets = (text?: string | null): string[] => {
     .filter(Boolean);
 };
 
-const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => void }> = ({ item, onClose, onGoTasks }) => {
+const TopicModal: React.FC<{
+  item: any;
+  onClose: () => void;
+  onGoTasks: () => void;
+}> = ({ item, onClose, onGoTasks }) => {
   const levels = (item?.skills?.levels || []) as any[];
   const byLevel = new Map<number, any>();
   levels.forEach((l) => byLevel.set(l.level, l));
@@ -462,43 +801,71 @@ const TopicModal: React.FC<{ item: any; onClose: () => void; onGoTasks: () => vo
         <div className={styles.modalHeader}>
           <div>
             <div className={styles.modalBreadcrumb}>Все задания</div>
-            <div className={styles.modalTitle}>{item?.title || item?.skills?.name || "Тема"}</div>
+            <div className={styles.modalTitle}>
+              {item?.title || item?.skills?.name || "Тема"}
+            </div>
           </div>
-          <button className={styles.modalClose} onClick={onClose}>×</button>
+          <button className={styles.modalClose} onClick={onClose}>
+            ×
+          </button>
         </div>
-        <div className={styles.modalProgress}>Готово <span>0/10</span></div>
+        <div className={styles.modalProgress}>
+          Готово <span>0/10</span>
+        </div>
         {item?.description && (
           <div className={styles.modalIntro}>{item.description}</div>
         )}
         {l2 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐ Базовый уровень {goalLvl === 2 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
+            <div className={styles.modalLevelTitle}>
+              ⭐ Базовый уровень{" "}
+              {goalLvl === 2 && (
+                <span className={styles.modalBadge}>Целевой</span>
+              )}
+            </div>
             <ul className={styles.modalList}>
-              {splitBullets(l2?.description).map((t, i) => <li key={`l2-${i}`}>{t}</li>)}
+              {splitBullets(l2?.description).map((t, i) => (
+                <li key={`l2-${i}`}>{t}</li>
+              ))}
             </ul>
           </>
         )}
         {l3 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐⭐ Уверенный уровень {goalLvl === 3 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
+            <div className={styles.modalLevelTitle}>
+              ⭐⭐ Уверенный уровень{" "}
+              {goalLvl === 3 && (
+                <span className={styles.modalBadge}>Целевой</span>
+              )}
+            </div>
             <ul className={styles.modalList}>
-              {splitBullets(l3?.description).map((t, i) => <li key={`l3-${i}`}>{t}</li>)}
+              {splitBullets(l3?.description).map((t, i) => (
+                <li key={`l3-${i}`}>{t}</li>
+              ))}
             </ul>
           </>
         )}
         {l4 && (
           <>
-            <div className={styles.modalLevelTitle}>⭐⭐⭐ Продвинутый уровень {goalLvl === 4 && (<span className={styles.modalBadge}>Целевой</span>)}</div>
+            <div className={styles.modalLevelTitle}>
+              ⭐⭐⭐ Продвинутый уровень{" "}
+              {goalLvl === 4 && (
+                <span className={styles.modalBadge}>Целевой</span>
+              )}
+            </div>
             <ul className={styles.modalList}>
-              {splitBullets(l4?.description).map((t, i) => <li key={`l4-${i}`}>{t}</li>)}
+              {splitBullets(l4?.description).map((t, i) => (
+                <li key={`l4-${i}`}>{t}</li>
+              ))}
             </ul>
           </>
         )}
         <div className={styles.modalFooter}>
-          <button className={styles.modalCta} onClick={onGoTasks}>К заданиям</button>
+          <button className={styles.modalCta} onClick={onGoTasks}>
+            К заданиям
+          </button>
         </div>
       </div>
     </div>
   );
 };
-

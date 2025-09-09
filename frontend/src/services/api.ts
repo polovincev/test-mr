@@ -198,6 +198,18 @@ export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
   if (!res.ok) throw new Error("Failed to expand meta");
   return (await res.json()) as MetaExpandResponse;
 }
+// -------- Meta Central API --------
+export interface MetaCentralResponse { chat_id: number; content: string }
+
+export async function metaCentral(chatId: number): Promise<MetaCentralResponse> {
+  const res = await fetch(`${API_URL}/meta/central`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId }),
+  });
+  if (!res.ok) throw new Error("Failed to load meta central");
+  return (await res.json()) as MetaCentralResponse;
+}
 // end
 
 export interface SummaryMessage { role: "user" | "assistant"; content: string }

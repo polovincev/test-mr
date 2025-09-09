@@ -121,3 +121,4 @@ async def send_summary_message(data: SendIn) -> SummaryChatOut:  # noqa: D401
     all_msgs = get_summary_messages(data.chat_id)
     out = [SummaryMessage(role=m.get("role"), content=str(m.get("content", ""))) for m in all_msgs]
     return SummaryChatOut(chat_id=data.chat_id, messages=out)
+    
