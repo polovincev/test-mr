@@ -600,78 +600,80 @@ const My: React.FC = () => {
   return (
     <>
       <div className={styles.wrapper}>
-        <button onClick={() => navigate(-1)} className={styles.backButton}>
-          ← Назад
-        </button>
-        {trajectory?.goal && (
-          <div className={styles.goalBlock}>
-            <div className={styles.goalText}>{trajectory.goal}</div>
-          </div>
-        )}
-        <div className={styles.levelFilterWrap} ref={levelRef}>
-          <button
-            className={styles.levelFilterBtn}
-            onClick={() => setLevelOpen((v) => !v)}
-          >
-            <span className={styles.levelFilterLabel}>Уровень: </span>
-            <span className={styles.levelFilterValue}>
-              {level === "all"
-                ? "Все"
-                : level === 2
-                ? "⭐ Базовый"
-                : level === 3
-                ? "⭐⭐ Уверенный"
-                : "⭐⭐⭐ Продвинутый"}
-            </span>
+        <div className={styles.headerWrap}>
+          <button onClick={() => navigate(-1)} className={styles.backButton}>
+            ← Назад
           </button>
-          {levelOpen && (
-            <div className={styles.levelDropdown}>
-              <div
-                className={`${styles.levelItem} ${
-                  level === "all" ? styles.levelItemSelected : ""
-                }`}
-                onClick={() => {
-                  setLevel("all");
-                  setLevelOpen(false);
-                }}
-              >
-                Все
-              </div>
-              <div
-                className={`${styles.levelItem} ${
-                  level === 2 ? styles.levelItemSelected : ""
-                }`}
-                onClick={() => {
-                  setLevel(2);
-                  setLevelOpen(false);
-                }}
-              >
-                ⭐ Базовый
-              </div>
-              <div
-                className={`${styles.levelItem} ${
-                  level === 3 ? styles.levelItemSelected : ""
-                }`}
-                onClick={() => {
-                  setLevel(3);
-                  setLevelOpen(false);
-                }}
-              >
-                ⭐⭐ Уверенный
-              </div>
-              <div
-                className={`${styles.levelItem} ${
-                  level === 4 ? styles.levelItemSelected : ""
-                }`}
-                onClick={() => {
-                  setLevel(4);
-                  setLevelOpen(false);
-                }}
-              >
-                ⭐⭐⭐ Продвинутый
-              </div>
+          {trajectory?.goal && (
+            <div className={styles.goalBlock}>
+              <div className={styles.goalText}>{trajectory.goal}</div>
             </div>
           )}
+          <div className={styles.levelFilterWrap} ref={levelRef}>
+            <button
+              className={styles.levelFilterBtn}
+              onClick={() => setLevelOpen((v) => !v)}
+            >
+              <span className={styles.levelFilterLabel}>Уровень: </span>
+              <span className={styles.levelFilterValue}>
+                {level === "all"
+                  ? "Все"
+                  : level === 2
+                  ? "⭐ Базовый"
+                  : level === 3
+                  ? "⭐⭐ Уверенный"
+                  : "⭐⭐⭐ Продвинутый"}
+              </span>
+            </button>
+            {levelOpen && (
+              <div className={styles.levelDropdown}>
+                <div
+                  className={`${styles.levelItem} ${
+                    level === "all" ? styles.levelItemSelected : ""
+                  }`}
+                  onClick={() => {
+                    setLevel("all");
+                    setLevelOpen(false);
+                  }}
+                >
+                  Все
+                </div>
+                <div
+                  className={`${styles.levelItem} ${
+                    level === 2 ? styles.levelItemSelected : ""
+                  }`}
+                  onClick={() => {
+                    setLevel(2);
+                    setLevelOpen(false);
+                  }}
+                >
+                  ⭐ Базовый
+                </div>
+                <div
+                  className={`${styles.levelItem} ${
+                    level === 3 ? styles.levelItemSelected : ""
+                  }`}
+                  onClick={() => {
+                    setLevel(3);
+                    setLevelOpen(false);
+                  }}
+                >
+                  ⭐⭐ Уверенный
+                </div>
+                <div
+                  className={`${styles.levelItem} ${
+                    level === 4 ? styles.levelItemSelected : ""
+                  }`}
+                  onClick={() => {
+                    setLevel(4);
+                    setLevelOpen(false);
+                  }}
+                >
+                  ⭐⭐⭐ Продвинутый
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <ReactFlow
           nodes={nodes}
