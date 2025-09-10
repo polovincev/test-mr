@@ -257,6 +257,7 @@
   white-space: nowrap; /* текст не переносится */
   overflow: hidden; /* скрыть лишнее */
   text-overflow: ellipsis; /* добавить "..." */
+  opacity: 0.5;
 }
 
 .topicImage {
@@ -424,7 +425,7 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(7, 12, 26, 0.45);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: flex-end;

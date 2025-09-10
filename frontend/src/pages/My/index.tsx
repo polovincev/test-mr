@@ -34,6 +34,7 @@ type TopicNodeData = {
   noImage?: boolean;
   onSetLevel?: (level: 2 | 3 | 4) => void;
   hideTasksBox?: boolean;
+  forceOpaque?: boolean;
 };
 
 const GoalNode: React.FC<
@@ -81,6 +82,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
         className={`${styles.topicNode} ${
           data?.noImage ? styles.topicNodeCompact : ""
         }`}
+        style={data?.forceOpaque ? { opacity: 1 } : undefined}
         onClick={(e) => {
           e.stopPropagation();
           try {
@@ -378,6 +380,9 @@ const My: React.FC = () => {
               hideTasksBox: fromChatMode,
             },
           ];
+    const modalOpen = selectedIdx !== null || relatedTitle !== null;
+    const activeMainId = selectedIdx !== null ? String((selectedIdx as number) + 1) : null;
+    const activeRelatedTitle = relatedTitle;
     const nodes: Node<TopicNodeData>[] = [];
     const anchorCenterX = 0;
     const anchorCenterY = 0;
@@ -398,10 +403,12 @@ const My: React.FC = () => {
       const isLeft = i % 2 === 0;
       const x = isLeft ? leftX : rightX;
       const y = startY + i * (stepY / 1);
+      const isActiveMain = activeMainId === String(i + 1);
       nodes.push({
         id: String(i + 1),
         type: "topic",
         position: { x, y },
+        style: modalOpen ? (isActiveMain ? { opacity: 1 } : { opacity: 0.5 }) : undefined,
         data: {
           title: t.title,
           imageUrl:
@@ -454,10 +461,16 @@ const My: React.FC = () => {
           : topicWidth + Math.max(140, baseGap);
         const exX = x + expOffsetX;
         const exY = y + Math.round(stepY * 0.25) + idx * expStepY;
+        const isActiveRelated = Boolean(activeRelatedTitle && activeRelatedTitle === title);
         nodes.push({
           id,
           type: "topic",
           position: { x: exX, y: exY },
+          style: modalOpen
+            ? (isActiveMain || isActiveRelated)
+              ? { opacity: 1 }
+              : { opacity: 1 }
+            : undefined,
           data: {
             title,
             handleSide: isLeft ? "right" : "left",
@@ -465,6 +478,7 @@ const My: React.FC = () => {
             goalLevel: undefined,
             onOpen: () => setRelatedTitle(title),
             noImage: true,
+            forceOpaque: modalOpen && (isActiveMain || isActiveRelated),
           },
         });
       });
@@ -474,11 +488,12 @@ const My: React.FC = () => {
       id: "goal",
       type: "goal" as any,
       position: { x: anchorCenterX - 70, y: anchorCenterY - 70 },
+      style: modalOpen ? { opacity: 0.5 } : undefined,
       data: { title: "", centralText: metaText } as any,
       draggable: false,
     });
     return nodes;
-  }, [trajectory, expansions, metaText, fromChatMode]);
+  }, [trajectory, expansions, metaText, fromChatMode, selectedIdx, relatedTitle]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -585,7 +600,7 @@ const My: React.FC = () => {
         if (!goal) return;
         const x = goal.position.x; // center of 140px node
         const y = goal.position.y;
-        rf.setCenter(0, 0, { zoom: 0.7 });
+        rf.setCenter(0, 0, { zoom: 0.8, duration: 1000 });
       } catch {
         /* ignore */
       }
@@ -597,6 +612,39 @@ const My: React.FC = () => {
       window.removeEventListener("resize", centerOnGoal);
     };
   }, [nodes.length, edges.length]);
+
+  // When modal is open, zoom and center on the active node; when closed, restore to goal
+  useEffect(() => {
+    const rf = rfRef.current as any;
+    if (!rf) return;
+    const modalOpen = selectedIdx !== null || relatedTitle !== null;
+    try {
+      if (modalOpen) {
+        let target: any = null;
+        if (selectedIdx !== null) {
+          target = nodes.find((n) => n.id === String((selectedIdx as number) + 1));
+        } else if (relatedTitle) {
+          target = nodes.find(
+            (n) => n.id.includes("-e") && String((n.data as any)?.title) === String(relatedTitle)
+          );
+        }
+        if (target) {
+          try {
+            rf.fitView({ nodes: [target], padding: 0.2, includeHiddenNodes: false, duration: 1000, minZoom: 0.8, maxZoom: 1.5} as any);
+          } catch {
+            const tx = target.position?.x ?? 0;
+            const ty = target.position?.y ?? 0;
+            rf.setCenter(tx, ty, { zoom: 0.9, duration: 1000 });
+          }
+        }
+      } else {
+        // restore default view on goal
+        rf.setCenter(0, 0, { zoom: 0.8, duration: 1000 });
+      }
+    } catch {
+      /* noop */
+    }
+  }, [selectedIdx, relatedTitle, nodes]);
 
   const selectedItem =
     selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
