@@ -160,6 +160,31 @@
   cursor: pointer;
 }
 
+.trajectoryBtn {
+  display: flex;
+  min-width: 48px;
+  height: 48px;
+  padding: 12px 14px 12px 18px;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: #e4e6f7;
+  border: none;
+
+  overflow: hidden;
+  color: var(--text-text-default, #161a33);
+  text-align: right;
+  text-overflow: ellipsis;
+
+  /* Body/Medium Accent */
+  font-family: Onest;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 24px; /* 150% */
+}
+
 .levelFilterBtn:hover {
   background: #fff;
   border: 2px solid #503ae0;

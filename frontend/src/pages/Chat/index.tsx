@@ -322,7 +322,9 @@ const Chat = () => {
                 type="button"
                 className={styles.suggestionBtn}
                 onClick={() =>
-                  navigate(`/my${chat?.id ? `?chat_id=${chat.id}` : ""}`)
+                  navigate(
+                    `/my${chat?.id ? `?chat_id=${chat.id}&from=chat` : "?from=chat"}`
+                  )
                 }
               >
                 Перейти в метаучебник

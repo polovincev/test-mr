@@ -33,6 +33,7 @@ type TopicNodeData = {
   onOpen?: () => void;
   noImage?: boolean;
   onSetLevel?: (level: 2 | 3 | 4) => void;
+  hideTasksBox?: boolean;
 };
 
 const GoalNode: React.FC<
@@ -128,7 +129,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           className={styles.handleInvisible}
         />
       </div>
-      {data?.levelCounts && !data?.noImage && (
+      {data?.levelCounts && !data?.noImage && !data?.hideTasksBox && (
         <div
           className={styles.nodeTasksBox}
           onMouseDown={(e) => {
@@ -229,6 +230,9 @@ const My: React.FC = () => {
     : (location.state as any)?.chatId
     ? Number((location.state as any)?.chatId)
     : undefined;
+  const fromChatMode =
+    (search.get("from") || "").toLowerCase() === "chat" ||
+    Boolean((location.state as any)?.fromChat);
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | undefined>(trajectoryInit as any);
   const trajFetchedRef = useRef<boolean>(Boolean(trajectoryInit));
   const fetchingRef = useRef<boolean>(false);
@@ -337,6 +341,7 @@ const My: React.FC = () => {
               levelCounts: counts,
               goalLevel,
               onOpen: () => setSelectedIdx(trajectory?.items?.indexOf(it) || 0),
+              hideTasksBox: fromChatMode,
             };
           })
         : [
@@ -346,6 +351,7 @@ const My: React.FC = () => {
               levelCounts: { total: 10, l2: 7, l3: 2, l4: 1 },
               goalLevel: undefined,
               onOpen: () => setSelectedIdx(0),
+              hideTasksBox: fromChatMode,
             },
             {
               title: "Молекулярные основы жизни",
@@ -353,6 +359,7 @@ const My: React.FC = () => {
               levelCounts: { total: 6, l2: 2, l3: 3, l4: 1 },
               goalLevel: 3,
               onOpen: () => setSelectedIdx(1),
+              hideTasksBox: fromChatMode,
             },
             {
               title: "Эволюционное учение",
@@ -360,6 +367,7 @@ const My: React.FC = () => {
               levelCounts: { total: 5, l2: 1, l3: 2, l4: 2 },
               goalLevel: 4,
               onOpen: () => setSelectedIdx(2),
+              hideTasksBox: fromChatMode,
             },
             {
               title: "Экосистемы и биосфера",
@@ -367,6 +375,7 @@ const My: React.FC = () => {
               levelCounts: { total: 4, l2: 1, l3: 2, l4: 1 },
               goalLevel: 2,
               onOpen: () => setSelectedIdx(3),
+              hideTasksBox: fromChatMode,
             },
           ];
     const nodes: Node<TopicNodeData>[] = [];
@@ -431,6 +440,7 @@ const My: React.FC = () => {
               }
             } catch {}
           },
+          hideTasksBox: fromChatMode,
         },
       });
 
@@ -468,7 +478,7 @@ const My: React.FC = () => {
       draggable: false,
     });
     return nodes;
-  }, [trajectory, expansions, metaText]);
+  }, [trajectory, expansions, metaText, fromChatMode]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -608,68 +618,83 @@ const My: React.FC = () => {
             </div>
           )}
           <div className={styles.levelFilterWrap} ref={levelRef}>
-            <button
-              className={styles.levelFilterBtn}
-              onClick={() => setLevelOpen((v) => !v)}
-            >
-              <span className={styles.levelFilterLabel}>Уровень: </span>
-              <span className={styles.levelFilterValue}>
-                {level === "all"
-                  ? "Все"
-                  : level === 2
-                  ? "⭐ Базовый"
-                  : level === 3
-                  ? "⭐⭐ Уверенный"
-                  : "⭐⭐⭐ Продвинутый"}
-              </span>
-            </button>
-            {levelOpen && (
-              <div className={styles.levelDropdown}>
-                <div
-                  className={`${styles.levelItem} ${
-                    level === "all" ? styles.levelItemSelected : ""
-                  }`}
-                  onClick={() => {
-                    setLevel("all");
-                    setLevelOpen(false);
-                  }}
+            {fromChatMode ? (
+              <button
+                className={styles.trajectoryBtn}
+                onClick={() => {
+                  const chatQ =
+                    typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+                  navigate(`/trajectory${chatQ}` as string);
+                }}
+              >
+                В траекторию →
+              </button>
+            ) : (
+              <>
+                <button
+                  className={styles.levelFilterBtn}
+                  onClick={() => setLevelOpen((v) => !v)}
                 >
-                  Все
-                </div>
-                <div
-                  className={`${styles.levelItem} ${
-                    level === 2 ? styles.levelItemSelected : ""
-                  }`}
-                  onClick={() => {
-                    setLevel(2);
-                    setLevelOpen(false);
-                  }}
-                >
-                  ⭐ Базовый
-                </div>
-                <div
-                  className={`${styles.levelItem} ${
-                    level === 3 ? styles.levelItemSelected : ""
-                  }`}
-                  onClick={() => {
-                    setLevel(3);
-                    setLevelOpen(false);
-                  }}
-                >
-                  ⭐⭐ Уверенный
-                </div>
-                <div
-                  className={`${styles.levelItem} ${
-                    level === 4 ? styles.levelItemSelected : ""
-                  }`}
-                  onClick={() => {
-                    setLevel(4);
-                    setLevelOpen(false);
-                  }}
-                >
-                  ⭐⭐⭐ Продвинутый
-                </div>
-              </div>
+                  <span className={styles.levelFilterLabel}>Уровень: </span>
+                  <span className={styles.levelFilterValue}>
+                    {level === "all"
+                      ? "Все"
+                      : level === 2
+                      ? "⭐ Базовый"
+                      : level === 3
+                      ? "⭐⭐ Уверенный"
+                      : "⭐⭐⭐ Продвинутый"}
+                  </span>
+                </button>
+                {levelOpen && (
+                  <div className={styles.levelDropdown}>
+                    <div
+                      className={`${styles.levelItem} ${
+                        level === "all" ? styles.levelItemSelected : ""
+                      }`}
+                      onClick={() => {
+                        setLevel("all");
+                        setLevelOpen(false);
+                      }}
+                    >
+                      Все
+                    </div>
+                    <div
+                      className={`${styles.levelItem} ${
+                        level === 2 ? styles.levelItemSelected : ""
+                      }`}
+                      onClick={() => {
+                        setLevel(2);
+                        setLevelOpen(false);
+                      }}
+                    >
+                      ⭐ Базовый
+                    </div>
+                    <div
+                      className={`${styles.levelItem} ${
+                        level === 3 ? styles.levelItemSelected : ""
+                      }`}
+                      onClick={() => {
+                        setLevel(3);
+                        setLevelOpen(false);
+                      }}
+                    >
+                      ⭐⭐ Уверенный
+                    </div>
+                    <div
+                      className={`${styles.levelItem} ${
+                        level === 4 ? styles.levelItemSelected : ""
+                      }`}
+                      onClick={() => {
+                        setLevel(4);
+                        setLevelOpen(false);
+                      }}
+                    >
+                      ⭐⭐⭐ Продвинутый
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
