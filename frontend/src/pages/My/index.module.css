@@ -262,9 +262,14 @@
 
 .topicNodeActive {
   border-radius: 16px;
-  border: 1px solid #7562F0;
-  background: linear-gradient(138deg, #FFF 14.55%, rgba(255, 255, 255, 0.60) 92.27%);
-  box-shadow: 0 -4px 8px 0 rgba(80, 58, 224, 0.16), 0 4px 8px 0 rgba(80, 58, 224, 0.24);
+  border: 1px solid #7562f0;
+  background: linear-gradient(
+    138deg,
+    #fff 14.55%,
+    rgba(255, 255, 255, 0.6) 92.27%
+  );
+  box-shadow: 0 -4px 8px 0 rgba(80, 58, 224, 0.16),
+    0 4px 8px 0 rgba(80, 58, 224, 0.24);
   backdrop-filter: blur(6.768233299255371px);
 }
 
@@ -309,7 +314,7 @@
 .nodeTasksBox {
   position: absolute;
   left: 0px;
-  bottom: -100px;
+  bottom: -105px;
   border-radius: 12px;
   padding: 8px 12px;
   border: 1px solid #cac2ff;
@@ -324,11 +329,13 @@
 
 .nodeTasksHeader {
   color: #101828;
-  font-family: Onest;
+
+  /* Body/XSmall Accent */
+  font-family: var(--family-onest, Onest);
   font-size: 12px;
   font-style: normal;
-  font-weight: 500;
-  line-height: 14px;
+  font-weight: var(--weight-medium, 500);
+  line-height: 16px; /* 133.333% */
   /* 116.667% */
   letter-spacing: -0.12px;
   margin-bottom: 12px;
@@ -358,7 +365,7 @@
   justify-content: center;
   flex-direction: column;
   gap: 10px;
-  padding: 6px 20px 6px 10px;
+  padding: 10px 8px 10px 8px;
   border-radius: 12px;
   color: #656c94;
 

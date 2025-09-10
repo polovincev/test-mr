@@ -177,9 +177,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
               }}
             >
               <div className={styles.nodeChipTitle}>⭐⭐</div>
-              <div className={styles.nodeChipCount}>
-                {formatTasksCount(data.levelCounts.l3)}
-              </div>
+              <div className={styles.nodeChipCount}>ещё {formatTasksCount(data.levelCounts.l3)}</div>
             </div>
             <div
               className={`${styles.nodeChip} ${
@@ -193,9 +191,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
               }}
             >
               <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
-              <div className={styles.nodeChipCount}>
-                {formatTasksCount(data.levelCounts.l4)}
-              </div>
+              <div className={styles.nodeChipCount}>ещё {formatTasksCount(data.levelCounts.l4)}</div>
             </div>
           </div>
         </div>
