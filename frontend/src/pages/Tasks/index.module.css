@@ -708,6 +708,21 @@
   margin: 0;
 }
 
+.mdContent a {
+    overflow: hidden;
+    color: var(--Text-Accent, #3868EB);
+    text-align: center;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    
+    /* Body/Medium Accent */
+    font-family: Onest;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 300;
+    line-height: 24px; /* 150% */
+}
+
 .actionsRow {
   display: flex;
   justify-content: space-between;
