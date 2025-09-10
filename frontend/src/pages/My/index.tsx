@@ -6,7 +6,13 @@ import React, {
   useRef,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { metaExpand, updateGoalLevels, metaCentral, getTrajectory, type TrajectoryResponse } from "../../services/api";
+import {
+  metaExpand,
+  updateGoalLevels,
+  metaCentral,
+  getTrajectory,
+  type TrajectoryResponse,
+} from "../../services/api";
 import ReactFlow, {
   Background,
   Controls,
@@ -37,6 +43,8 @@ type TopicNodeData = {
   hideTasksBox?: boolean;
   forceOpaque?: boolean;
   isActive?: boolean;
+  selectedFilter?: "all" | 2 | 3 | 4;
+  filteredTotal?: number;
 };
 
 const GoalNode: React.FC<
@@ -150,48 +158,58 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           <div className={styles.nodeTasksHeader}>
             Задания{" "}
             <span className={styles.nodeTasksNum}>
-              {data.levelCounts.total}
+              {typeof data.filteredTotal === "number"
+                ? data.filteredTotal
+                : data.levelCounts?.total || 0}
             </span>
           </div>
           <div className={styles.nodeChipRow}>
-            <div
-              className={`${styles.nodeChip} ${
-                data?.goalLevel === 2 ? styles.nodeChipActive : ""
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                // clicks on task chips are disabled
-              }}
-            >
-              <div className={styles.nodeChipTitle}>⭐</div>
-              <div className={styles.nodeChipCount}>
-                {formatTasksCount(data.levelCounts.l2)}
+            {(() => {
+              const f = data?.selectedFilter ?? "all";
+              console.log("f", f);
+              return f === "all" || f === 2 || f === 3 || f === 4;
+            })() && (
+              <div
+                className={`${styles.nodeChip} ${
+                  data?.goalLevel === 2 ? styles.nodeChipActive : ""
+                }`}
+              >
+                <div className={styles.nodeChipTitle}>⭐</div>
+                <div className={styles.nodeChipCount}>
+                  {formatTasksCount(data.levelCounts?.l2 || 0)}
+                </div>
               </div>
-            </div>
-            <div
-              className={`${styles.nodeChip} ${
-                data?.goalLevel === 3 ? styles.nodeChipActive : ""
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                // clicks on task chips are disabled
-              }}
-            >
-              <div className={styles.nodeChipTitle}>⭐⭐</div>
-              <div className={styles.nodeChipCount}>ещё {formatTasksCount(data.levelCounts.l3)}</div>
-            </div>
-            <div
-              className={`${styles.nodeChip} ${
-                data?.goalLevel === 4 ? styles.nodeChipActive : ""
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                // clicks on task chips are disabled
-              }}
-            >
-              <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
-              <div className={styles.nodeChipCount}>ещё {formatTasksCount(data.levelCounts.l4)}</div>
-            </div>
+            )}
+            {(() => {
+              const f = data?.selectedFilter ?? "all";
+              return f === "all" || f === 3 || f === 4;
+            })() && (
+              <div
+                className={`${styles.nodeChip} ${
+                  data?.goalLevel === 3 ? styles.nodeChipActive : ""
+                }`}
+              >
+                <div className={styles.nodeChipTitle}>⭐⭐</div>
+                <div className={styles.nodeChipCount}>
+                  ещё {formatTasksCount(data.levelCounts?.l3 || 0)}
+                </div>
+              </div>
+            )}
+            {(() => {
+              const f = data?.selectedFilter ?? "all";
+              return f === "all" || f === 4;
+            })() && (
+              <div
+                className={`${styles.nodeChip} ${
+                  data?.goalLevel === 4 ? styles.nodeChipActive : ""
+                }`}
+              >
+                <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
+                <div className={styles.nodeChipCount}>
+                  ещё {formatTasksCount(data.levelCounts?.l4 || 0)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -231,7 +249,9 @@ const My: React.FC = () => {
   const fromChatMode =
     (search.get("from") || "").toLowerCase() === "chat" ||
     Boolean((location.state as any)?.fromChat);
-  const [trajectory, setTrajectory] = useState<TrajectoryResponse | undefined>(trajectoryInit as any);
+  const [trajectory, setTrajectory] = useState<TrajectoryResponse | undefined>(
+    trajectoryInit as any
+  );
   const trajFetchedRef = useRef<boolean>(Boolean(trajectoryInit));
   const fetchingRef = useRef<boolean>(false);
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
@@ -334,6 +354,14 @@ const My: React.FC = () => {
               !isNaN(glRaw) && glRaw > 1
                 ? Math.max(2, Math.min(4, Math.round(glRaw)))
                 : undefined;
+            const filteredTotal =
+              level === "all"
+                ? counts.total
+                : level === 2
+                ? counts.l2
+                : level === 3
+                ? counts.l2 + counts.l3
+                : counts.total;
             return {
               title: String(it?.title || "Тема"),
               imageUrl: it?.image_url as string | undefined,
@@ -341,6 +369,8 @@ const My: React.FC = () => {
               goalLevel,
               onOpen: () => setSelectedIdx(trajectory?.items?.indexOf(it) || 0),
               hideTasksBox: fromChatMode,
+              selectedFilter: level,
+              filteredTotal,
             };
           })
         : [
@@ -351,6 +381,15 @@ const My: React.FC = () => {
               goalLevel: undefined,
               onOpen: () => setSelectedIdx(0),
               hideTasksBox: fromChatMode,
+              selectedFilter: level,
+              filteredTotal:
+                level === "all"
+                  ? 10
+                  : level === 2
+                  ? 7
+                  : level === 3
+                  ? 7 + 2
+                  : 10,
             },
             {
               title: "Молекулярные основы жизни",
@@ -359,6 +398,9 @@ const My: React.FC = () => {
               goalLevel: 3,
               onOpen: () => setSelectedIdx(1),
               hideTasksBox: fromChatMode,
+              selectedFilter: level,
+              filteredTotal:
+                level === "all" ? 6 : level === 2 ? 2 : level === 3 ? 2 + 3 : 6,
             },
             {
               title: "Эволюционное учение",
@@ -367,6 +409,9 @@ const My: React.FC = () => {
               goalLevel: 4,
               onOpen: () => setSelectedIdx(2),
               hideTasksBox: fromChatMode,
+              selectedFilter: level,
+              filteredTotal:
+                level === "all" ? 5 : level === 2 ? 1 : level === 3 ? 1 + 2 : 5,
             },
             {
               title: "Экосистемы и биосфера",
@@ -375,14 +420,19 @@ const My: React.FC = () => {
               goalLevel: 2,
               onOpen: () => setSelectedIdx(3),
               hideTasksBox: fromChatMode,
+              selectedFilter: level,
+              filteredTotal:
+                level === "all" ? 4 : level === 2 ? 1 : level === 3 ? 1 + 2 : 4,
             },
           ];
-    const modalOpen = selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
-    const activeMainId = selectedIdx !== null
-      ? String((selectedIdx as number) + 1)
-      : mainOpenIdx !== null
-      ? String((mainOpenIdx as number) + 1)
-      : null;
+    const modalOpen =
+      selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
+    const activeMainId =
+      selectedIdx !== null
+        ? String((selectedIdx as number) + 1)
+        : mainOpenIdx !== null
+        ? String((mainOpenIdx as number) + 1)
+        : null;
     const activeRelatedTitle = relatedTitle;
     const nodes: Node<TopicNodeData>[] = [];
     const anchorCenterX = 0;
@@ -409,7 +459,11 @@ const My: React.FC = () => {
         id: String(i + 1),
         type: "topic",
         position: { x, y },
-        style: modalOpen ? (isActiveMain ? { opacity: 1 } : { opacity: 0.5 }) : undefined,
+        style: modalOpen
+          ? isActiveMain
+            ? { opacity: 1 }
+            : { opacity: 0.5 }
+          : undefined,
         data: {
           title: t.title,
           imageUrl:
@@ -421,6 +475,8 @@ const My: React.FC = () => {
           onOpen: () => setSelectedIdx(i),
           onOpenMain: () => setMainOpenIdx(i),
           isActive: modalOpen && isActiveMain,
+          selectedFilter: (t as any).selectedFilter,
+          filteredTotal: (t as any).filteredTotal,
           onSetLevel: (lvl: 2 | 3 | 4) => {
             try {
               const newLevel = Math.max(2, Math.min(4, Number(lvl)));
@@ -464,13 +520,15 @@ const My: React.FC = () => {
           : topicWidth + Math.max(140, baseGap);
         const exX = x + expOffsetX;
         const exY = y + Math.round(stepY * 0.25) + idx * expStepY;
-        const isActiveRelated = Boolean(activeRelatedTitle && activeRelatedTitle === title);
+        const isActiveRelated = Boolean(
+          activeRelatedTitle && activeRelatedTitle === title
+        );
         nodes.push({
           id,
           type: "topic",
           position: { x: exX, y: exY },
           style: modalOpen
-            ? (isActiveMain || isActiveRelated)
+            ? isActiveMain || isActiveRelated
               ? { opacity: 1 }
               : { opacity: 1 }
             : undefined,
@@ -497,7 +555,16 @@ const My: React.FC = () => {
       draggable: false,
     });
     return nodes;
-  }, [trajectory, expansions, metaText, fromChatMode, selectedIdx, relatedTitle, mainOpenIdx]);
+  }, [
+    trajectory,
+    expansions,
+    metaText,
+    fromChatMode,
+    selectedIdx,
+    relatedTitle,
+    mainOpenIdx,
+    level,
+  ]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -621,22 +688,36 @@ const My: React.FC = () => {
   useEffect(() => {
     const rf = rfRef.current as any;
     if (!rf) return;
-    const modalOpen = selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
+    const modalOpen =
+      selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
     try {
       if (modalOpen) {
         let target: any = null;
         if (selectedIdx !== null) {
-          target = nodes.find((n) => n.id === String((selectedIdx as number) + 1));
+          target = nodes.find(
+            (n) => n.id === String((selectedIdx as number) + 1)
+          );
         } else if (mainOpenIdx !== null) {
-          target = nodes.find((n) => n.id === String((mainOpenIdx as number) + 1));
+          target = nodes.find(
+            (n) => n.id === String((mainOpenIdx as number) + 1)
+          );
         } else if (relatedTitle) {
           target = nodes.find(
-            (n) => n.id.includes("-e") && String((n.data as any)?.title) === String(relatedTitle)
+            (n) =>
+              n.id.includes("-e") &&
+              String((n.data as any)?.title) === String(relatedTitle)
           );
         }
         if (target) {
           try {
-            rf.fitView({ nodes: [target], padding: 0.2, includeHiddenNodes: false, duration: 1000, minZoom: 0.8, maxZoom: 1.5} as any);
+            rf.fitView({
+              nodes: [target],
+              padding: 0.2,
+              includeHiddenNodes: false,
+              duration: 1000,
+              minZoom: 0.8,
+              maxZoom: 1.5,
+            } as any);
           } catch {
             const tx = target.position?.x ?? 0;
             const ty = target.position?.y ?? 0;
@@ -789,6 +870,7 @@ const My: React.FC = () => {
       {selectedItem && (
         <TopicModal
           item={selectedItem as any}
+          filterLevel={level}
           onClose={() => setSelectedIdx(null)}
           onGoTasks={() => {
             const it: any = selectedItem;
@@ -816,49 +898,100 @@ const My: React.FC = () => {
         />
       )}
       {mainOpenIdx !== null && (
-        <div className={styles.modalOverlay} onClick={() => setMainOpenIdx(null)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setMainOpenIdx(null)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             {(() => {
               const it: any = trajectory?.items?.[mainOpenIdx] || {};
-              const img = it?.image_url || new URL("../../icon/goal.png", import.meta.url).href;
+              const img =
+                it?.image_url ||
+                new URL("../../icon/goal.png", import.meta.url).href;
               const levels = (it?.skills?.levels || []) as any[];
-              const total = levels.reduce((acc, l) => acc + (Array.isArray(l?.tasks) ? l.tasks.length : 0), 0);
+              const total = levels.reduce(
+                (acc, l) =>
+                  acc + (Array.isArray(l?.tasks) ? l.tasks.length : 0),
+                0
+              );
               const done = Number(it?.passedCount || 0);
               const gl = Math.round(Number(it?.skills?.goal_level || 0));
-              const glText = gl === 2 ? "Базовый" : gl === 3 ? "Уверенный" : gl === 4 ? "Продвинутый" : "—";
+              const glText =
+                gl === 2
+                  ? "Базовый"
+                  : gl === 3
+                  ? "Уверенный"
+                  : gl === 4
+                  ? "Продвинутый"
+                  : "—";
               const goTasks = () => {
                 const topic = it?.title || it?.skills?.name || "";
-                const goalSelected = typeof it?.skills?.goal_level === "number" && it?.skills?.goal_level > 0.1;
-                const chatQ = typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+                const goalSelected =
+                  typeof it?.skills?.goal_level === "number" &&
+                  it?.skills?.goal_level > 0.1;
+                const chatQ =
+                  typeof chatId === "number" ? `?chat_id=${chatId}` : "";
                 if (goalSelected) {
-                  const qp = topic ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(topic)}` : chatQ;
-                  navigate(`/tasks${qp}` as string, { state: { item: it, chatId } });
+                  const qp = topic
+                    ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(
+                        topic
+                      )}`
+                    : chatQ;
+                  navigate(`/tasks${qp}` as string, {
+                    state: { item: it, chatId },
+                  });
                 } else {
-                  navigate(`/level-select${chatQ}` as string, { state: { item: it, index: mainOpenIdx, chatId } });
+                  navigate(`/level-select${chatQ}` as string, {
+                    state: { item: it, index: mainOpenIdx, chatId },
+                  });
                 }
               };
               return (
                 <>
-                  <button className={styles.modalClose} onClick={() => setMainOpenIdx(null)}>×</button>
+                  <button
+                    className={styles.modalClose}
+                    onClick={() => setMainOpenIdx(null)}
+                  >
+                    ×
+                  </button>
                   <img src={img} alt="" className={styles.modalHero} />
                   <div className={styles.modalHeader}>
                     <div>
                       <div className={styles.modalBreadcrumb}>Тема</div>
-                      <div className={styles.modalTitle}>{it?.title || "Тема"}</div>
+                      <div className={styles.modalTitle}>
+                        {it?.title || "Тема"}
+                      </div>
                     </div>
                   </div>
                   <div className={styles.modalMetaRow}>
-                    <div className={styles.modalProgress}>Готово <span>{done}/{total}</span></div>
-                    <div className={styles.modalGoalLevel}>Целевой уровень темы: <b>{glText}</b></div>
+                    <div className={styles.modalProgress}>
+                      Готово{" "}
+                      <span>
+                        {done}/{total}
+                      </span>
+                    </div>
+                    <div className={styles.modalGoalLevel}>
+                      Целевой уровень темы: <b>{glText}</b>
+                    </div>
                   </div>
                   {it?.description && (
-                    <div className={styles.modalIntroText}>{it.description}</div>
+                    <div className={styles.modalIntroText}>
+                      {it.description}
+                    </div>
                   )}
                   <div className={styles.modalActionsRow}>
-                    <button className={styles.modalCta} onClick={() => { setMainOpenIdx(null); /* keep graph */ }}>
+                    <button
+                      className={styles.modalCta}
+                      onClick={() => {
+                        setMainOpenIdx(null); /* keep graph */
+                      }}
+                    >
                       Посмотреть связанные темы
                     </button>
-                    <button className={styles.modalCtaSecondary} onClick={() => goTasks()}>
+                    <button
+                      className={styles.modalCtaSecondary}
+                      onClick={() => goTasks()}
+                    >
                       К заданиям
                     </button>
                   </div>
@@ -917,9 +1050,10 @@ const splitBullets = (text?: string | null): string[] => {
 
 const TopicModal: React.FC<{
   item: any;
+  filterLevel: "all" | 2 | 3 | 4;
   onClose: () => void;
   onGoTasks: () => void;
-}> = ({ item, onClose, onGoTasks }) => {
+}> = ({ item, filterLevel, onClose, onGoTasks }) => {
   const levels = (item?.skills?.levels || []) as any[];
   const byLevel = new Map<number, any>();
   levels.forEach((l) => byLevel.set(l.level, l));
@@ -927,6 +1061,18 @@ const TopicModal: React.FC<{
   const l3 = byLevel.get(3);
   const l4 = byLevel.get(4);
   const goalLvl = Math.round(Number(item?.skills?.goal_level || 0));
+  const countL2 = splitBullets(l2?.description).length;
+  const countL3 = splitBullets(l3?.description).length;
+  const countL4 = splitBullets(l4?.description).length;
+  const totalAll = countL2 + countL3 + countL4;
+  const filteredTotal =
+    filterLevel === "all"
+      ? totalAll
+      : filterLevel === 2
+      ? countL2
+      : filterLevel === 3
+      ? countL2 + countL3
+      : totalAll;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -942,42 +1088,47 @@ const TopicModal: React.FC<{
           </button>
         </div>
         <div className={styles.modalProgress}>
-          Готово <span>0/10</span>
+          Готово <span>0/{filteredTotal}</span>
         </div>
         {item?.description && (
           <div className={styles.modalIntro}>{item.description}</div>
         )}
-        {l2 && (
-          <>
-            <div className={styles.modalLevelTitle}>
-              ⭐ Базовый уровень{" "}
-              {goalLvl === 2 && (
-                <span className={styles.modalBadge}>Целевой</span>
-              )}
-            </div>
-            <ul className={styles.modalList}>
-              {splitBullets(l2?.description).map((t, i) => (
-                <li key={`l2-${i}`}>{t}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        {l3 && (
-          <>
-            <div className={styles.modalLevelTitle}>
-              ⭐⭐ Уверенный уровень{" "}
-              {goalLvl === 3 && (
-                <span className={styles.modalBadge}>Целевой</span>
-              )}
-            </div>
-            <ul className={styles.modalList}>
-              {splitBullets(l3?.description).map((t, i) => (
-                <li key={`l3-${i}`}>{t}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        {l4 && (
+        {(filterLevel === "all" ||
+          filterLevel === 2 ||
+          filterLevel === 3 ||
+          filterLevel === 4) &&
+          l2 && (
+            <>
+              <div className={styles.modalLevelTitle}>
+                ⭐ Базовый уровень{" "}
+                {goalLvl === 2 && (
+                  <span className={styles.modalBadge}>Целевой</span>
+                )}
+              </div>
+              <ul className={styles.modalList}>
+                {splitBullets(l2?.description).map((t, i) => (
+                  <li key={`l2-${i}`}>{t}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        {(filterLevel === "all" || filterLevel === 3 || filterLevel === 4) &&
+          l3 && (
+            <>
+              <div className={styles.modalLevelTitle}>
+                ⭐⭐ Уверенный уровень{" "}
+                {goalLvl === 3 && (
+                  <span className={styles.modalBadge}>Целевой</span>
+                )}
+              </div>
+              <ul className={styles.modalList}>
+                {splitBullets(l3?.description).map((t, i) => (
+                  <li key={`l3-${i}`}>{t}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        {(filterLevel === "all" || filterLevel === 4) && l4 && (
           <>
             <div className={styles.modalLevelTitle}>
               ⭐⭐⭐ Продвинутый уровень{" "}
