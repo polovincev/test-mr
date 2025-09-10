@@ -449,7 +449,7 @@
 }
 
 .modal {
-  width: 720px;
+  width: 640px;
   max-width: 92vw;
   max-height: 86vh;
   overflow: auto;
@@ -510,6 +510,20 @@
   line-height: 1.5;
   font-weight: 300;
   margin: 6px 0 12px 0;
+}
+
+.modalIntroText {
+  overflow: hidden;
+  color: #101828;
+  font-variant-numeric: lining-nums tabular-nums;
+  text-overflow: ellipsis;
+  font-family: Onest;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 26px; /* 162.5% */
+  margin-top: 20px;
+  margin-bottom: 24px;
 }
 
 .modalLevelTitle {
@@ -575,7 +589,7 @@
   color: #ffffff;
   border: none;
   border-radius: 12px;
-  height: 44px;
+  height: 48px;
   padding: 0 16px;
   font-family: Onest;
   font-size: 14px;
@@ -589,10 +603,43 @@
   color: #2f2354;
   border: none;
   border-radius: 12px;
-  height: 44px;
+  height: 48px;
+  min-width: 200px;
   padding: 0 16px;
   font-family: Onest;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.modalHero {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.modalMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modalGoalLevel {
+  overflow: hidden;
+  color: #656c94;
+  text-overflow: ellipsis;
+  font-family: Onest;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
+.modalActionsRow {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
 }

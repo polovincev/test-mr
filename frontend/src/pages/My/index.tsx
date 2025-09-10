@@ -31,6 +31,7 @@ type TopicNodeData = {
   levelCounts?: { total: number; l2: number; l3: number; l4: number };
   goalLevel?: number; // 2|3|4 when selected, otherwise undefined
   onOpen?: () => void;
+  onOpenMain?: () => void;
   noImage?: boolean;
   onSetLevel?: (level: 2 | 3 | 4) => void;
   hideTasksBox?: boolean;
@@ -87,7 +88,8 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
         onClick={(e) => {
           e.stopPropagation();
           try {
-            data?.onOpen && data.onOpen();
+            if (typeof data?.onOpenMain === "function") data.onOpenMain();
+            else if (typeof data?.onOpen === "function") data.onOpen();
           } catch {
             /* ignore */
           }
@@ -140,6 +142,9 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           }}
           onClick={(e) => {
             e.stopPropagation();
+            try {
+              data?.onOpen && data.onOpen();
+            } catch {}
           }}
         >
           <div className={styles.nodeTasksHeader}>
@@ -155,9 +160,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
               }`}
               onClick={(e) => {
                 e.stopPropagation();
-                try {
-                  data?.onSetLevel && data.onSetLevel(2);
-                } catch {}
+                // clicks on task chips are disabled
               }}
             >
               <div className={styles.nodeChipTitle}>⭐</div>
@@ -171,9 +174,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
               }`}
               onClick={(e) => {
                 e.stopPropagation();
-                try {
-                  data?.onSetLevel && data.onSetLevel(3);
-                } catch {}
+                // clicks on task chips are disabled
               }}
             >
               <div className={styles.nodeChipTitle}>⭐⭐</div>
@@ -185,9 +186,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
               }`}
               onClick={(e) => {
                 e.stopPropagation();
-                try {
-                  data?.onSetLevel && data.onSetLevel(4);
-                } catch {}
+                // clicks on task chips are disabled
               }}
             >
               <div className={styles.nodeChipTitle}>⭐⭐⭐</div>
@@ -239,6 +238,7 @@ const My: React.FC = () => {
   const [metaText, setMetaText] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [mainOpenIdx, setMainOpenIdx] = useState<number | null>(null);
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
@@ -377,8 +377,12 @@ const My: React.FC = () => {
               hideTasksBox: fromChatMode,
             },
           ];
-    const modalOpen = selectedIdx !== null || relatedTitle !== null;
-    const activeMainId = selectedIdx !== null ? String((selectedIdx as number) + 1) : null;
+    const modalOpen = selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
+    const activeMainId = selectedIdx !== null
+      ? String((selectedIdx as number) + 1)
+      : mainOpenIdx !== null
+      ? String((mainOpenIdx as number) + 1)
+      : null;
     const activeRelatedTitle = relatedTitle;
     const nodes: Node<TopicNodeData>[] = [];
     const anchorCenterX = 0;
@@ -415,6 +419,7 @@ const My: React.FC = () => {
           levelCounts: (t as any).levelCounts,
           goalLevel: (t as any).goalLevel,
           onOpen: () => setSelectedIdx(i),
+          onOpenMain: () => setMainOpenIdx(i),
           isActive: modalOpen && isActiveMain,
           onSetLevel: (lvl: 2 | 3 | 4) => {
             try {
@@ -492,7 +497,7 @@ const My: React.FC = () => {
       draggable: false,
     });
     return nodes;
-  }, [trajectory, expansions, metaText, fromChatMode, selectedIdx, relatedTitle]);
+  }, [trajectory, expansions, metaText, fromChatMode, selectedIdx, relatedTitle, mainOpenIdx]);
 
   const computedEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -616,12 +621,14 @@ const My: React.FC = () => {
   useEffect(() => {
     const rf = rfRef.current as any;
     if (!rf) return;
-    const modalOpen = selectedIdx !== null || relatedTitle !== null;
+    const modalOpen = selectedIdx !== null || relatedTitle !== null || mainOpenIdx !== null;
     try {
       if (modalOpen) {
         let target: any = null;
         if (selectedIdx !== null) {
           target = nodes.find((n) => n.id === String((selectedIdx as number) + 1));
+        } else if (mainOpenIdx !== null) {
+          target = nodes.find((n) => n.id === String((mainOpenIdx as number) + 1));
         } else if (relatedTitle) {
           target = nodes.find(
             (n) => n.id.includes("-e") && String((n.data as any)?.title) === String(relatedTitle)
@@ -643,7 +650,7 @@ const My: React.FC = () => {
     } catch {
       /* noop */
     }
-  }, [selectedIdx, relatedTitle, nodes]);
+  }, [selectedIdx, relatedTitle, mainOpenIdx, nodes]);
 
   const selectedItem =
     selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
@@ -807,6 +814,59 @@ const My: React.FC = () => {
             }
           }}
         />
+      )}
+      {mainOpenIdx !== null && (
+        <div className={styles.modalOverlay} onClick={() => setMainOpenIdx(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const it: any = trajectory?.items?.[mainOpenIdx] || {};
+              const img = it?.image_url || new URL("../../icon/goal.png", import.meta.url).href;
+              const levels = (it?.skills?.levels || []) as any[];
+              const total = levels.reduce((acc, l) => acc + (Array.isArray(l?.tasks) ? l.tasks.length : 0), 0);
+              const done = Number(it?.passedCount || 0);
+              const gl = Math.round(Number(it?.skills?.goal_level || 0));
+              const glText = gl === 2 ? "Базовый" : gl === 3 ? "Уверенный" : gl === 4 ? "Продвинутый" : "—";
+              const goTasks = () => {
+                const topic = it?.title || it?.skills?.name || "";
+                const goalSelected = typeof it?.skills?.goal_level === "number" && it?.skills?.goal_level > 0.1;
+                const chatQ = typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+                if (goalSelected) {
+                  const qp = topic ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(topic)}` : chatQ;
+                  navigate(`/tasks${qp}` as string, { state: { item: it, chatId } });
+                } else {
+                  navigate(`/level-select${chatQ}` as string, { state: { item: it, index: mainOpenIdx, chatId } });
+                }
+              };
+              return (
+                <>
+                  <button className={styles.modalClose} onClick={() => setMainOpenIdx(null)}>×</button>
+                  <img src={img} alt="" className={styles.modalHero} />
+                  <div className={styles.modalHeader}>
+                    <div>
+                      <div className={styles.modalBreadcrumb}>Тема</div>
+                      <div className={styles.modalTitle}>{it?.title || "Тема"}</div>
+                    </div>
+                  </div>
+                  <div className={styles.modalMetaRow}>
+                    <div className={styles.modalProgress}>Готово <span>{done}/{total}</span></div>
+                    <div className={styles.modalGoalLevel}>Целевой уровень темы: <b>{glText}</b></div>
+                  </div>
+                  {it?.description && (
+                    <div className={styles.modalIntroText}>{it.description}</div>
+                  )}
+                  <div className={styles.modalActionsRow}>
+                    <button className={styles.modalCta} onClick={() => { setMainOpenIdx(null); /* keep graph */ }}>
+                      Посмотреть связанные темы
+                    </button>
+                    <button className={styles.modalCtaSecondary} onClick={() => goTasks()}>
+                      К заданиям
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
       )}
       {relatedTitle && (
         <div
