@@ -35,6 +35,7 @@ type TopicNodeData = {
   onSetLevel?: (level: 2 | 3 | 4) => void;
   hideTasksBox?: boolean;
   forceOpaque?: boolean;
+  isActive?: boolean;
 };
 
 const GoalNode: React.FC<
@@ -81,7 +82,7 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
       <div
         className={`${styles.topicNode} ${
           data?.noImage ? styles.topicNodeCompact : ""
-        }`}
+        } ${data?.isActive ? styles.topicNodeActive : ""}`}
         style={data?.forceOpaque ? { opacity: 1 } : undefined}
         onClick={(e) => {
           e.stopPropagation();
@@ -418,6 +419,7 @@ const My: React.FC = () => {
           levelCounts: (t as any).levelCounts,
           goalLevel: (t as any).goalLevel,
           onOpen: () => setSelectedIdx(i),
+          isActive: modalOpen && isActiveMain,
           onSetLevel: (lvl: 2 | 3 | 4) => {
             try {
               const newLevel = Math.max(2, Math.min(4, Number(lvl)));
@@ -479,6 +481,7 @@ const My: React.FC = () => {
             onOpen: () => setRelatedTitle(title),
             noImage: true,
             forceOpaque: modalOpen && (isActiveMain || isActiveRelated),
+            isActive: modalOpen && isActiveRelated,
           },
         });
       });

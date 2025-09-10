@@ -260,6 +260,14 @@
   opacity: 0.5;
 }
 
+.topicNodeActive {
+  border-radius: 16px;
+  border: 1px solid #7562F0;
+  background: linear-gradient(138deg, #FFF 14.55%, rgba(255, 255, 255, 0.60) 92.27%);
+  box-shadow: 0 -4px 8px 0 rgba(80, 58, 224, 0.16), 0 4px 8px 0 rgba(80, 58, 224, 0.24);
+  backdrop-filter: blur(6.768233299255371px);
+}
+
 .topicImage {
   width: 74px;
   height: 74px;
