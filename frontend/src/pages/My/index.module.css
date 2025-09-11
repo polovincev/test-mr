@@ -11,6 +11,9 @@
   overflow: hidden !important;
   display: flex !important;
   flex-direction: row !important;
+  bottom: 72px !important;
+  left: 16px !important;
+  z-index: 16 !important;
 }
 
 :global(.react-flow__controls-button) {
@@ -495,6 +498,21 @@
   cursor: pointer;
 }
 
+.modalCloseTheme {
+    background: #fff;
+    border: none;
+    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    color: #2f2354;
+    cursor: pointer;
+    z-index: 10 !important;
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
 .modalProgress {
   color: #656c94;
   font-family: Onest;
@@ -613,11 +631,13 @@
 }
 
 .modalHero {
-  width: 100%;
-  height: 220px;
+  width: calc(100% + 40px);
+  height: 240px;
   object-fit: cover;
   border-radius: 12px;
   margin-bottom: 12px;
+  margin-left: -20px;
+  margin-top: -56px;
 }
 
 .modalMetaRow {
@@ -643,3 +663,96 @@
   gap: 16px;
   margin-top: 12px;
 }
+
+.modalContent {
+    position: relative;
+}
+
+/* Legend styles */
+.legendPanel {
+  z-index: 20 !important;
+}
+
+.legendWrap {
+  display: flex;
+  vertical-align: row;
+  align-items: center;
+  gap: 32px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: #FFF;
+  box-shadow: 0 4px 8px 0 rgba(147, 153, 189, 0.20);
+}
+
+.legendControlsRow {
+  display: flex;
+  gap: 8px;
+}
+
+.legendCtrlBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #E4E6F7;
+  border: none;
+  cursor: pointer;
+  font-family: Onest;
+  font-size: 20px;
+  color: #101828;
+}
+
+.legendCtrlBtn img {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legendTitle {
+  color: #101828;
+  font-family: Onest;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 16px; /* 114.286% */
+  letter-spacing: -0.14px;
+  margin-right: 4px;
+}
+
+.legendItems {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #101828;
+  font-family: Onest;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 14px; /* 116.667% */
+  letter-spacing: -0.12px;
+}
+
+.legendTarget {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid #e257bf;
+  display: inline-block;
+}
+
+/* .legendStars {
+  width: 28px;
+  text-align: center;
+} */

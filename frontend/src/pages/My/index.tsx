@@ -15,7 +15,7 @@ import {
 } from "../../services/api";
 import ReactFlow, {
   Background,
-  Controls,
+  Panel,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -29,6 +29,9 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
 import LoaderOverlay from "../../components/LoaderOverlay";
+import plusIcon from "../../icon/plus.svg";
+import minusIcon from "../../icon/minus.svg";
+import collapseIcon from "../../icon/collapse.svg";
 
 type TopicNodeData = {
   title: string;
@@ -671,7 +674,7 @@ const My: React.FC = () => {
         if (!goal) return;
         const x = goal.position.x; // center of 140px node
         const y = goal.position.y;
-        rf.setCenter(0, 0, { zoom: 0.8, duration: 1000 });
+        rf.setCenter(0, 0, { zoom: 1.1, duration: 1000 });
       } catch {
         /* ignore */
       }
@@ -726,7 +729,7 @@ const My: React.FC = () => {
         }
       } else {
         // restore default view on goal
-        rf.setCenter(0, 0, { zoom: 0.8, duration: 1000 });
+        rf.setCenter(0, 0, { zoom: 1.1, duration: 1000 });
       }
     } catch {
       /* noop */
@@ -864,7 +867,63 @@ const My: React.FC = () => {
           }}
         >
           <Background color="rgba(255, 255, 255, 0.6)" />
-          <Controls position="bottom-left" showInteractive={false} />
+          <Panel position="bottom-left" className={styles.legendPanel as any}>
+            <div className={styles.legendWrap}>
+              <div className={styles.legendControlsRow}>
+                <button
+                  className={styles.legendCtrlBtn}
+                  onClick={() => {
+                    try { (rfRef.current as any)?.zoomIn?.(); } catch {}
+                  }}
+                  aria-label="Zoom in"
+                >
+                  <img src={plusIcon} alt="+" />
+                </button>
+                <button
+                  className={styles.legendCtrlBtn}
+                  onClick={() => {
+                    try { (rfRef.current as any)?.zoomOut?.(); } catch {}
+                  }}
+                  aria-label="Zoom out"
+                >
+                  <img src={minusIcon} alt="-" />
+                </button>
+                <button
+                  className={styles.legendCtrlBtn}
+                  onClick={() => {
+                    try {
+                      const rf = rfRef.current as any;
+                      rf?.fitView?.({ padding: 0.2, includeHiddenNodes: true });
+                    } catch {}
+                  }}
+                  aria-label="Fit view"
+                >
+                  <img src={collapseIcon} alt="fit" />
+                </button>
+              </div>
+              <div className={styles.legendRow}>
+                <div className={styles.legendTitle}>Легенда</div>
+                <div className={styles.legendItems}>
+                  <div className={styles.legendItem}>
+                    <span className={styles.legendTarget} />
+                    <span>Целевой уровень</span>
+                  </div>
+                  <div className={styles.legendItem}>
+                    <span className={styles.legendStars}>⭐</span>
+                    <span>Базовый уровень</span>
+                  </div>
+                  <div className={styles.legendItem}>
+                    <span className={styles.legendStars}>⭐⭐</span>
+                    <span>Уверенный уровень</span>
+                  </div>
+                  <div className={styles.legendItem}>
+                    <span className={styles.legendStars}>⭐⭐⭐</span>
+                    <span>Продвинутый уровень</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Panel>
         </ReactFlow>
       </div>
       {selectedItem && (
@@ -947,14 +1006,14 @@ const My: React.FC = () => {
                 }
               };
               return (
-                <>
+                <div className={styles.modalContent}>
+                  <img src={img} alt="" className={styles.modalHero} />
                   <button
-                    className={styles.modalClose}
+                    className={styles.modalCloseTheme}
                     onClick={() => setMainOpenIdx(null)}
                   >
                     ×
                   </button>
-                  <img src={img} alt="" className={styles.modalHero} />
                   <div className={styles.modalHeader}>
                     <div>
                       <div className={styles.modalBreadcrumb}>Тема</div>
@@ -995,7 +1054,7 @@ const My: React.FC = () => {
                       К заданиям
                     </button>
                   </div>
-                </>
+                </div>
               );
             })()}
           </div>
