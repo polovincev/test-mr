@@ -1030,7 +1030,45 @@ const My: React.FC = () => {
                       </span>
                     </div>
                     <div className={styles.modalGoalLevel}>
-                      Целевой уровень темы: <b>{glText}</b>
+                      Целевой уровень темы:
+                      <select
+                        className={styles.goalSelect}
+                        value={gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""}
+                        required
+                        onChange={(e) => {
+                          try {
+                            const raw = Number(e.target.value);
+                            const chosen: any = raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
+                            // update local trajectory object
+                            try {
+                              const tr: any = trajectory as any;
+                              if (tr && Array.isArray(tr.items) && typeof mainOpenIdx === "number") {
+                                const idx = mainOpenIdx as number;
+                                const prev = tr.items[idx]?.skills || {};
+                                tr.items[idx].skills = { ...prev, goal_level: chosen };
+                              }
+                            } catch {}
+                            // trigger UI update
+                            setExpansions((prev) => ({ ...prev }));
+                            // persist to backend
+                            if (typeof chatId === "number") {
+                              try {
+                                const levels = (trajectory?.items || []).map((it, k) =>
+                                  k === (mainOpenIdx as number)
+                                    ? chosen
+                                    : Math.round(Number(it?.skills?.goal_level || 0.1)) || 0.1
+                                );
+                                updateGoalLevels(chatId, levels as any).catch(() => void 0);
+                              } catch {}
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <option value="" disabled hidden>Не выбран</option>
+                        <option value="2">⭐ Базовый</option>
+                        <option value="3">⭐⭐ Уверенный</option>
+                        <option value="4">⭐⭐⭐ Продвинутый</option>
+                      </select>
                     </div>
                   </div>
                   {it?.description && (
