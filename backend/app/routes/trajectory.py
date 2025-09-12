@@ -1345,4 +1345,254 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
         pass
 
     return MetaExpandResponse(chat_id=chat_id, items=items_out)
+
+
+# --------- Extended meta expand by single topic ---------
+class MetaExtendRequest(BaseModel):
+    chat_id: int
+    topic: str
+
+
+@router.post("/meta_extend_new", response_model=MetaExpandResponse)
+async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
+    """Extend meta expansions for a specific topic using a stricter prompt.
+
+    Logic:
+    1) Read trajectory and existing meta_expand from context by chat_id
+    2) Build disallowed topics list from trajectory (all titles except the requested topic)
+    3) Call LLM with system prompt 'meta_extended_system' (fallback to 'meta_expand_system') and pass
+       JSON payload: { topic, disallowed, existing }
+    4) Merge LLM result with existing context data, deduplicate, and return updated items
+    5) Save updated meta_expand back to context
+    """
+    from app.repositories.context_store import get_context  # type: ignore
+    from app.prompts.loader import load_prompt  # type: ignore
+    import os
+    import json as _json
+
+    chat_id = int(req.chat_id)
+    topic = str(req.topic).strip()
+
+    # 1) Context
+    ctx = get_context(chat_id)
+    trajectory = ctx.get("trajectory") if isinstance(ctx, dict) else None
+    # Normalize titles list and disallowed
+    titles: list[str] = []
+    try:
+        if trajectory and isinstance(trajectory, dict):
+            items = trajectory.get("items") or []
+            for it in items:
+                try:
+                    t = str(it.get("title", "")).strip()
+                    if t:
+                        titles.append(t)
+                except Exception:
+                    continue
+        elif trajectory and hasattr(trajectory, "items"):
+            for it in getattr(trajectory, "items", []):
+                try:
+                    t = str(getattr(it, "title", "")).strip()
+                    if t:
+                        titles.append(t)
+                except Exception:
+                    continue
+    except Exception:
+        titles = []
+
+    disallowed = [t for t in titles if t != topic]
+
+    # 2) Existing meta_expand from context
+    existing_map: dict[str, list[str]] = {}
+    try:
+        mx = ctx.get("meta_expand") if isinstance(ctx, dict) else None
+        if isinstance(mx, dict) and isinstance(mx.get("items"), list):
+            for it in mx.get("items", []):
+                try:
+                    if isinstance(it, dict):
+                        k = str(it.get("title", "")).strip()
+                        arr = it.get("expansions") or []
+                        if k:
+                            existing_map[k] = [str(x).strip() for x in arr if str(x).strip()]
+                except Exception:
+                    continue
+    except Exception:
+        existing_map = {}
+
+    # payload for LLM
+    try:
+        user_payload = {
+            "topic": topic,
+            "disallowed": disallowed,
+            "existing": existing_map.get(topic, []),
+        }
+        user_prompt = _json.dumps(user_payload, ensure_ascii=False)
+    except Exception:
+        user_prompt = f"topic={topic}; disallowed={', '.join(disallowed)}; existing={', '.join(existing_map.get(topic, []))}"
+
+    # 3) System prompt
+    try:
+        system_prompt = load_prompt("meta_extended_system")
+    except Exception:
+        system_prompt = load_prompt("meta_expand_system")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        # Return existing data if no key
+        # Prepare items list from existing map
+        items_out = [MetaExpandItem(title=k, expansions=v) for k, v in existing_map.items()]
+        # Ensure the requested topic exists in list
+        if topic and topic not in existing_map:
+            items_out.append(MetaExpandItem(title=topic, expansions=[]))
+        return MetaExpandResponse(chat_id=chat_id, items=items_out)
+
+    # 4) Call LLM
+    try:
+        from openai import OpenAI  # type: ignore
+        client = OpenAI(api_key=api_key)
+        comp = client.chat.completions.create(
+            model="gpt-5-chat-latest",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = comp.choices[0].message.content if comp.choices else ""
+        print(content)
+    except Exception:
+        content = ""
+
+    # Parse LLM response into a mapping { title -> [expansions] }
+    new_map: dict[str, list[str]] = {}
+    try:
+        import json as _json, re as _re
+        txt = str(content or "").strip()
+        m = _re.search(r"```(?:json)?\s*([\s\S]*?)```", txt, flags=_re.IGNORECASE)
+        if m:
+            txt = m.group(1).strip()
+        data = None
+        if txt.startswith("[") or txt.startswith("{"):
+            try:
+                data = _json.loads(txt)
+            except Exception:
+                data = None
+        if isinstance(data, list):
+            if all(isinstance(x, str) for x in data):
+                new_map[topic] = [str(x).strip() for x in data if str(x).strip()]
+            else:
+                for it in data:
+                    if isinstance(it, dict):
+                        t = str(it.get("title", "") or it.get("topic", "")).strip() or topic
+                        arr = it.get("expansions") or it.get("items") or []
+                        if isinstance(arr, list):
+                            new_map[t] = [str(x).strip() for x in arr if str(x).strip()]
+        elif isinstance(data, dict):
+            if isinstance(data.get("expansions"), list):
+                new_map[topic] = [str(x).strip() for x in data.get("expansions", []) if str(x).strip()]
+            elif isinstance(data.get("expansions"), dict):
+                # format: { expansions: { "Title": [..], ... } }
+                exp_map = data.get("expansions") or {}
+                for k, v in exp_map.items():
+                    try:
+                        t = str(k).strip() or topic
+                        if isinstance(v, list):
+                            new_map[t] = [str(x).strip() for x in v if str(x).strip()]
+                        elif isinstance(v, str):
+                            # comma/newline separated string
+                            vals = [s.strip() for s in v.replace("\n", ",").split(",") if s.strip()]
+                            new_map[t] = vals
+                    except Exception:
+                        continue
+            elif isinstance(data.get("items"), list):
+                for it in data.get("items", []):
+                    if isinstance(it, dict):
+                        t = str(it.get("title", "") or it.get("topic", "")).strip() or topic
+                        arr = it.get("expansions") or []
+                        if isinstance(arr, list):
+                            new_map[t] = [str(x).strip() for x in arr if str(x).strip()]
+            else:
+                # direct dict: {"Title": [..], ...} or single {title, expansions}
+                if any(isinstance(v, list) for v in data.values()):
+                    for k, v in data.items():
+                        if isinstance(v, list):
+                            t = str(k).strip() or topic
+                            new_map[t] = [str(x).strip() for x in v if str(x).strip()]
+                else:
+                    t = str(data.get("title", "") or data.get("topic", "")).strip() or topic
+                    arr = data.get("expansions") or []
+                    if isinstance(arr, list):
+                        new_map[t] = [str(x).strip() for x in arr if str(x).strip()]
+        else:
+            buff: list[str] = []
+            for line in txt.splitlines():
+                s = line.strip().lstrip("-•*").strip()
+                if s:
+                    buff.append(s)
+            if buff:
+                new_map[topic] = buff
+    except Exception:
+        new_map = {}
+
+    # 5) Merge per title with existing, filter disallowed and duplicates
+    def _norm(s: str) -> str:
+        return " ".join(str(s).split()).strip().lower()
+
+    disallowed_norm = {_norm(t) for t in disallowed}
+    def merge_lists(title_key: str, old: list[str], new: list[str]) -> list[str]:
+        merged: list[str] = []
+        seen: set[str] = set()
+        for x in (old or []):
+            nx = _norm(x)
+            if nx and nx not in disallowed_norm and nx not in seen and nx != _norm(title_key):
+                seen.add(nx)
+                merged.append(x)
+        for x in (new or []):
+            nx = _norm(x)
+            if nx and nx not in disallowed_norm and nx not in seen and nx != _norm(title_key):
+                seen.add(nx)
+                merged.append(x)
+        return merged
+
+    # 6) Save back to context under meta_expand
+    try:
+        if isinstance(ctx, dict):
+            items_ctx: list[dict] = []
+            try:
+                mx = ctx.get("meta_expand") or {}
+                arr = mx.get("items") if isinstance(mx, dict) else []
+                if isinstance(arr, list):
+                    items_ctx = [it for it in arr if isinstance(it, dict)]
+            except Exception:
+                items_ctx = []
+            # convert current list to map for merging
+            ctx_map: dict[str, list[str]] = {}
+            for it in items_ctx:
+                try:
+                    ctx_map[str(it.get("title", "")).strip()] = list(it.get("expansions") or [])
+                except Exception:
+                    continue
+            # union keys and rebuild list (ensure requested topic key exists)
+            all_titles = set(ctx_map.keys()) | (set(new_map.keys()) if new_map else set())
+            if topic:
+                all_titles.add(topic)
+            if not all_titles:
+                all_titles = {topic}
+            items_ctx = []
+            for t in all_titles:
+                old_list = ctx_map.get(t, [])
+                new_list = new_map.get(t, [])
+                items_ctx.append({"title": t, "expansions": merge_lists(t, old_list, new_list)})
+            ctx["meta_expand"] = {"chat_id": chat_id, "items": items_ctx}
+    except Exception:
+        pass
+
+    # 7) Build response from context state
+    try:
+        items_out = [MetaExpandItem(title=str(it.get("title")), expansions=list(it.get("expansions") or [])) for it in ctx.get("meta_expand", {}).get("items", [])]
+    except Exception:
+        # fall back to new_map or empty
+        if new_map:
+            items_out = [MetaExpandItem(title=k, expansions=v) for k, v in new_map.items()]
+        else:
+            items_out = [MetaExpandItem(title=topic, expansions=existing_map.get(topic, []))]
+    return MetaExpandResponse(chat_id=chat_id, items=items_out)
     

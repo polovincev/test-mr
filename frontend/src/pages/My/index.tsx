@@ -8,6 +8,7 @@ import React, {
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   metaExpand,
+  metaExtendNew,
   updateGoalLevels,
   metaCentral,
   getTrajectory,
@@ -169,7 +170,6 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
           <div className={styles.nodeChipRow}>
             {(() => {
               const f = data?.selectedFilter ?? "all";
-              console.log("f", f);
               return f === "all" || f === 2 || f === 3 || f === 4;
             })() && (
               <div
@@ -220,11 +220,6 @@ const TopicNode: React.FC<NodeProps<TopicNodeData>> = ({ data }) => {
   );
 };
 
-const wrapperStyle: React.CSSProperties = {
-  width: "100vw",
-  height: "calc(100vh - 0px)",
-};
-
 const My: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -262,6 +257,7 @@ const My: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [mainOpenIdx, setMainOpenIdx] = useState<number | null>(null);
+  const [extLoading, setExtLoading] = useState<boolean>(false);
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
@@ -328,6 +324,7 @@ const My: React.FC = () => {
       /* ignore */
     }
   }, []);
+
 
   const nodeTypes = useMemo(() => ({ topic: TopicNode, goal: GoalNode }), []);
 
@@ -441,22 +438,38 @@ const My: React.FC = () => {
     const anchorCenterX = 0;
     const anchorCenterY = 0;
     const viewportW = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const viewportH = typeof window !== "undefined" ? window.innerHeight : 720;
-    const goalHalf = 70; // 140x140 goal node
+    const goalHalf = 0; // 140x140 goal node
     const topicWidth = 380; // approx width of topic node
     const baseGap = Math.max(120, Math.min(280, Math.round(viewportW * 0.08)));
     const leftX = anchorCenterX - goalHalf - baseGap - topicWidth;
     const rightX = anchorCenterX + goalHalf + baseGap;
-    const contentH = Math.max(400, Math.round(viewportH * 0.8));
-    const stepY = Math.max(
-      120,
-      Math.min(220, Math.round(contentH / Math.max(1, items.length)))
-    );
-    const startY = anchorCenterY - Math.round(((items.length - 1) * stepY) / 2);
+    // independent vertical spacing for left and right columns (center-based)
+    const childGap = 80; // vertical gap between compact nodes
+    const mainMinSpan = 120; // minimal span allocated even if no children
+    const getSpan = (idx: number) => {
+      const n = ((expansions[(items[idx] as any)?.title] || []).length) as number;
+      const childSpan = n > 1 ? (n - 1) * childGap : 0; // total vertical span occupied by children
+      return Math.max(mainMinSpan, childSpan + (n > 0 ? childGap : 0));
+    };
+    const leftIdx: number[] = [];
+    const rightIdx: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      (i % 2 === 0 ? leftIdx : rightIdx).push(i);
+    }
+    const leftSpans = leftIdx.map(getSpan);
+    const rightSpans = rightIdx.map(getSpan);
+    const sum = (arr: number[]) => arr.reduce((a: number, b: number) => a + b, 0);
+    const leftStart = anchorCenterY - Math.round(sum(leftSpans) / 2);
+    const rightStart = anchorCenterY - Math.round(sum(rightSpans) / 2);
+    const yForIndex = new Map<number, number>();
+    let acc = leftStart;
+    leftIdx.forEach((idx, k) => { const span = leftSpans[k]; yForIndex.set(idx, acc + Math.round(span / 2)); acc += span; });
+    acc = rightStart;
+    rightIdx.forEach((idx, k) => { const span = rightSpans[k]; yForIndex.set(idx, acc + Math.round(span / 2)); acc += span; });
     items.forEach((t, i) => {
       const isLeft = i % 2 === 0;
       const x = isLeft ? leftX : rightX;
-      const y = startY + i * (stepY / 1);
+      const y = yForIndex.get(i) ?? 0;
       const isActiveMain = activeMainId === String(i + 1);
       nodes.push({
         id: String(i + 1),
@@ -515,14 +528,15 @@ const My: React.FC = () => {
 
       // expansion children below the parent node if any
       const exps = expansions[t.title] || [];
-      const expStepY = Math.max(72, Math.min(200, Math.round(stepY * 0.5)));
+
+      const ys = exps.map((_, k) => Math.round(y + (k - (exps.length - 1) / 2) * childGap));
       exps.forEach((title, idx) => {
         const id = `${i + 1}-e${idx + 1}`;
         const expOffsetX = isLeft
           ? -(topicWidth / 2 + Math.max(140, baseGap))
           : topicWidth + Math.max(140, baseGap);
         const exX = x + expOffsetX;
-        const exY = y + Math.round(stepY * 0.25) + idx * expStepY;
+        const exY = ys[idx];
         const isActiveRelated = Boolean(
           activeRelatedTitle && activeRelatedTitle === title
         );
@@ -687,7 +701,7 @@ const My: React.FC = () => {
     };
   }, [nodes.length, edges.length]);
 
-  // When modal is open, zoom and center on the active node; when closed, restore to goal
+  // When modal is open, gently center on the active node once (no auto zoom on move)
   useEffect(() => {
     const rf = rfRef.current as any;
     if (!rf) return;
@@ -1078,12 +1092,35 @@ const My: React.FC = () => {
                   )}
                   <div className={styles.modalActionsRow}>
                     <button
-                      className={styles.modalCta}
-                      onClick={() => {
-                        setMainOpenIdx(null); /* keep graph */
+                      className={`${styles.modalCta} ${extLoading ? styles.modalCtaLoading : ""}`}
+                      onClick={async () => {
+                        try {
+                          setExtLoading(true);
+                          const it: any = trajectory?.items?.[mainOpenIdx as number] || {};
+                          const topic = String(it?.title || it?.skills?.name || "");
+                          if (typeof chatId === "number" && topic) {
+                            const resp = await metaExtendNew(chatId, topic);
+                            // merge into existing expansions, update only returned topics
+                            if (resp && Array.isArray(resp.items) && resp.items.length > 0) {
+                              setExpansions((prev) => {
+                                const next = { ...(prev || {}) } as Record<string, string[]>;
+                                resp.items.forEach((x) => {
+                                  if (x && typeof x.title === "string") {
+                                    next[x.title] = Array.isArray(x.expansions) ? x.expansions : [];
+                                  }
+                                });
+                                return next;
+                              });
+                            }
+                          }
+                        } catch {}
+                        finally {
+                          setExtLoading(false);
+                          setMainOpenIdx(null);
+                        }
                       }}
                     >
-                      Посмотреть связанные темы
+                      {extLoading ? "Загружаю…" : "Посмотреть связанные темы"}
                     </button>
                     <button
                       className={styles.modalCtaSecondary}

@@ -198,6 +198,17 @@ export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
   if (!res.ok) throw new Error("Failed to expand meta");
   return (await res.json()) as MetaExpandResponse;
 }
+
+// New extended meta endpoint
+export async function metaExtendNew(chatId: number, topic: string): Promise<MetaExpandResponse> {
+  const res = await fetch(`${API_URL}/trajectory/meta_extend_new`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic }),
+  });
+  if (!res.ok) throw new Error("Failed to meta-extend");
+  return (await res.json()) as MetaExpandResponse;
+}
 // -------- Meta Central API --------
 export interface MetaCentralResponse { chat_id: number; content: string }
 
