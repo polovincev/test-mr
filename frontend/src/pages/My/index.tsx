@@ -468,7 +468,7 @@ const My: React.FC = () => {
     rightIdx.forEach((idx, k) => { const span = rightSpans[k]; yForIndex.set(idx, acc + Math.round(span / 2)); acc += span; });
     items.forEach((t, i) => {
       const isLeft = i % 2 === 0;
-      const x = isLeft ? leftX : rightX;
+      const x = (isLeft ? leftX : rightX) + (isLeft ? - Math.floor(Math.random() * 100) : Math.floor(Math.random() * 100));
       const y = yForIndex.get(i) ?? 0;
       const isActiveMain = activeMainId === String(i + 1);
       nodes.push({
