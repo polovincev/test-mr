@@ -42,10 +42,11 @@ const LevelSelect = () => {
         try {
             setSaving(true);
             const chosenLevel = 2 + idx; // idx: 0->2,1->3,2->4
-            const topic = item?.title || item?.skills?.name || "";
+            const topicMain = item?.title || item?.skills?.name || "";
             if (fromRelated) {
-                try { await updateByTopicGoalLevel(chatId, topic, chosenLevel); } catch {}
-                navigate(`/tasks?chat_id=${chatId}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}` as string, {
+                const topicParam = item?.skills?.name || "";
+                try { await updateByTopicGoalLevel(chatId, topicParam, chosenLevel); } catch {}
+                navigate(`/tasks?chat_id=${chatId}${topicParam ? `&topic=${encodeURIComponent(topicParam)}` : ""}` as string, {
                     state: { item, chatId, fromRelated: true }
                 });
                 return;
@@ -64,7 +65,7 @@ const LevelSelect = () => {
                 current[findIndex] = chosenLevel;
             }
             await updateGoalLevels(chatId, current);
-            navigate(`/tasks?chat_id=${chatId}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}` as string, {
+            navigate(`/tasks?chat_id=${chatId}${topicMain ? `&topic=${encodeURIComponent(topicMain)}` : ""}` as string, {
                 state: { item, chatId }
             });
         } finally {
