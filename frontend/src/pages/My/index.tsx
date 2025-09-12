@@ -1020,27 +1020,29 @@ const My: React.FC = () => {
                   <img src={collapseIcon} alt="fit" />
                 </button>
               </div>
-              <div className={styles.legendRow}>
-                <div className={styles.legendTitle}>Легенда</div>
-                <div className={styles.legendItems}>
-                  <div className={styles.legendItem}>
-                    <span className={styles.legendTarget} />
-                    <span>Целевой уровень</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <span className={styles.legendStars}>⭐</span>
-                    <span>Базовый уровень</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <span className={styles.legendStars}>⭐⭐</span>
-                    <span>Уверенный уровень</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <span className={styles.legendStars}>⭐⭐⭐</span>
-                    <span>Продвинутый уровень</span>
+              {!fromChatMode && (
+                <div className={styles.legendRow}>
+                  <div className={styles.legendTitle}>Легенда</div>
+                  <div className={styles.legendItems}>
+                    <div className={styles.legendItem}>
+                      <span className={styles.legendTarget} />
+                      <span>Целевой уровень</span>
+                    </div>
+                    <div className={styles.legendItem}>
+                      <span className={styles.legendStars}>⭐</span>
+                      <span>Базовый уровень</span>
+                    </div>
+                    <div className={styles.legendItem}>
+                      <span className={styles.legendStars}>⭐⭐</span>
+                      <span>Уверенный уровень</span>
+                    </div>
+                    <div className={styles.legendItem}>
+                      <span className={styles.legendStars}>⭐⭐⭐</span>
+                      <span>Продвинутый уровень</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </Panel>
         </ReactFlow>
@@ -1293,9 +1295,7 @@ const My: React.FC = () => {
                     <span></span>
                     <span></span>
                   </span>
-                  <div>
-                    Формирую информацию по теме
-                  </div>
+                  <div>Формирую информацию по теме</div>
                 </div>
               </>
             )}

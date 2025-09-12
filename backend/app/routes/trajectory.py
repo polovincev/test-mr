@@ -1606,10 +1606,12 @@ class TopicTrajectoryRequest(BaseModel):
 
 @router.post("/by_topic", response_model=TrajectoryResponse)
 async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> TrajectoryResponse:
-    """Generate and cache a single-item trajectory for a specific topic.
+    """Generate single-item trajectory seeded by a requested skill/topic.
 
-    Reuses the same logic as full trajectory generation: skills → levels → tasks per level → images.
-    Caches result under a separate context map so repeated calls by (chat_id, topic) are fast.
+    Mirrors get_trajectory_list logic, but:
+    - Uses SYSTEM_SKILLS_ONE and injects the requested topic into the skills prompt
+    - Caches by (chat_id, topic) using get_topic_trajectory/set_topic_trajectory
+    - Returns only the first generated item
     """
     from app.repositories.context_store import (
         get_context,
@@ -1622,7 +1624,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
     chat_id = int(req.chat_id)
     topic = str(req.topic).strip()
 
-    # Serve from per-topic cache
+    # Cache check
     cached = get_topic_trajectory(chat_id, topic)
     if isinstance(cached, dict):
         try:
@@ -1648,7 +1650,6 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        # Without API key return empty item structure
         return TrajectoryResponse(goal=goal_text, items=[])
 
     try:
@@ -1656,19 +1657,18 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
 
         client = OpenAI(api_key=api_key)
 
-        # 1) Generate skills using same system prompt
-        skills_prompt = load_prompt(SYSTEM_SKILLS_ONE)
+        # 1) Skills
+        skills_prompt = load_prompt("skills_system_one")
         traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
         tasks_prompt = load_prompt(SYSTEM_TASK_LIST)
         skills_resp = client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": skills_prompt},
-                {"role": "user", "content": "Цель пользователя: " + goal_text + profile_block + "Навык: " + topic},
+                {"role": "user", "content": "Цель пользователя: " + goal_text + profile_block + f"\nНавык: {topic}"},
             ],
         )
         skills_content = skills_resp.choices[0].message.content if skills_resp.choices else None
-        print("skills_content", skills_content)
         if not skills_content:
             return TrajectoryResponse(goal=goal_text, items=[])
 
@@ -1694,7 +1694,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                         rec_int = int(float(rec_txt)) if rec_txt else None
                     except Exception:
                         rec_int = None
-                    # parse descriptions → levels
+                    # levels
                     levels_list: list[LevelInfo] = []
                     descs = s.get("descriptions")
                     if isinstance(descs, list):
@@ -1727,129 +1727,89 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                 return []
 
         skills_list = parse_skills(skills_content)
+        skills_lines = []
+        for item in skills_list:
+            name = str(item.get("name", "")).strip()
+            level = str(item.get("level", "")).strip()
+            if name:
+                skills_lines.append(f"- {name}: {level}")
+        levels_help = (
+            "Расшифровка уровней: 2.0 — базовый уровень освоения; 3.0 — уверенный уровень освоения; 4.0 — продвинутый уровень освоения."
+        )
 
-        # 2) Optionally refine the requested topic via trajectory prompt for consistency
-        try:
-            traj_user = (
-                (f"Цель пользователя: {goal_text}\n" if goal_text else "")
-                + "Список целевых навыков и уровней:\n"
-                + "\n".join([f"- {str(s.get('name','')).strip()}: {str(s.get('recommended_level') or s.get('level') or 0)}" for s in skills_list])
-            )
-            traj_resp = client.chat.completions.create(
-                model="gpt-5-chat-latest",
-                messages=[{"role": "system", "content": traj_prompt}, {"role": "user", "content": traj_user}],
-            )
-            traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
-            print("traj_content", traj_content)
-            # Try parse to find best matching module name for our topic; fallback to original
-            if isinstance(traj_content, str) and traj_content.strip():
-                import json as _json
-                try:
-                    data = _json.loads(traj_content)
-                    arr = data.get("items") if isinstance(data, dict) else (data if isinstance(data, list) else None)
-                    if isinstance(arr, list):
-                        # pick element whose title best contains topic
-                        topic_lower = topic.lower()
-                        best_title: str | None = None
-                        best_desc: str | None = None
-                        best_tags: str | list | None = None
-                        for itx in arr:
-                            try:
-                                tt = str((itx or {}).get("title", "")).strip()
-                                if not tt:
-                                    continue
-                                tl = tt.lower()
-                                if topic_lower in tl or tl in topic_lower:
-                                    best_title = tt
-                                    # capture optional description/tags for later
-                                    dv = (itx or {}).get("description")
-                                    if isinstance(dv, str) and dv.strip():
-                                        best_desc = dv.strip()
-                                    best_tags = (itx or {}).get("tags")
-                                    break
-                            except Exception:
-                                continue
-                        # Fallback: exact match or first element if nothing chosen
-                        if not best_title:
-                            for itx in arr:
-                                try:
-                                    tt = str((itx or {}).get("title", "")).strip()
-                                    if tt.lower() == topic_lower:
-                                        best_title = tt
-                                        dv = (itx or {}).get("description")
-                                        if isinstance(dv, str) and dv.strip():
-                                            best_desc = dv.strip()
-                                        best_tags = (itx or {}).get("tags")
-                                        break
-                                except Exception:
-                                    continue
-                        if not best_title and len(arr) == 1:
-                            try:
-                                itx = arr[0]
-                                best_title = str((itx or {}).get("title", topic)).strip() or topic
-                                dv = (itx or {}).get("description")
-                                if isinstance(dv, str) and dv.strip():
-                                    best_desc = dv.strip()
-                                best_tags = (itx or {}).get("tags")
-                            except Exception:
-                                pass
-                        if best_title:
-                            topic = best_title
-                            # store in transient variables for later usage
-                            _bytopic_desc = best_desc
-                            _bytopic_tags = best_tags
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # 2) Trajectory
+        trajectory_user = (
+            (f"Цель пользователя: {goal_text}\n" if goal_text else "")
+            + "Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
+        )
+        traj_resp = client.chat.completions.create(
+            model="gpt-5-chat-latest",
+            messages=[
+                {"role": "system", "content": traj_prompt},
+                {"role": "user", "content": trajectory_user},
+            ],
+        )
+        traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
+        if not traj_content:
+            return TrajectoryResponse(goal=goal_text, items=[])
 
-        # 3) Build a single item for the requested topic and choose a skill
-        chosen_skill = None
-        if skills_list:
-            topic_l = topic.lower()
-            for s in skills_list:
-                s_name = str(s.get("name", "")).strip().lower()
-                if s_name and (s_name in topic_l or topic_l in s_name):
-                    chosen_skill = s
-                    break
-            if chosen_skill is None:
-                chosen_skill = skills_list[0]
-
-        if chosen_skill is None:
-            sr = SkillRequirement(name="Навык", recommended_level=1)
-        else:
-            lvl_raw = chosen_skill.get("recommended_level") or chosen_skill.get("level")
+        def parse_traj(txt: str) -> list[dict]:
             try:
-                lvl_int = int(float(str(lvl_raw)))
+                data = json.loads(txt)
+                if isinstance(data, list):
+                    return data
+                if isinstance(data, dict):
+                    if "items" in data and isinstance(data["items"], list):
+                        return data["items"]
+                    if "modules" in data and isinstance(data["modules"], list):
+                        return data["modules"]
             except Exception:
-                lvl_int = 1
-            sr = SkillRequirement(
-                name=str(chosen_skill.get("name", "Навык")),
-                recommended_level=lvl_int,
-                recommended_level_text=(str(chosen_skill.get("recommended_level_text")) if chosen_skill.get("recommended_level_text") else None),
-                levels=(chosen_skill.get("levels") or []),
-            )
+                return []
+            return []
 
-        # Ensure levels exist
-        ensure_levels(sr)
+        traj_items_raw = parse_traj(traj_content)
 
-        # derive description/tags from trajectory LLM if available
-        desc_val: str | None = None
-        tags_val: str | None = None
-        try:
-            if '_bytopic_desc' in locals() and isinstance(_bytopic_desc, str) and _bytopic_desc.strip():
-                desc_val = _bytopic_desc.strip()
-            if '_bytopic_tags' in locals() and _bytopic_tags is not None:
-                if isinstance(_bytopic_tags, list):
-                    tags_val = " ".join([str(x).strip() for x in _bytopic_tags if str(x).strip()]) or None
-                elif isinstance(_bytopic_tags, str) and _bytopic_tags.strip():
-                    tags_val = _bytopic_tags.strip()
-        except Exception:
-            pass
+        # 3) Build items and map skills (keep only first)
+        items: list[TrajectoryItem] = []
+        for it in traj_items_raw:
+            title = str(it.get("title", "")).strip()
+            if not title:
+                continue
+            description = str(it.get("description", "")).strip() or None
+            tags_raw = it.get("tags")
+            tags_str: str | None = None
+            if isinstance(tags_raw, list):
+                try:
+                    joined = " ".join(str(t).strip() for t in tags_raw if str(t).strip())
+                    tags_str = joined or None
+                except Exception:
+                    tags_str = None
+            elif isinstance(tags_raw, str):
+                tags_str = tags_raw.strip() or None
 
-        it = TrajectoryItem(title=topic, description=desc_val, tags=(tags_val or topic), skills=sr)
+            chosen_skill = skills_list[0] if skills_list else None
+            if chosen_skill is None:
+                sr = SkillRequirement(name="Навык", recommended_level=1)
+            else:
+                lvl_raw = chosen_skill.get("recommended_level") or chosen_skill.get("level")
+                try:
+                    lvl_int = int(float(str(lvl_raw)))
+                except Exception:
+                    lvl_int = 1
+                sr = SkillRequirement(
+                    name=str(chosen_skill.get("name", "Навык")),
+                    recommended_level=lvl_int,
+                    recommended_level_text=(str(chosen_skill.get("recommended_level_text")) if chosen_skill.get("recommended_level_text") else None),
+                    levels=(chosen_skill.get("levels") or []),
+                )
 
-        # 4) Generate tasks mapping for the single item
+            items.append(TrajectoryItem(title=title, description=description, tags=tags_str, skills=sr))
+
+        if not items:
+            return TrajectoryResponse(goal=goal_text, items=[])
+        items = [items[0]]
+
+        # 4) Tasks per levels for the single item
         def parse_tasks(txt: str) -> dict[str, list[TaskInfo]]:
             import json as _json
             try:
@@ -1872,7 +1832,9 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             except Exception:
                 return {}
 
+        it = items[0]
         try:
+            ensure_levels(it.skills)
             user_msg = (
                 (f"Цель пользователя: {goal_text}\n" if goal_text else "")
                 + (f"{profile_block}\n" if profile_block else "")
@@ -1886,13 +1848,6 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                 ],
             )
             tasks_content = tasks_resp.choices[0].message.content if tasks_resp.choices else None
-            
-            print("--------------------------------")
-            print("tasks_prompt", tasks_prompt)
-            print("user_msg", user_msg)
-            print("tasks_content", tasks_content)
-            print("--------------------------------")
-
             if tasks_content:
                 mapping = parse_tasks(tasks_content)
                 map_tasks_to_levels(it.skills, mapping)
@@ -1908,35 +1863,36 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             except Exception:
                 pass
 
-        # 5) Enrich with an image
-        print("it", it)
-        await enrich_items_with_images([it])
+        # 5) Image
+        await enrich_items_with_images(items)
 
-        # 6) Compute passedCount from cached tasks
+        # 6) passedCount
         try:
             tasks_by_topic = (ctx or {}).get("tasks") or {}
-            passed_sum = 0
-            if isinstance(tasks_by_topic, dict):
-                for k, v in tasks_by_topic.items():
-                    if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
-                        for t in v.get("tasks", []):
-                            try:
+            try:
+                passed_sum = 0
+                if isinstance(tasks_by_topic, dict):
+                    for k, v in tasks_by_topic.items():
+                        if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                            for t in v.get("tasks", []):
                                 try:
-                                    _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
+                                    try:
+                                        _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
+                                    except Exception:
+                                        _title = ""
+                                    if "тест по базовому уровню" in _title:
+                                        continue
+                                    if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
+                                        passed_sum += 1
                                 except Exception:
-                                    _title = ""
-                                if "тест по базовому уровню" in _title:
                                     continue
-                                if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
-                                    passed_sum += 1
-                            except Exception:
-                                continue
-            it.passedCount = int(passed_sum)
+                setattr(it, "passedCount", int(passed_sum))
+            except Exception:
+                setattr(it, "passedCount", 0)
         except Exception:
-            it.passedCount = 0
+            pass
 
-        resp = TrajectoryResponse(goal=goal_text, items=[it])
-        # Cache per-topic
+        resp = TrajectoryResponse(goal=goal_text, items=items)
         try:
             set_topic_trajectory(chat_id, topic, resp)
         except Exception:
