@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import type { TrajectoryItem } from "../../services/api";
-import { getTrajectory, updateGoalLevels } from "../../services/api";
+import { getTrajectory, updateGoalLevels, updateByTopicGoalLevel } from "../../services/api";
 import styles from "./index.module.css";
 import { useMemo, useState } from "react";
 
@@ -11,8 +11,9 @@ const LevelSelect = () => {
     const location = useLocation();
     const search = new URLSearchParams(location.search);
     const chatIdParam = search.get("chat_id");
-    const state = location.state as { item?: TrajectoryItem; index?: number; chatId?: string } | null;
+    const state = location.state as { item?: TrajectoryItem; index?: number; chatId?: string; fromRelated?: boolean } | null;
     const item = state?.item;
+    const fromRelated = Boolean(state?.fromRelated);
 
     const recommendedLevelRaw = Number(item?.skills?.recommended_level ?? 3);
     const recommendedIndex = Math.max(0, Math.min(2, Math.round(recommendedLevelRaw) - 2)); // 2->0, 3->1, 4->2
@@ -40,8 +41,16 @@ const LevelSelect = () => {
         if (!chatId || !item) return;
         try {
             setSaving(true);
-            const tr = await getTrajectory(chatId);
             const chosenLevel = 2 + idx; // idx: 0->2,1->3,2->4
+            const topic = item?.title || item?.skills?.name || "";
+            if (fromRelated) {
+                try { await updateByTopicGoalLevel(chatId, topic, chosenLevel); } catch {}
+                navigate(`/tasks?chat_id=${chatId}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}` as string, {
+                    state: { item, chatId, fromRelated: true }
+                });
+                return;
+            }
+            const tr = await getTrajectory(chatId);
             // build new levels array for all items
             const current = (tr.items || []).map((it) => {
                 const val = typeof it.skills.goal_level === "number" ? it.skills.goal_level : 0.1;
@@ -55,7 +64,6 @@ const LevelSelect = () => {
                 current[findIndex] = chosenLevel;
             }
             await updateGoalLevels(chatId, current);
-            const topic = item?.title || item?.skills?.name || "";
             navigate(`/tasks?chat_id=${chatId}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}` as string, {
                 state: { item, chatId }
             });

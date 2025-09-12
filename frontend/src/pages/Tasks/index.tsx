@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { generateTasks, type GeneratedTask, getTrajectory, updateTaskPassed, type TestAnswerPayload } from "../../services/api";
+import { generateTasks, generateTasksByTopic, type GeneratedTask, getTrajectory, updateTaskPassed, type TestAnswerPayload } from "../../services/api";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMath from "remark-math";
@@ -45,6 +45,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   }
   // derive topic from state if not query
   const topicState = (location.state as any)?.item?.title;
+  const fromRelated = Boolean((location.state as any)?.fromRelated);
   const finalTopic = topic || topicState || "";
 
   const makeMockTasks = (t: string): GeneratedTask[] => [
@@ -79,7 +80,9 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
         return;
       }
       try {
-        const resp = await generateTasks(chatId, finalTopic);
+        const resp = fromRelated
+          ? await generateTasksByTopic(chatId, finalTopic)
+          : await generateTasks(chatId, finalTopic);
         const data = Array.isArray(resp?.tasks) ? resp.tasks : [];
         if (!ignore) {
           const list = data.length > 0 ? data : makeMockTasks(finalTopic);
@@ -99,7 +102,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     };
     run();
     return () => { ignore = true; };
-  }, [chatId, finalTopic]);
+  }, [chatId, finalTopic, fromRelated]);
 
   const contentRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

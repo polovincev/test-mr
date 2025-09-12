@@ -14,6 +14,7 @@ import {
   getTrajectory,
   type TrajectoryResponse,
   getTrajectoryByTopic,
+  updateByTopicGoalLevel,
 } from "../../services/api";
 import ReactFlow, {
   Background,
@@ -1339,12 +1340,10 @@ const My: React.FC = () => {
                           topic
                         )}`
                       : chatQ;
-                    navigate(`/tasks${qp}` as string, {
-                      state: { item: it, chatId },
-                    });
+                    navigate(`/tasks${qp}` as string, { state: { item: it, chatId, fromRelated: true } });
                   } else {
                     navigate(`/level-select${chatQ}` as string, {
-                      state: { item: it, index: null, chatId },
+                      state: { item: it, index: null, chatId, fromRelated: true },
                     });
                   }
                 };
@@ -1395,6 +1394,20 @@ const My: React.FC = () => {
                                 }));
                               } catch {}
                               setExpansions((prev) => ({ ...prev }));
+                              // persist to backend for single-item by_topic
+                              if (
+                                typeof chatId === "number" &&
+                                relatedTitle &&
+                                (chosen === 2 || chosen === 3 || chosen === 4)
+                              ) {
+                                try {
+                                  updateByTopicGoalLevel(
+                                    chatId,
+                                    relatedTitle,
+                                    Number(chosen)
+                                  ).catch(() => void 0);
+                                } catch {}
+                              }
                             } catch {}
                           }}
                         >

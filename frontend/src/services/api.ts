@@ -220,6 +220,26 @@ export async function getTrajectoryByTopic(chatId: number, topic: string): Promi
   if (!res.ok) throw new Error("Failed to load topic trajectory");
   return (await res.json()) as TrajectoryResponse;
 }
+
+export async function updateByTopicGoalLevel(chatId: number, topic: string, level: number): Promise<TrajectoryResponse> {
+  const res = await fetch(`${API_URL}/trajectory/by_topic/goal_level`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic, level })
+  });
+  if (!res.ok) throw new Error("Failed to update by_topic goal level");
+  return (await res.json()) as TrajectoryResponse;
+}
+
+export async function generateTasksByTopic(chatId: number, topic: string): Promise<GenerateTasksResponse> {
+  const res = await fetch(`${API_URL}/trajectory/by_topic/generate_tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic })
+  });
+  if (!res.ok) throw new Error("Failed to generate tasks by topic");
+  return (await res.json()) as GenerateTasksResponse;
+}
 // -------- Meta Central API --------
 export interface MetaCentralResponse { chat_id: number; content: string }
 
