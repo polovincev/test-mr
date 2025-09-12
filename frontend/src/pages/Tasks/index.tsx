@@ -44,9 +44,14 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
       .use(rehypeStringify, { allowDangerousHtml: true });
   }
   // derive topic from state if not query
-  const topicState = (location.state as any)?.item?.title;
+  const itemState = (location.state as any)?.item;
+  const topicState = itemState?.title;
   const fromRelated = Boolean((location.state as any)?.fromRelated);
   const finalTopic = topic || topicState || "";
+  const skillNameState = itemState?.skills?.name as string | undefined;
+  const requestTopic = fromRelated ? (skillNameState || finalTopic) : finalTopic;
+  const lastKeyRef = useRef<string>("");
+  const fetchedRef = useRef<boolean>(false);
 
   const makeMockTasks = (t: string): GeneratedTask[] => [
     {
@@ -71,17 +76,24 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
 
   useEffect(() => {
     let ignore = false;
+    const key = `${chatId || 0}|${fromRelated ? 1 : 0}|${requestTopic}`;
+    if (key !== lastKeyRef.current) {
+      lastKeyRef.current = key;
+      fetchedRef.current = false;
+    }
+    if (fetchedRef.current) return; // already fetched for this key (dev StrictMode)
     const run = async () => {
       if (!chatId || !finalTopic) {
         setLoading(false);
         const mk = makeMockTasks(finalTopic || "Тема");
         setTasks(mk);
         setSelected(0);
+        fetchedRef.current = true;
         return;
       }
       try {
         const resp = fromRelated
-          ? await generateTasksByTopic(chatId, finalTopic)
+          ? await generateTasksByTopic(chatId, requestTopic)
           : await generateTasks(chatId, finalTopic);
         const data = Array.isArray(resp?.tasks) ? resp.tasks : [];
         if (!ignore) {
@@ -98,11 +110,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
         }
       } finally {
         if (!ignore) setLoading(false);
+        fetchedRef.current = true;
       }
     };
     run();
     return () => { ignore = true; };
-  }, [chatId, finalTopic, fromRelated]);
+  }, [chatId, finalTopic, fromRelated, requestTopic]);
 
   const contentRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -317,7 +330,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                         }
                                         packed = answers;
                                       } catch {}
-                                      try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
+                                      try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true, packed); } catch {}
                                     }
                                     setTasks((prev) => {
                                       if (!prev) return prev;
@@ -355,7 +368,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                     }
                                     packed = answers;
                                   } catch {}
-                                  try { await updateTaskPassed(chatId, finalTopic, selected, true, packed); } catch {}
+                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true, packed); } catch {}
                                 }
                                 setTasks((prev) => {
                                   if (!prev) return prev;
@@ -373,7 +386,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             return (
                               <button type="button" className={styles.testBtn} onClick={async () => {
                                 if (typeof chatId === 'number') {
-                                  try { await updateTaskPassed(chatId, finalTopic, selected, true); } catch {}
+                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true); } catch {}
                                 }
                                 setTasks((prev) => {
                                   if (!prev) return prev;
