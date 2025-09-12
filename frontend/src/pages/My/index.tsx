@@ -13,6 +13,7 @@ import {
   metaCentral,
   getTrajectory,
   type TrajectoryResponse,
+  getTrajectoryByTopic,
 } from "../../services/api";
 import ReactFlow, {
   Background,
@@ -259,6 +260,9 @@ const My: React.FC = () => {
   const [mainOpenIdx, setMainOpenIdx] = useState<number | null>(null);
   const [extLoading, setExtLoading] = useState<boolean>(false);
   const [relatedTitle, setRelatedTitle] = useState<string | null>(null);
+  const [relExtLoading, setRelExtLoading] = useState<boolean>(false);
+  const [relatedItem, setRelatedItem] = useState<any | null>(null);
+  const [relatedLoading, setRelatedLoading] = useState<boolean>(false);
   const [levelOpen, setLevelOpen] = useState(false);
   const [level, setLevel] = useState<"all" | 2 | 3 | 4>("all");
   const levelRef = useRef<HTMLDivElement | null>(null);
@@ -324,7 +328,6 @@ const My: React.FC = () => {
       /* ignore */
     }
   }, []);
-
 
   const nodeTypes = useMemo(() => ({ topic: TopicNode, goal: GoalNode }), []);
 
@@ -447,7 +450,7 @@ const My: React.FC = () => {
     const childGap = 80; // vertical gap between compact nodes
     const mainMinSpan = 120; // minimal span allocated even if no children
     const getSpan = (idx: number) => {
-      const n = ((expansions[(items[idx] as any)?.title] || []).length) as number;
+      const n = (expansions[(items[idx] as any)?.title] || []).length as number;
       const childSpan = n > 1 ? (n - 1) * childGap : 0; // total vertical span occupied by children
       return Math.max(mainMinSpan, childSpan + (n > 0 ? childGap : 0));
     };
@@ -458,17 +461,30 @@ const My: React.FC = () => {
     }
     const leftSpans = leftIdx.map(getSpan);
     const rightSpans = rightIdx.map(getSpan);
-    const sum = (arr: number[]) => arr.reduce((a: number, b: number) => a + b, 0);
+    const sum = (arr: number[]) =>
+      arr.reduce((a: number, b: number) => a + b, 0);
     const leftStart = anchorCenterY - Math.round(sum(leftSpans) / 2);
     const rightStart = anchorCenterY - Math.round(sum(rightSpans) / 2);
     const yForIndex = new Map<number, number>();
     let acc = leftStart;
-    leftIdx.forEach((idx, k) => { const span = leftSpans[k]; yForIndex.set(idx, acc + Math.round(span / 2)); acc += span; });
+    leftIdx.forEach((idx, k) => {
+      const span = leftSpans[k];
+      yForIndex.set(idx, acc + Math.round(span / 2));
+      acc += span;
+    });
     acc = rightStart;
-    rightIdx.forEach((idx, k) => { const span = rightSpans[k]; yForIndex.set(idx, acc + Math.round(span / 2)); acc += span; });
+    rightIdx.forEach((idx, k) => {
+      const span = rightSpans[k];
+      yForIndex.set(idx, acc + Math.round(span / 2));
+      acc += span;
+    });
     items.forEach((t, i) => {
       const isLeft = i % 2 === 0;
-      const x = (isLeft ? leftX : rightX) + (isLeft ? - Math.floor(Math.random() * 100) : Math.floor(Math.random() * 100));
+      const x =
+        (isLeft ? leftX : rightX) +
+        (isLeft
+          ? -Math.floor(Math.random() * 100)
+          : Math.floor(Math.random() * 100));
       const y = yForIndex.get(i) ?? 0;
       const isActiveMain = activeMainId === String(i + 1);
       nodes.push({
@@ -529,7 +545,9 @@ const My: React.FC = () => {
       // expansion children below the parent node if any
       const exps = expansions[t.title] || [];
 
-      const ys = exps.map((_, k) => Math.round(y + (k - (exps.length - 1) / 2) * childGap));
+      const ys = exps.map((_, k) =>
+        Math.round(y + (k - (exps.length - 1) / 2) * childGap)
+      );
       exps.forEach((title, idx) => {
         const id = `${i + 1}-e${idx + 1}`;
         const expOffsetX = isLeft
@@ -560,6 +578,36 @@ const My: React.FC = () => {
             isActive: modalOpen && isActiveRelated,
           },
         });
+
+        // render second-level related topics (grandchildren) if present in expansions map
+        const ex2 = expansions[title] || [];
+        if (ex2.length > 0) {
+          const childGap2 = Math.max(56, Math.min(90, childGap - 10));
+          const ys2 = ex2.map((_, kk) =>
+            Math.round(exY + (kk - (ex2.length - 1) / 2) * childGap2)
+          );
+          const ex2OffsetX = isLeft
+            ? -(topicWidth / 2 + Math.max(120, baseGap))
+            : topicWidth / 2 + Math.max(120, baseGap);
+          ex2.forEach((t2, j) => {
+            const id2 = `${id}-g${j + 1}`;
+            nodes.push({
+              id: id2,
+              type: "topic",
+              position: { x: exX + ex2OffsetX, y: ys2[j] },
+              data: {
+                title: t2,
+                handleSide: isLeft ? "right" : "left",
+                levelCounts: { total: 0, l2: 0, l3: 0, l4: 0 },
+                goalLevel: undefined,
+                onOpen: () => setRelatedTitle(t2),
+                noImage: true,
+                forceOpaque: false,
+                isActive: false,
+              },
+            });
+          });
+        }
       });
     });
     // Add centered goal node at flow center (top-left offset for 140x140)
@@ -601,9 +649,9 @@ const My: React.FC = () => {
         } as any);
       }
     });
-    // connect expansions to their parents with side-specific handles
+    // connect ONLY first-level expansions (ids like "N-eM") to their main parent
     computedNodes.forEach((node) => {
-      if (node.id.includes("-e")) {
+      if (/^\d+-e\d+$/.test(node.id)) {
         const parentId = node.id.split("-e")[0];
         const parent = computedNodes.find((n) => n.id === parentId);
         const child = node;
@@ -615,6 +663,35 @@ const My: React.FC = () => {
           const sourceHandle = isParentRight
             ? "topic-src-right"
             : "topic-src-left";
+          const targetHandle =
+            child.position.x > parent.position.x ? "topic-left" : "topic-right";
+          edges.push({
+            id: `p${parentId}-${node.id}`,
+            source: parentId,
+            sourceHandle,
+            target: node.id,
+            targetHandle,
+            type: "bezier",
+            style: {
+              strokeDasharray: "6 4",
+              stroke: "#37C5F0",
+              strokeWidth: 2,
+            },
+          } as any);
+        }
+      }
+    });
+    // connect second-level related nodes to their parent expansion
+    computedNodes.forEach((node) => {
+      if (node.id.includes("-g")) {
+        const parentId = node.id.split("-g")[0]; // like 1-e2
+        const parent = computedNodes.find((n) => n.id === parentId);
+        const child = node;
+        if (parent) {
+          const sourceHandle =
+            child.position.x > parent.position.x
+              ? "topic-src-right"
+              : "topic-src-left";
           const targetHandle =
             child.position.x > parent.position.x ? "topic-left" : "topic-right";
           edges.push({
@@ -674,6 +751,30 @@ const My: React.FC = () => {
   useEffect(() => {
     setEdges(computedEdges);
   }, [computedEdges, setEdges]);
+
+  // Load single-item trajectory for related modal
+  useEffect(() => {
+    const run = async () => {
+      if (!relatedTitle || typeof chatId !== "number") {
+        setRelatedItem(null);
+        return;
+      }
+      setRelatedLoading(true);
+      try {
+        const resp = await getTrajectoryByTopic(chatId, relatedTitle);
+        const item =
+          Array.isArray(resp?.items) && resp.items.length > 0
+            ? resp.items[0]
+            : null;
+        setRelatedItem(item);
+      } catch {
+        setRelatedItem(null);
+      } finally {
+        setRelatedLoading(false);
+      }
+    };
+    run();
+  }, [relatedTitle, chatId]);
 
   // Fit viewport to show the whole map on mount and after graph changes
   // intentionally skip fitView to keep goal centered
@@ -887,7 +988,9 @@ const My: React.FC = () => {
                 <button
                   className={styles.legendCtrlBtn}
                   onClick={() => {
-                    try { (rfRef.current as any)?.zoomIn?.(); } catch {}
+                    try {
+                      (rfRef.current as any)?.zoomIn?.();
+                    } catch {}
                   }}
                   aria-label="Zoom in"
                 >
@@ -896,7 +999,9 @@ const My: React.FC = () => {
                 <button
                   className={styles.legendCtrlBtn}
                   onClick={() => {
-                    try { (rfRef.current as any)?.zoomOut?.(); } catch {}
+                    try {
+                      (rfRef.current as any)?.zoomOut?.();
+                    } catch {}
                   }}
                   aria-label="Zoom out"
                 >
@@ -1047,19 +1152,29 @@ const My: React.FC = () => {
                       Целевой уровень темы:
                       <select
                         className={styles.goalSelect}
-                        value={gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""}
+                        value={
+                          gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
+                        }
                         required
                         onChange={(e) => {
                           try {
                             const raw = Number(e.target.value);
-                            const chosen: any = raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
+                            const chosen: any =
+                              raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
                             // update local trajectory object
                             try {
                               const tr: any = trajectory as any;
-                              if (tr && Array.isArray(tr.items) && typeof mainOpenIdx === "number") {
+                              if (
+                                tr &&
+                                Array.isArray(tr.items) &&
+                                typeof mainOpenIdx === "number"
+                              ) {
                                 const idx = mainOpenIdx as number;
                                 const prev = tr.items[idx]?.skills || {};
-                                tr.items[idx].skills = { ...prev, goal_level: chosen };
+                                tr.items[idx].skills = {
+                                  ...prev,
+                                  goal_level: chosen,
+                                };
                               }
                             } catch {}
                             // trigger UI update
@@ -1067,18 +1182,25 @@ const My: React.FC = () => {
                             // persist to backend
                             if (typeof chatId === "number") {
                               try {
-                                const levels = (trajectory?.items || []).map((it, k) =>
-                                  k === (mainOpenIdx as number)
-                                    ? chosen
-                                    : Math.round(Number(it?.skills?.goal_level || 0.1)) || 0.1
+                                const levels = (trajectory?.items || []).map(
+                                  (it, k) =>
+                                    k === (mainOpenIdx as number)
+                                      ? chosen
+                                      : Math.round(
+                                          Number(it?.skills?.goal_level || 0.1)
+                                        ) || 0.1
                                 );
-                                updateGoalLevels(chatId, levels as any).catch(() => void 0);
+                                updateGoalLevels(chatId, levels as any).catch(
+                                  () => void 0
+                                );
                               } catch {}
                             }
                           } catch {}
                         }}
                       >
-                        <option value="" disabled hidden>Не выбран</option>
+                        <option value="" disabled hidden>
+                          Не выбран
+                        </option>
                         <option value="2">⭐ Базовый</option>
                         <option value="3">⭐⭐ Уверенный</option>
                         <option value="4">⭐⭐⭐ Продвинутый</option>
@@ -1092,29 +1214,43 @@ const My: React.FC = () => {
                   )}
                   <div className={styles.modalActionsRow}>
                     <button
-                      className={`${styles.modalCta} ${extLoading ? styles.modalCtaLoading : ""}`}
+                      className={`${styles.modalCta} ${
+                        extLoading ? styles.modalCtaLoading : ""
+                      }`}
                       onClick={async () => {
                         try {
                           setExtLoading(true);
-                          const it: any = trajectory?.items?.[mainOpenIdx as number] || {};
-                          const topic = String(it?.title || it?.skills?.name || "");
+                          const it: any =
+                            trajectory?.items?.[mainOpenIdx as number] || {};
+                          const topic = String(
+                            it?.title || it?.skills?.name || ""
+                          );
                           if (typeof chatId === "number" && topic) {
                             const resp = await metaExtendNew(chatId, topic);
                             // merge into existing expansions, update only returned topics
-                            if (resp && Array.isArray(resp.items) && resp.items.length > 0) {
+                            if (
+                              resp &&
+                              Array.isArray(resp.items) &&
+                              resp.items.length > 0
+                            ) {
                               setExpansions((prev) => {
-                                const next = { ...(prev || {}) } as Record<string, string[]>;
+                                const next = { ...(prev || {}) } as Record<
+                                  string,
+                                  string[]
+                                >;
                                 resp.items.forEach((x) => {
                                   if (x && typeof x.title === "string") {
-                                    next[x.title] = Array.isArray(x.expansions) ? x.expansions : [];
+                                    next[x.title] = Array.isArray(x.expansions)
+                                      ? x.expansions
+                                      : [];
                                   }
                                 });
                                 return next;
                               });
                             }
                           }
-                        } catch {}
-                        finally {
+                        } catch {
+                        } finally {
                           setExtLoading(false);
                           setMainOpenIdx(null);
                         }
@@ -1141,30 +1277,195 @@ const My: React.FC = () => {
           onClick={() => setRelatedTitle(null)}
         >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div>
-                <div className={styles.modalBreadcrumb}>Тема</div>
-                <div className={styles.modalTitle}>{relatedTitle}</div>
-              </div>
-              <button
-                className={styles.modalClose}
-                onClick={() => setRelatedTitle(null)}
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.modalIntro}>
-              Это связанная тема из метаучебника. Выберите основную тему, чтобы
-              продолжить работу с заданиями.
-            </div>
-            <div className={styles.modalFooter}>
-              <button
-                className={styles.modalCta}
-                onClick={() => setRelatedTitle(null)}
-              >
-                Понятно
-              </button>
-            </div>
+            {relatedLoading && (
+              <>
+                <div className={styles.modalHeader}>
+                  <div>
+                    <div className={styles.modalBreadcrumb}>Тема</div>
+                    <div className={styles.modalTitle}>
+                      {relatedTitle || "Тема"}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.modalSpinner}>
+                  <span className={styles.modalDots}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                  <div>
+                    Формирую информацию по теме
+                  </div>
+                </div>
+              </>
+            )}
+            {!relatedLoading &&
+              (() => {
+                const it: any = relatedItem || {
+                  title: relatedTitle,
+                  image_url: new URL("../../icon/goal.png", import.meta.url)
+                    .href,
+                  skills: { name: relatedTitle, goal_level: 0.1, levels: [] },
+                };
+                const img =
+                  it?.image_url ||
+                  new URL("../../icon/goal.png", import.meta.url).href;
+                const levels = (it?.skills?.levels || []) as any[];
+                const total = levels.reduce(
+                  (acc, l) =>
+                    acc + (Array.isArray(l?.tasks) ? l.tasks.length : 0),
+                  0
+                );
+                const done = Number(it?.passedCount || 0);
+                const gl = Math.round(Number(it?.skills?.goal_level || 0));
+                const glText =
+                  gl === 2
+                    ? "Базовый"
+                    : gl === 3
+                    ? "Уверенный"
+                    : gl === 4
+                    ? "Продвинутый"
+                    : "—";
+                const goTasks = () => {
+                  const topic = it?.title || it?.skills?.name || "";
+                  const goalSelected =
+                    typeof it?.skills?.goal_level === "number" &&
+                    it?.skills?.goal_level > 0.1;
+                  const chatQ =
+                    typeof chatId === "number" ? `?chat_id=${chatId}` : "";
+                  if (goalSelected) {
+                    const qp = topic
+                      ? `${chatQ}${chatQ ? "&" : "?"}topic=${encodeURIComponent(
+                          topic
+                        )}`
+                      : chatQ;
+                    navigate(`/tasks${qp}` as string, {
+                      state: { item: it, chatId },
+                    });
+                  } else {
+                    navigate(`/level-select${chatQ}` as string, {
+                      state: { item: it, index: null, chatId },
+                    });
+                  }
+                };
+                return (
+                  <div className={styles.modalContent}>
+                    <img src={img} alt="" className={styles.modalHero} />
+                    <button
+                      className={styles.modalCloseTheme}
+                      onClick={() => setRelatedTitle(null)}
+                    >
+                      ×
+                    </button>
+                    <div className={styles.modalHeader}>
+                      <div>
+                        <div className={styles.modalBreadcrumb}>Тема</div>
+                        <div className={styles.modalTitle}>
+                          {it?.title || "Тема"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.modalMetaRow}>
+                      <div className={styles.modalProgress}>
+                        Готово{" "}
+                        <span>
+                          {done}/{total}
+                        </span>
+                      </div>
+                      <div className={styles.modalGoalLevel}>
+                        Целевой уровень темы:
+                        <select
+                          className={styles.goalSelect}
+                          value={
+                            gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
+                          }
+                          required
+                          onChange={(e) => {
+                            try {
+                              const raw = Number(e.target.value);
+                              const chosen: any =
+                                raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
+                              try {
+                                setRelatedItem((prev: any) => ({
+                                  ...(prev || it),
+                                  skills: {
+                                    ...((prev || it).skills || {}),
+                                    goal_level: chosen,
+                                  },
+                                }));
+                              } catch {}
+                              setExpansions((prev) => ({ ...prev }));
+                            } catch {}
+                          }}
+                        >
+                          <option value="" disabled hidden>
+                            Не выбран
+                          </option>
+                          <option value="2">⭐ Базовый</option>
+                          <option value="3">⭐⭐ Уверенный</option>
+                          <option value="4">⭐⭐⭐ Продвинутый</option>
+                        </select>
+                      </div>
+                    </div>
+                    {it?.description && (
+                      <div className={styles.modalIntroText}>
+                        {it.description}
+                      </div>
+                    )}
+                    <div className={styles.modalActionsRow}>
+                      <button
+                        className={`${styles.modalCta} ${
+                          relExtLoading ? styles.modalCtaLoading : ""
+                        }`}
+                        onClick={async () => {
+                          try {
+                            if (!relatedTitle) return;
+                            if (typeof chatId !== "number") return;
+                            setRelExtLoading(true);
+                            const resp = await metaExtendNew(
+                              chatId,
+                              relatedTitle
+                            );
+                            if (resp && Array.isArray(resp.items)) {
+                              setExpansions((prev) => {
+                                const next = { ...(prev || {}) } as Record<
+                                  string,
+                                  string[]
+                                >;
+                                resp.items.forEach((x) => {
+                                  if (x && typeof x.title === "string") {
+                                    const list = Array.isArray(x.expansions)
+                                      ? x.expansions
+                                      : [];
+                                    next[x.title] =
+                                      x.title === relatedTitle
+                                        ? list.slice(0, 3)
+                                        : list;
+                                  }
+                                });
+                                return next;
+                              });
+                            }
+                          } catch {
+                          } finally {
+                            setRelExtLoading(false);
+                          }
+                        }}
+                      >
+                        {relExtLoading
+                          ? "Загружаю…"
+                          : "Посмотреть связанные темы"}
+                      </button>
+                      <button
+                        className={styles.modalCtaSecondary}
+                        onClick={() => goTasks()}
+                      >
+                        К заданиям
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
           </div>
         </div>
       )}

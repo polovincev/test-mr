@@ -209,6 +209,17 @@ export async function metaExtendNew(chatId: number, topic: string): Promise<Meta
   if (!res.ok) throw new Error("Failed to meta-extend");
   return (await res.json()) as MetaExpandResponse;
 }
+
+// Single-item trajectory by topic
+export async function getTrajectoryByTopic(chatId: number, topic: string): Promise<TrajectoryResponse> {
+  const res = await fetch(`${API_URL}/trajectory/by_topic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, topic })
+  });
+  if (!res.ok) throw new Error("Failed to load topic trajectory");
+  return (await res.json()) as TrajectoryResponse;
+}
 // -------- Meta Central API --------
 export interface MetaCentralResponse { chat_id: number; content: string }
 

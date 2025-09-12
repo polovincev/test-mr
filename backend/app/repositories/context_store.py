@@ -77,3 +77,20 @@ def set_meta_central(chat_id: int, payload) -> None:
     ctx = _context_by_chat_id.setdefault(chat_id, {})
     ctx["meta_central"] = payload
 
+
+# --- Per-topic single-item trajectory cache -------------------------------
+
+def get_topic_trajectory(chat_id: int, topic: str):
+    ctx = _context_by_chat_id.get(chat_id, {})
+    mp = ctx.get("topic_trajectory") or {}
+    if isinstance(mp, dict):
+        return mp.get(str(topic).strip())
+    return None
+
+
+def set_topic_trajectory(chat_id: int, topic: str, payload) -> None:
+    ctx = _context_by_chat_id.setdefault(chat_id, {})
+    mp = ctx.setdefault("topic_trajectory", {})
+    if isinstance(mp, dict):
+        mp[str(topic).strip()] = payload
+
