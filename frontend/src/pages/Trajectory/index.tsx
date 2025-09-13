@@ -30,7 +30,7 @@ const Trajectory = () => {
   const [traj, setTraj] = useState<TrajectoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const didLoadSkillsRef = useRef(false);
-  const [useAI, setUseAI] = useState(false);
+  const [useAI, setUseAI] = useState(true);
   // progress is provided by backend via item.passedCount; no client fetch needed
 
   const location = useLocation();
@@ -294,7 +294,7 @@ const Trajectory = () => {
                   {
                     name: "ИИ",
                     data: traj.items.map((t) => (useAI ? t.skills.recommended_level : 0)),
-                    color: "rgb(188, 185, 185)",
+                    color: "#503AE0",
                     // 5 уровней (0..4) × N осей — заполняем по уровням, берём из skills.levels если есть
                     nodeInfo: Array.from({ length: 5 }, (_, level) =>
                       traj.items.map((t) => {
