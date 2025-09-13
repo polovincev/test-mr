@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useLayoutEffect,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -59,7 +60,6 @@ const GoalNode: React.FC<
   const title = data?.title || "Цель";
   return (
     <div className={styles.goalNode} onClick={(e) => e.stopPropagation()}>
-      {/* <div className={styles.goalTitle}>{title}</div> */}
       {data?.centralText && (
         <div className={styles.goalTitle}>{data.centralText}</div>
       )}
@@ -340,6 +340,20 @@ const My: React.FC = () => {
     []
   );
 
+  const [measuredGoalHalf, setMeasuredGoalHalf] = useState(90);
+
+  useLayoutEffect(() => {
+    const el = document.querySelector(
+      `.${styles.goalNode}`
+    ) as HTMLElement | null;
+    if (el) {
+      const w = el.getBoundingClientRect().width;
+      if (w && Math.abs(w / 2 - measuredGoalHalf) > 1) {
+        setMeasuredGoalHalf(w);
+      }
+    }
+  }, [metaText]);
+
   const computedNodes: Node<TopicNodeData>[] = useMemo(() => {
     const items =
       Array.isArray(trajectory?.items) && trajectory?.items?.length
@@ -442,10 +456,10 @@ const My: React.FC = () => {
     const anchorCenterX = 0;
     const anchorCenterY = 0;
     const viewportW = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const goalHalf = 0; // 140x140 goal node
-    const topicWidth = 380; // approx width of topic node
+    const goalHalf = measuredGoalHalf; // half width of center node
+    const topicWidth = 280; // approx width of topic node
     const baseGap = Math.max(120, Math.min(280, Math.round(viewportW * 0.08)));
-    const leftX = anchorCenterX - goalHalf - baseGap - topicWidth;
+    const leftX = anchorCenterX - goalHalf / 2 - baseGap - topicWidth;
     const rightX = anchorCenterX + goalHalf + baseGap;
     // independent vertical spacing for left and right columns (center-based)
     const childGap = 80; // vertical gap between compact nodes
@@ -630,6 +644,7 @@ const My: React.FC = () => {
     relatedTitle,
     mainOpenIdx,
     level,
+    measuredGoalHalf,
   ]);
 
   const computedEdges: Edge[] = useMemo(() => {
@@ -1153,61 +1168,66 @@ const My: React.FC = () => {
                     </div>
                     <div className={styles.modalGoalLevel}>
                       Целевой уровень темы:
-                      <select
-                        className={styles.goalSelect}
-                        value={
-                          gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
-                        }
-                        required
-                        onChange={(e) => {
-                          try {
-                            const raw = Number(e.target.value);
-                            const chosen: any =
-                              raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
-                            // update local trajectory object
+                      <span className={styles.goalSelectWrap}>
+                        <select
+                          className={styles.goalSelect}
+                          value={
+                            gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
+                          }
+                          required
+                          onChange={(e) => {
                             try {
-                              const tr: any = trajectory as any;
-                              if (
-                                tr &&
-                                Array.isArray(tr.items) &&
-                                typeof mainOpenIdx === "number"
-                              ) {
-                                const idx = mainOpenIdx as number;
-                                const prev = tr.items[idx]?.skills || {};
-                                tr.items[idx].skills = {
-                                  ...prev,
-                                  goal_level: chosen,
-                                };
+                              const raw = Number(e.target.value);
+                              const chosen: any =
+                                raw === 2 || raw === 3 || raw === 4 ? raw : 0.1;
+                              // update local trajectory object
+                              try {
+                                const tr: any = trajectory as any;
+                                if (
+                                  tr &&
+                                  Array.isArray(tr.items) &&
+                                  typeof mainOpenIdx === "number"
+                                ) {
+                                  const idx = mainOpenIdx as number;
+                                  const prev = tr.items[idx]?.skills || {};
+                                  tr.items[idx].skills = {
+                                    ...prev,
+                                    goal_level: chosen,
+                                  };
+                                }
+                              } catch {}
+                              // trigger UI update
+                              setExpansions((prev) => ({ ...prev }));
+                              // persist to backend
+                              if (typeof chatId === "number") {
+                                try {
+                                  const levels = (trajectory?.items || []).map(
+                                    (it, k) =>
+                                      k === (mainOpenIdx as number)
+                                        ? chosen
+                                        : Math.round(
+                                            Number(
+                                              it?.skills?.goal_level || 0.1
+                                            )
+                                          ) || 0.1
+                                  );
+                                  updateGoalLevels(chatId, levels as any).catch(
+                                    () => void 0
+                                  );
+                                } catch {}
                               }
                             } catch {}
-                            // trigger UI update
-                            setExpansions((prev) => ({ ...prev }));
-                            // persist to backend
-                            if (typeof chatId === "number") {
-                              try {
-                                const levels = (trajectory?.items || []).map(
-                                  (it, k) =>
-                                    k === (mainOpenIdx as number)
-                                      ? chosen
-                                      : Math.round(
-                                          Number(it?.skills?.goal_level || 0.1)
-                                        ) || 0.1
-                                );
-                                updateGoalLevels(chatId, levels as any).catch(
-                                  () => void 0
-                                );
-                              } catch {}
-                            }
-                          } catch {}
-                        }}
-                      >
-                        <option value="" disabled hidden>
-                          Не выбран
-                        </option>
-                        <option value="2">⭐ Базовый</option>
-                        <option value="3">⭐⭐ Уверенный</option>
-                        <option value="4">⭐⭐⭐ Продвинутый</option>
-                      </select>
+                          }}
+                        >
+                          <option value="" disabled hidden>
+                            Не выбран
+                          </option>
+                          <option value="2">⭐ Базовый</option>
+                          <option value="3">⭐⭐ Уверенный</option>
+                          <option value="4">⭐⭐⭐ Продвинутый</option>
+                        </select>
+                        <span className={styles.goalSelectArrow}></span>
+                      </span>
                     </div>
                   </div>
                   {it?.description && (
@@ -1340,10 +1360,17 @@ const My: React.FC = () => {
                           topic
                         )}`
                       : chatQ;
-                    navigate(`/tasks${qp}` as string, { state: { item: it, chatId, fromRelated: true } });
+                    navigate(`/tasks${qp}` as string, {
+                      state: { item: it, chatId, fromRelated: true },
+                    });
                   } else {
                     navigate(`/level-select${chatQ}` as string, {
-                      state: { item: it, index: null, chatId, fromRelated: true },
+                      state: {
+                        item: it,
+                        index: null,
+                        chatId,
+                        fromRelated: true,
+                      },
                     });
                   }
                 };

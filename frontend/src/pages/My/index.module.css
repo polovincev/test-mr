@@ -103,7 +103,7 @@
   padding: 16px 40px;
   color: #101828;
   text-align: center;
-  width: 160px;
+  max-width: 320px;
   height: 80px;
   /* Heading/H3 */
   font-family: var(--family-onest, Onest);
@@ -699,7 +699,7 @@
   appearance: none;
   margin-left: 8px;
   height: 36px;
-  padding: 0 10px;
+  padding: 0 32px 0 10px; /* extra right padding for arrow */
   border-radius: 10px;
   border: none;
   background: #ffffff;
@@ -707,6 +707,24 @@
   font-family: Onest;
   font-size: 14px;
   cursor: pointer;
+  position: relative;
+}
+
+.goalSelectWrap {
+  position: relative;
+  display: inline-block;
+}
+
+.goalSelectArrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #656c94;
+  border-bottom: 2px solid #656c94;
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
 }
 
 .goalSelect:focus {
