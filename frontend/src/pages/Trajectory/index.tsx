@@ -69,8 +69,8 @@ const Trajectory = () => {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(216, 219, 240, 1)";
+      ctx.lineWidth = 2
+      ctx.strokeStyle = "rgba(186, 189, 210, 1)";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 

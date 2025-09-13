@@ -362,3 +362,21 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+.newChatBtn {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #F5F6FF;
+  border: none;
+  font-size: 24px;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.newChatBtn:hover {
+  background: #d2d5f0;
+}

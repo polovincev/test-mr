@@ -8,6 +8,7 @@ from .routes.trajectory import router as trajectory_router
 from .routes.skills import router as skills_router
 from .routes.summary_chat import router as summary_chat_router
 from .routes.meta import router as meta_router
+from .routes.admin import router as admin_router
 
 app = FastAPI(title="Mriya API")
 
@@ -27,6 +28,7 @@ app.include_router(trajectory_router)
 app.include_router(skills_router)
 app.include_router(summary_chat_router)
 app.include_router(meta_router)
+app.include_router(admin_router)
 
 # Точка входа для запуска через `python -m backend.app.main`
 if __name__ == "__main__":

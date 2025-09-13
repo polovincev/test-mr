@@ -10,6 +10,7 @@ import {
   listChats,
   ChatSummary,
 } from "../../services/api";
+import { API_URL } from "../../config";
 
 const ACTIVE_ID_KEY = "activeChatId";
 
@@ -25,6 +26,22 @@ const Chat = () => {
   const [isChatLoading, setIsChatLoading] = useState(true);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [isBootLoading, setIsBootLoading] = useState(true);
+
+  const newChat = async () => {
+    try {
+      setIsChatLoading(true);
+      const created = await createChat("Новый чат", "goal");
+      setChat(created);
+      localStorage.setItem(ACTIVE_ID_KEY, String(created.id));
+      const updated = await listChats();
+      setChats(updated);
+      setIsChatLoading(false);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e);
+      setIsChatLoading(false);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -354,8 +371,24 @@ const Chat = () => {
               className={styles.leftHeaderLogo}
               src={new URL("../../icon/ii.svg", import.meta.url).href}
               alt="ИИ"
+              onDoubleClick={async () => {
+                try {
+                  await fetch(`${API_URL}/admin/clear`, { method: "POST" });
+                } catch {}
+                // clear localStorage and reload
+                localStorage.clear();
+                window.location.reload();
+              }}
             />
             <span className={styles.leftHeaderTitle}>ИИ-помощник</span>
+            <button
+              type="button"
+              className={styles.newChatBtn}
+              title="Новый чат"
+              onClick={newChat}
+            >
+              +
+            </button>
           </div>
           <div className={styles.chatListContainer}>
             {latestChat && (

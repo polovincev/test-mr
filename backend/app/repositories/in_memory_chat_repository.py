@@ -11,6 +11,11 @@ class InMemoryChatRepository(ChatRepository):
         self._chats: List[Chat] = []
         self._next_id: int = 1
 
+    # Admin helper to wipe all chats (unit tests or debug commands)
+    def clear_all(self) -> None:
+        self._chats.clear()
+        self._next_id = 1
+
     async def list_chats(self) -> List[Chat]:
         return list(self._chats)
 

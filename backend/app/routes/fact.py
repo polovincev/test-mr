@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter  # type: ignore
 from pydantic import BaseModel  # type: ignore
+from datetime import datetime, timedelta
 
 try:
     # Optional in dev: load .env if present
@@ -17,6 +18,8 @@ class FactResponse(BaseModel):
     content: str
 
 
+# ---- internal helpers ----
+# Generate fresh fact via OpenAI (may take a few seconds)
 def _generate_fact_via_openai() -> str:
     """Generate a short 'fact of the day' using OpenAI (Russian).
 
@@ -35,8 +38,10 @@ def _generate_fact_via_openai() -> str:
 
         system_prompt = load_prompt("fact_system")
 
+        # Use faster, cheaper model; allow override via env FAST_OPENAI_MODEL
+        fast_model = os.getenv("FAST_OPENAI_MODEL", "gpt-3.5-turbo-0125")
         completion = client.chat.completions.create(
-            model="gpt-5-chat-latest",
+            model=fast_model,
             messages=[
                 {"role": "system", "content": system_prompt}
             ],
@@ -53,11 +58,39 @@ def _generate_fact_via_openai() -> str:
         return "ДНК всех людей совпадает примерно на 99,9%."
 
 
+# ---- simple in-process cache (24 h) ----
+_fact_cache_content: str | None = None
+_fact_cache_timestamp: datetime | None = None
+
+
+def _get_cached_fact() -> str:
+    """Return cached fact or generate new one if older than 24 h."""
+    global _fact_cache_content, _fact_cache_timestamp
+    now = datetime.utcnow()
+    needs_refresh = (
+        _fact_cache_content is None
+        or _fact_cache_timestamp is None
+        or (now - _fact_cache_timestamp) > timedelta(hours=24)
+    )
+    if needs_refresh:
+        _fact_cache_content = _generate_fact_via_openai()
+        _fact_cache_timestamp = now
+    return _fact_cache_content  # type: ignore
+
+
+# Generate once at startup (module import)
+try:
+    _fact_cache_content = _generate_fact_via_openai()
+    _fact_cache_timestamp = datetime.utcnow()
+except Exception:
+    _fact_cache_content = "Пчёлы способны узнавать человеческие лица по узорам."
+    _fact_cache_timestamp = datetime.utcnow()
+
+
 @router.get("/fact", response_model=FactResponse)
 async def read_fact() -> FactResponse:  # noqa: D401
     """Возвращает факт дня, сгенерированный через OpenAI (или статический)."""
     import asyncio
-    content = await asyncio.to_thread(_generate_fact_via_openai)
+    content = await asyncio.to_thread(_get_cached_fact)
     return FactResponse(content=content)
-
 

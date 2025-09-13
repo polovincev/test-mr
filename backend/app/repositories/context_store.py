@@ -66,6 +66,13 @@ def clear_summary_messages(chat_id: int) -> None:
     ctx = _context_by_chat_id.setdefault(chat_id, {})
     ctx["summary_chat_messages"] = []
 
+# --- Admin helpers ---------------------------------------------------------
+
+
+def clear_all() -> None:
+    """Remove all chat contexts (dangerous)."""
+    _context_by_chat_id.clear()
+
 
 # --- Meta central summary -------------------------------------------------
 
