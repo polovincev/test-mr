@@ -172,6 +172,28 @@ SYSTEM_TRAJECTORY = "trajectory_system"
 SYSTEM_TASK_LIST = "task_list_system"
 USER_GOAL = "Биология за 10 класс, подготовка к ЕГЭ"
 
+# --- Shared AsyncOpenAI client (HTTP/2 + connection pooling) ---
+_async_openai_client = None  # type: ignore[var-annotated]
+
+def get_async_openai_client():
+    global _async_openai_client
+    if _async_openai_client is None:
+        try:
+            import os
+            from openai import AsyncOpenAI  # type: ignore
+            import httpx  # type: ignore
+            api_key = os.getenv("OPENAI_API_KEY")
+            _async_openai_client = AsyncOpenAI(
+                api_key=api_key,
+                http_client=httpx.AsyncClient(
+                    http2=True,
+                    limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+                ),
+            )
+        except Exception:
+            _async_openai_client = None
+    return _async_openai_client
+
 
 @router.get("/", response_model=TrajectoryResponse)
 async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Query(None)) -> TrajectoryResponse:  # noqa: D401
@@ -337,9 +359,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             return resp
         except Exception:
             return ctx["trajectory"]  # type: ignore [return-value]
-    print("--------------------------------")
-    print(ctx)
-    print("--------------------------------")
+    try:
+        logging.getLogger("uvicorn.error").debug("CTX: %s", str(ctx)[:500])
+    except Exception:
+        pass
     # Resolve goal and profile from context
     goal_text = (str(ctx.get("goal")).strip() if ctx.get("goal") else USER_GOAL)
     profile_block = ""
@@ -355,14 +378,12 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         return TrajectoryResponse(goal=goal_text, items=[])
 
     try:
-        from openai import OpenAI  # type: ignore
-
-        client = OpenAI(api_key=api_key)
+        client = get_async_openai_client()
 
         # 1) Сгенерировать навыки
         import time, logging
         _t0 = time.perf_counter()
-        skills_resp = client.chat.completions.create(
+        skills_resp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": skills_prompt},
@@ -377,7 +398,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         except Exception:
             pass
 
-        print(skills_content)
+        try:
+            logging.getLogger("uvicorn.error").debug("skills_content: %s", str(skills_content)[:500])
+        except Exception:
+            pass
 
         def parse_skills(txt: str) -> list[dict]:
             try:
@@ -453,7 +477,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 			"Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
 		)
         _t1 = time.perf_counter()
-        traj_resp = client.chat.completions.create(
+        traj_resp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": traj_prompt},
@@ -461,8 +485,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             ],
         )
         traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
-        print("--------------------------------")
-        print(traj_content)
+        try:
+            logging.getLogger("uvicorn.error").debug("traj_content: %s", str(traj_content)[:500])
+        except Exception:
+            pass
         if not traj_content:
             raise RuntimeError("empty trajectory completion")
         try:
@@ -576,8 +602,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                 start_t = time.perf_counter()
                 try:
                     async with sem:
-                        resp = await asyncio.to_thread(
-                            client.chat.completions.create,
+                        resp = await client.chat.completions.create(
                             model="gpt-5-chat-latest",
                             messages=[
                                 {"role": "system", "content": tasks_prompt},
@@ -621,7 +646,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             set_trajectory(chat_id, resp)
         return resp
     except Exception as e:
-        print("Error generating trajectory", e)
+        try:
+            logging.getLogger("uvicorn.error").exception("Error generating trajectory: %s", e)
+        except Exception:
+            pass
         return TrajectoryResponse(goal=goal_text, items=[])
 
 
@@ -814,12 +842,7 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
         set_tasks(chat_id, cache_key, resp.dict())
         return resp
 
-    from openai import AsyncOpenAI  # type: ignore
-    import httpx  # type: ignore
-    client = AsyncOpenAI(
-        api_key=api_key,
-        http_client=httpx.AsyncClient(http2=True, limits=httpx.Limits(max_connections=50, max_keepalive_connections=20)),
-    )
+    client = get_async_openai_client()
 
     import asyncio, time, logging
     semaphore = asyncio.Semaphore(20)
@@ -943,20 +966,17 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                         if isinstance(opts_raw, list):
                             options = [str(o) for o in opts_raw]
                         correct: list[int] = []
-                        # normalize correct indexes if provided as strings
                         if isinstance(corr_raw, list):
                             for v in corr_raw:
                                 try:
                                     correct.append(int(v))
                                 except Exception:
-                                    # try map by option value
                                     try:
                                         idx = options.index(str(v))
                                         correct.append(idx)
                                     except Exception:
                                         continue
                         elif isinstance(corr_raw, (int, float, str)):
-                            # single answer
                             try:
                                 correct.append(int(corr_raw))
                             except Exception:
@@ -1301,9 +1321,8 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
         return MetaExpandResponse(chat_id=chat_id, items=[])
 
     try:
-        from openai import OpenAI  # type: ignore
-        client = OpenAI(api_key=api_key)
-        comp = client.chat.completions.create(
+        client = get_async_openai_client()
+        comp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -1486,9 +1505,8 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
 
     # 4) Call LLM
     try:
-        from openai import OpenAI  # type: ignore
-        client = OpenAI(api_key=api_key)
-        comp = client.chat.completions.create(
+        client = get_async_openai_client()
+        comp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -1496,7 +1514,10 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
             ],
         )
         content = comp.choices[0].message.content if comp.choices else ""
-        print(content)
+        try:
+            logging.getLogger("uvicorn.error").debug("meta_extend content: %s", str(content)[:500])
+        except Exception:
+            pass
     except Exception:
         content = ""
 
@@ -1691,15 +1712,13 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
         return TrajectoryResponse(goal=goal_text, items=[])
 
     try:
-        from openai import OpenAI  # type: ignore
-
-        client = OpenAI(api_key=api_key)
+        client = get_async_openai_client()
 
         # 1) Skills
         skills_prompt = load_prompt("skills_system_one")
         traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
         tasks_prompt = load_prompt(SYSTEM_TASK_LIST)
-        skills_resp = client.chat.completions.create(
+        skills_resp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": skills_prompt},
@@ -1781,7 +1800,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             + "Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
         )
         _t1 = time.perf_counter()
-        traj_resp = client.chat.completions.create(
+        traj_resp = await client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
                 {"role": "system", "content": traj_prompt},
@@ -1789,8 +1808,10 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             ],
         )
         traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
-        print("--------------------------------")
-        print(traj_content)
+        try:
+            logging.getLogger("uvicorn.error").debug("by_topic traj_content: %s", str(traj_content)[:500])
+        except Exception:
+            pass
         if not traj_content:
             raise RuntimeError("empty trajectory completion")
         try:
@@ -1886,7 +1907,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                 + f"Навык: {it.skills.name}\nТема: {it.title}"
             )
             _t2 = time.perf_counter()
-            tasks_resp = client.chat.completions.create(
+            tasks_resp = await client.chat.completions.create(
                 model="gpt-5-chat-latest",
                 messages=[
                     {"role": "system", "content": tasks_prompt},
@@ -2121,12 +2142,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
         set_tasks(chat_id, cache_key, resp.dict())
         return resp
 
-    from openai import AsyncOpenAI  # type: ignore
-    import httpx  # type: ignore
-    client = AsyncOpenAI(
-        api_key=api_key,
-        http_client=httpx.AsyncClient(http2=True, limits=httpx.Limits(max_connections=50, max_keepalive_connections=20)),
-    )
+    client = get_async_openai_client()
 
     import asyncio, time, logging
     semaphore = asyncio.Semaphore(20)

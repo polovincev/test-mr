@@ -12,8 +12,12 @@ const Trajectory = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const drawRef = useRef<() => void>(() => {});
+  const dashRef = useRef<number>(0);
+  const animRef = useRef<number | null>(null);
+  const leftRef = useRef<HTMLDivElement | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [contentVisible, setContentVisible] = useState(false);
 
   const levels = (skillLevels?: { level_name?: string | null; meta?: string | null; description?: string | null }[]) => {
     const present = Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
@@ -30,9 +34,89 @@ const Trajectory = () => {
   };
   const [traj, setTraj] = useState<TrajectoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [minDelayPassed, setMinDelayPassed] = useState(false);
+  useEffect(() => {
+    const tm = window.setTimeout(() => setMinDelayPassed(true), 1000);
+    return () => window.clearTimeout(tm);
+  }, []);
+  const effectiveLoading = loading || !minDelayPassed;
   const didLoadSkillsRef = useRef(false);
   const [useAI, setUseAI] = useState(true);
   // progress is provided by backend via item.passedCount; no client fetch needed
+
+  const loadingMessages = [
+    "Прокладываю образовательный маршрут…",
+    "Составляю карту твоих знаний...",
+    "Строю мост от незнания к мастерству…",
+    "Рисую навигационную карту твоего обучения…",
+    "Расставляю образовательные вехи…",
+    "Выстраиваю траекторию полёта к цели…",
+    "Сверяюсь с картой твоих сильных сторон…",
+    "Кастомизирую путь под твой стиль обучения…",
+    "Подбираю идеальный темп движения для тебя…",
+    "Определяю самые живописные образовательные тропы…",
+    "Интегрирую твои интересы в учебный план…",
+    "Заряжаю твой старт к успеху…",
+    "Формирую твой личный чек-лист прогресса…",
+    "Собираю твой персональный образовательный плейлист…",
+  ];
+  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * (loadingMessages.length || 1)));
+  useEffect(() => {
+    if (!effectiveLoading) return;
+    const id = window.setInterval(() => {
+      setMsgIdx((prev) => {
+        if (loadingMessages.length <= 1) return prev;
+        let next = prev;
+        // pick a different random index
+        while (next === prev) {
+          next = Math.floor(Math.random() * loadingMessages.length);
+        }
+        return next;
+      });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [effectiveLoading]);
+
+  // After loading finishes, wait for left panel transition to end, then reveal content
+  useEffect(() => {
+    if (effectiveLoading) {
+      setContentVisible(false);
+      return;
+    }
+    const el = leftRef.current;
+    if (!el) {
+      // fallback: show after small delay
+      const t = window.setTimeout(() => setContentVisible(true), 1200);
+      return () => window.clearTimeout(t);
+    }
+    // If width already at target (no transition will fire), reveal immediately
+    try {
+      const currentWidth = el.getBoundingClientRect().width;
+      if (Math.abs(currentWidth - 900) < 1) {
+        setContentVisible(true);
+        return;
+      }
+    } catch {}
+    let done = false;
+    const onEnd = (e: TransitionEvent) => {
+      if (done) return;
+      const prop = String(e.propertyName || "");
+      if (prop.includes("width")) {
+        done = true;
+        setContentVisible(true);
+        el.removeEventListener("transitionend", onEnd as any);
+      }
+    };
+    el.addEventListener("transitionend", onEnd as any);
+    // safety timeout in case transitionend doesn't fire
+    const t = window.setTimeout(() => {
+      if (!done) setContentVisible(true);
+    }, 1200);
+    return () => {
+      try { el.removeEventListener("transitionend", onEnd as any); } catch {}
+      window.clearTimeout(t);
+    };
+  }, [effectiveLoading]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,6 +158,10 @@ const Trajectory = () => {
       ctx.strokeStyle = "rgba(186, 189, 210, 1)";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+      // dashed animated line
+      try {
+        ctx.lineDashOffset = dashRef.current;
+      } catch {}
 
       const containerRect = container.getBoundingClientRect();
       const count = traj?.items.length ?? 0;
@@ -140,10 +228,19 @@ const Trajectory = () => {
     // draw after mount and after a tick (to wait images)
     draw();
     const id = window.setTimeout(draw, 50);
+
+    // animation loop for moving dashes
+    const animate = () => {
+      dashRef.current = (dashRef.current - 1) % 10000;
+      draw();
+      animRef.current = requestAnimationFrame(animate);
+    };
+    animRef.current = requestAnimationFrame(animate);
     return () => {
       window.removeEventListener("resize", onResize);
       containerRef.current?.removeEventListener("scroll", onScroll as any);
       window.clearTimeout(id);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
     };
   }, [traj?.items.length]);
 
@@ -152,9 +249,14 @@ const Trajectory = () => {
     try { drawRef.current && drawRef.current(); } catch {}
   }, [traj]);
 
-  if (loading) {
-    return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
-  }
+  // Draw once content becomes visible
+  useEffect(() => {
+    if (contentVisible) {
+      try { drawRef.current && drawRef.current(); } catch {}
+    }
+  }, [contentVisible]);
+
+  const leftClass = effectiveLoading ? styles.leftLoading : styles.leftLoaded;
 
   const hasAnyPassed = (() => {
     try {
@@ -183,12 +285,12 @@ const Trajectory = () => {
   return (
     <div className={styles.page}>
       <div className={styles.layout}>
-        <div className={styles.left}>
-          <div className={styles.trContainer} ref={containerRef}>
+        <div className={leftClass} ref={leftRef}>
+          <div className={effectiveLoading ? styles.trContainerLoading : styles.trContainer} ref={containerRef}>
             <div className={styles.topRow}>
               <button className={styles.backBtn} onClick={() => navigate(`/chat`, { state: { fromTrajectory: true, chatId: chatIdParam } })}>← Назад</button>
             </div>
-            {traj?.goal && (
+            {contentVisible && traj?.goal && (
               <>
                 <div className={styles.header}>{traj.goal}</div>
                 <button
@@ -199,7 +301,17 @@ const Trajectory = () => {
                 </button>
               </>
             )}
-            <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
+            {contentVisible && <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />}
+            {effectiveLoading && (
+              <div className={styles.loadingCenter}>
+                <img className={styles.loadingImg} src={new URL("../../icon/tr_load.gif", import.meta.url).href} alt="loading" />
+                <div className={styles.loadingText}>{loadingMessages[msgIdx]}</div>
+              </div>
+            )}
+            {!effectiveLoading && !contentVisible && (
+              <div className={styles.loadingPlaceholder} />
+            )}
+            {contentVisible && (
             <div className={styles.cards}>
               {(traj?.items ?? []).map((t, idx) => {
                 const alignLeft = idx % 2 === 0;
@@ -276,10 +388,11 @@ const Trajectory = () => {
                 );
               })}
             </div>
+            )}
           </div>
         </div>
         <div className={styles.right}>
-          {traj && (
+          {traj && contentVisible && (
             <div className={styles.chartArea}>
               <div className={styles.chartHeader}>
                 <div className={styles.chartTitle}>Ты освоишь</div>
