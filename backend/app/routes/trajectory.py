@@ -360,6 +360,8 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         client = OpenAI(api_key=api_key)
 
         # 1) Сгенерировать навыки
+        import time, logging
+        _t0 = time.perf_counter()
         skills_resp = client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
@@ -370,6 +372,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         skills_content = skills_resp.choices[0].message.content if skills_resp.choices else None
         if not skills_content:
             raise RuntimeError("empty skills completion")
+        try:
+            logging.getLogger("uvicorn.error").info("LLM skills completed in %.3f s", time.perf_counter() - _t0)
+        except Exception:
+            pass
 
         print(skills_content)
 
@@ -446,6 +452,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 			(f"Цель пользователя: {goal_text}\n" if goal_text else "") +
 			"Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
 		)
+        _t1 = time.perf_counter()
         traj_resp = client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
@@ -458,6 +465,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         print(traj_content)
         if not traj_content:
             raise RuntimeError("empty trajectory completion")
+        try:
+            logging.getLogger("uvicorn.error").info("LLM trajectory completed in %.3f s", time.perf_counter() - _t1)
+        except Exception:
+            pass
 
         def parse_traj(txt: str) -> list[dict]:
             try:
@@ -560,6 +571,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                     + (f"{profile_block}\n" if profile_block else "")
                     + f"Навык: {it.skills.name}\nТема: {it.title}"
                 )
+                _t2 = time.perf_counter()
                 tasks_resp = client.chat.completions.create(
                     model="gpt-5-chat-latest",
                     messages=[
@@ -576,6 +588,10 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                     for lv in it.skills.levels:
                         lv.tasks = []
                     compute_meta_for_skill(it.skills)
+                try:
+                    logging.getLogger("uvicorn.error").info("LLM tasks for '%s' completed in %.3f s", it.title, time.perf_counter() - _t2)
+                except Exception:
+                    pass
             except Exception:
                 # On failure, leave tasks empty but ensure meta reflects zero
                 try:
@@ -1753,6 +1769,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             (f"Цель пользователя: {goal_text}\n" if goal_text else "")
             + "Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
         )
+        _t1 = time.perf_counter()
         traj_resp = client.chat.completions.create(
             model="gpt-5-chat-latest",
             messages=[
@@ -1761,8 +1778,14 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             ],
         )
         traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
+        print("--------------------------------")
+        print(traj_content)
         if not traj_content:
-            return TrajectoryResponse(goal=goal_text, items=[])
+            raise RuntimeError("empty trajectory completion")
+        try:
+            logging.getLogger("uvicorn.error").info("LLM trajectory completed in %.3f s", time.perf_counter() - _t1)
+        except Exception:
+            pass
 
         def parse_traj(txt: str) -> list[dict]:
             try:
@@ -1851,6 +1874,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                 + (f"{profile_block}\n" if profile_block else "")
                 + f"Навык: {it.skills.name}\nТема: {it.title}"
             )
+            _t2 = time.perf_counter()
             tasks_resp = client.chat.completions.create(
                 model="gpt-5-chat-latest",
                 messages=[
@@ -1866,6 +1890,10 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
                 for lv in it.skills.levels:
                     lv.tasks = []
                 compute_meta_for_skill(it.skills)
+            try:
+                logging.getLogger("uvicorn.error").info("LLM tasks for '%s' completed in %.3f s", it.title, time.perf_counter() - _t2)
+            except Exception:
+                pass
         except Exception:
             try:
                 for lv in it.skills.levels:
