@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import time
+import logging
 
 from .routes.message import router as message_router
 from .routes.fact import router as fact_router
@@ -11,6 +13,20 @@ from .routes.meta import router as meta_router
 from .routes.admin import router as admin_router
 
 app = FastAPI(title="Mriya API")
+
+# --- Middleware to log execution time of every request ---
+
+import logging, time
+logger = logging.getLogger("uvicorn.error")  # default handler/format
+logger.setLevel(logging.INFO)
+
+@app.middleware("http")
+async def add_timing_log(request, call_next):
+    start = time.perf_counter()
+    resp = await call_next(request)
+    dur = time.perf_counter() - start
+    logger.info("%s %s %.3f s", request.method, request.url.path, dur)
+    return resp
 
 # Разрешаем обращение к API с фронтенда (localhost:5173 по умолчанию у Vite)
 app.add_middleware(

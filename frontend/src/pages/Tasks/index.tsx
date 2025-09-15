@@ -81,7 +81,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
       lastKeyRef.current = key;
       fetchedRef.current = false;
     }
-    if (fetchedRef.current) return; // already fetched for this key (dev StrictMode)
+    if (fetchedRef.current) return;
     const run = async () => {
       if (!chatId || !finalTopic) {
         setLoading(false);
@@ -91,6 +91,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
         fetchedRef.current = true;
         return;
       }
+      fetchedRef.current = true; // mark in-flight to dedup StrictMode double render
       try {
         const resp = fromRelated
           ? await generateTasksByTopic(chatId, requestTopic)
