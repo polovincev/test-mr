@@ -560,10 +560,12 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
             except Exception:
                 return {}
 
-        # ensure each skill has all three levels present
-        # ensure_levels now deduped above
+        # ensure each skill has all three levels present, then generate tasks in parallel
+        import asyncio
+        sem = asyncio.Semaphore(20)
 
-        for it in items:
+        async def _gen_tasks_for_item(it: TrajectoryItem) -> None:
+            import time, logging
             try:
                 ensure_levels(it.skills)
                 user_msg = (
@@ -571,35 +573,44 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
                     + (f"{profile_block}\n" if profile_block else "")
                     + f"Навык: {it.skills.name}\nТема: {it.title}"
                 )
-                _t2 = time.perf_counter()
-                tasks_resp = client.chat.completions.create(
-                    model="gpt-5-chat-latest",
-                    messages=[
-                        {"role": "system", "content": tasks_prompt},
-                        {"role": "user", "content": user_msg},
-                    ],
-                )
-                tasks_content = tasks_resp.choices[0].message.content if tasks_resp.choices else None
+                start_t = time.perf_counter()
+                try:
+                    async with sem:
+                        resp = await asyncio.to_thread(
+                            client.chat.completions.create,
+                            model="gpt-5-chat-latest",
+                            messages=[
+                                {"role": "system", "content": tasks_prompt},
+                                {"role": "user", "content": user_msg},
+                            ],
+                        )
+                    tasks_content = resp.choices[0].message.content if resp.choices else None
+                except Exception:
+                    tasks_content = None
+
                 if tasks_content:
                     mapping = parse_tasks(tasks_content)
                     map_tasks_to_levels(it.skills, mapping)
                 else:
-                    # No tasks returned: keep meta as count 0
                     for lv in it.skills.levels:
                         lv.tasks = []
                     compute_meta_for_skill(it.skills)
+
                 try:
-                    logging.getLogger("uvicorn.error").info("LLM tasks for '%s' completed in %.3f s", it.title, time.perf_counter() - _t2)
+                    logging.getLogger("uvicorn.error").info(
+                        "LLM tasks for '%s' completed in %.3f s", it.title, time.perf_counter() - start_t
+                    )
                 except Exception:
                     pass
             except Exception:
-                # On failure, leave tasks empty but ensure meta reflects zero
                 try:
                     for lv in it.skills.levels:
                         lv.tasks = []
                     compute_meta_for_skill(it.skills)
                 except Exception:
                     pass
+
+        await asyncio.gather(*(_gen_tasks_for_item(it) for it in items))
 
         # 4) Enrich items with images from external search
         await enrich_items_with_images(items)
