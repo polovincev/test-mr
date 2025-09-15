@@ -11,6 +11,7 @@ const Trajectory = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const drawRef = useRef<() => void>(() => {});
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -129,6 +130,9 @@ const Trajectory = () => {
       }
     };
 
+    // expose draw for external triggers
+    drawRef.current = draw;
+
     const onResize = () => draw();
     const onScroll = () => draw();
     window.addEventListener("resize", onResize);
@@ -142,6 +146,11 @@ const Trajectory = () => {
       window.clearTimeout(id);
     };
   }, [traj?.items.length]);
+
+  // Redraw when trajectory content changes (e.g., goal levels updated affects card content/height)
+  useEffect(() => {
+    try { drawRef.current && drawRef.current(); } catch {}
+  }, [traj]);
 
   if (loading) {
     return <LoaderOverlay text="Формирую траекторию по учебной цели…" />;
@@ -343,6 +352,11 @@ const Trajectory = () => {
                   if (typeof chatId === "number") {
                     updateGoalLevels(chatId, normalized).catch(() => void 0);
                   }
+                  // redraw canvas connections after layout may change
+                  try {
+                    requestAnimationFrame(() => { try { drawRef.current && drawRef.current(); } catch {} });
+                    setTimeout(() => { try { drawRef.current && drawRef.current(); } catch {} }, 60);
+                  } catch {}
                 }}
               />
               <div style={{ marginTop: 10, display: "flex", gap: 14, alignItems: "center", fontFamily: "Onest", fontSize: 13, color: "#656C94" }}>
