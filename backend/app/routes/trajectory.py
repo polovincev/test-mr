@@ -788,10 +788,14 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
         return resp
 
     from openai import AsyncOpenAI  # type: ignore
-    client = AsyncOpenAI(api_key=api_key)
+    import httpx  # type: ignore
+    client = AsyncOpenAI(
+        api_key=api_key,
+        http_client=httpx.AsyncClient(http2=True, limits=httpx.Limits(max_connections=50, max_keepalive_connections=20)),
+    )
 
     import asyncio, time, logging
-    semaphore = asyncio.Semaphore(10)
+    semaphore = asyncio.Semaphore(20)
 
     async def _generate_one(task_title: str, task_level: int, level_desc: str | None, task_desc: str | None) -> GeneratedTask | None:
         user_prompt = (
@@ -2052,7 +2056,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                     task_items.append((task_title.strip(), lv.level, lvl_desc, task_desc))
 
     # Prompts
-    def safe_prompt(name: string) -> str:  # type: ignore[valid-type]
+    def safe_prompt(name: str) -> str:
         try:
             return load_prompt(name)
         except Exception:
@@ -2079,14 +2083,18 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
         return resp
 
     from openai import AsyncOpenAI  # type: ignore
-    client = AsyncOpenAI(api_key=api_key)
+    import httpx  # type: ignore
+    client = AsyncOpenAI(
+        api_key=api_key,
+        http_client=httpx.AsyncClient(http2=True, limits=httpx.Limits(max_connections=50, max_keepalive_connections=20)),
+    )
 
     import asyncio, time, logging
-    semaphore = asyncio.Semaphore(10)
+    semaphore = asyncio.Semaphore(20)
 
     async def _generate_one(task_title: str, task_level: int, level_desc: str | None, task_desc: str | None) -> GeneratedTask | None:
         user_prompt = (
-            f"Цель пользователя: {trajectory.goal}" + profile_block +
+            f"Цель пользователя: {goal_text}" + profile_block +
             f"\nНавык: {target.skills.name}"
             f"\nТема: {target.title}"
             f"\nОписание темы: {target.description or ''}"
