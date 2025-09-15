@@ -28,30 +28,63 @@ class SummaryChatOut(BaseModel):
 
 
 def _build_user_context_block(chat_id: int) -> str:
-    # Collect passed tasks from trajectory in context
-    traj = get_trajectory(chat_id)
-    passed_titles: List[str] = []
+    # Context: goal + passed tasks (prefer cached tasks in ctx["tasks"], fallback to trajectory)
+    ctx = get_context(chat_id)
+    goal_text = ""
     try:
-        if traj and isinstance(traj, dict):
-            items = traj.get("items") or []
-            for it in items:
+        if isinstance(ctx, dict) and ctx.get("goal"):
+            goal_text = str(ctx.get("goal") or "").strip()
+    except Exception:
+        goal_text = ""
+
+    passed_titles: List[str] = []
+    # 1) From cached tasks in context
+    try:
+        tasks_by_topic = ctx.get("tasks") if isinstance(ctx, dict) else None
+        if isinstance(tasks_by_topic, dict):
+            for _, payload in tasks_by_topic.items():
                 try:
-                    skills = it.get("skills") or {}
-                    levels = skills.get("levels") or []
-                    for lvl in levels:
-                        for t in (lvl.get("tasks") or []):
-                            title = str(t.get("title") or "")
-                            is_passed = bool(t.get("passed"))
-                            if is_passed:
-                                passed_titles.append(title)
+                    tasks = (payload or {}).get("tasks") if isinstance(payload, dict) else None
+                    if isinstance(tasks, list):
+                        for t in tasks:
+                            try:
+                                title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else ""))
+                                is_passed = bool(getattr(t, "passed", False) or (t.get("passed") if isinstance(t, dict) else False))
+                                if is_passed and title and "тест по базовому уровню" not in title.lower():
+                                    passed_titles.append(title)
+                            except Exception:
+                                continue
                 except Exception:
                     continue
     except Exception:
-        passed_titles = []
+        pass
+
+    # 2) Fallback: from trajectory object if nothing in cache
     if not passed_titles:
-        return ""
-    lines = "\n".join(f"- {t}" for t in passed_titles)
-    return f"\n[USER_LEARN_PROGRESS]\nПользователь выполнил следующие задания:\n{lines}\n[/USER_LEARN_PROGRESS]"
+        traj = get_trajectory(chat_id)
+        try:
+            if traj and isinstance(traj, dict):
+                items = traj.get("items") or []
+                for it in items:
+                    try:
+                        skills = it.get("skills") or {}
+                        levels = skills.get("levels") or []
+                        for lvl in levels:
+                            for t in (lvl.get("tasks") or []):
+                                title = str(t.get("title") or "")
+                                is_passed = bool(t.get("passed"))
+                                if is_passed and title and "тест по базовому уровню" not in title.lower():
+                                    passed_titles.append(title)
+                    except Exception:
+                        continue
+        except Exception:
+            passed_titles = []
+
+    lines = "\n".join(f"- {t}" for t in passed_titles) if passed_titles else "- пока нет завершённых заданий"
+    goal_line = f"Цель пользователя: {goal_text}\n" if goal_text else ""
+    return (
+        "\n[USER_CONTEXT]\n" + goal_line + "Пользователь выполнил следующие задания:\n" + lines + "\n[/USER_CONTEXT]"
+    )
 
 
 async def _llm_reply(system_prompt: str, messages: List[SummaryMessage]) -> str:
@@ -66,6 +99,9 @@ async def _llm_reply(system_prompt: str, messages: List[SummaryMessage]) -> str:
     client = OpenAI(api_key=api_key)
 
     converted = [{"role": m.role, "content": m.content} for m in messages]
+
+    print(system_prompt)
+
     completion = await asyncio.to_thread(
         client.chat.completions.create,
         model="gpt-5-chat-latest",
@@ -86,11 +122,12 @@ async def start_summary_chat(chat_id: int) -> SummaryChatOut:  # noqa: D401
     clear_summary_messages(chat_id)
     system = load_prompt("summary_agent_system")
     user_block = _build_user_context_block(chat_id)
+    system_with_ctx = system + user_block
     history: List[SummaryMessage] = []
     # Seed with a short instruction for the assistant to greet and ask a question
-    seed = SummaryMessage(role="user", content="Сделай приветствие и начни короткий диалог по учебному прогрессу." + user_block)
+    seed = SummaryMessage(role="user", content="Сделай приветствие учитывая прогресс пользователя и начни короткий диалог по учебному прогрессу.")
     history.append(seed)
-    reply = await _llm_reply(system, history)
+    reply = await _llm_reply(system_with_ctx, history)
     append_summary_message(chat_id, "assistant", reply)
     return SummaryChatOut(chat_id=chat_id, messages=[SummaryMessage(role="assistant", content=reply)])
 
@@ -106,14 +143,15 @@ async def send_summary_message(data: SendIn) -> SummaryChatOut:  # noqa: D401
     msgs = get_summary_messages(data.chat_id)
     system = load_prompt("summary_agent_system")
     user_block = _build_user_context_block(data.chat_id)
+    system_with_ctx = system + user_block
 
     # Build conversation: existing messages + new user message (+ progress block once)
     history: List[SummaryMessage] = []
     for m in msgs:
         history.append(SummaryMessage(role=m.get("role", "assistant"), content=str(m.get("content", ""))))
-    history.append(SummaryMessage(role="user", content=(data.content or "") + user_block))
+    history.append(SummaryMessage(role="user", content=(data.content or "")))
 
-    reply = await _llm_reply(system, history)
+    reply = await _llm_reply(system_with_ctx, history)
 
     append_summary_message(data.chat_id, "user", data.content)
     append_summary_message(data.chat_id, "assistant", reply)
