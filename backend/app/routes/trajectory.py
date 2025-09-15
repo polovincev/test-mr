@@ -781,18 +781,19 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
     except Exception:
         profile_block = ""
 
-    # OpenAI call
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not task_items:
         resp = GenerateTasksResponse(chat_id=chat_id, topic=topic, goal=trajectory.goal, level=gl_int, tasks=[])
         set_tasks(chat_id, cache_key, resp.dict())
         return resp
 
-    from openai import OpenAI  # type: ignore
-    client = OpenAI(api_key=api_key)
+    from openai import AsyncOpenAI  # type: ignore
+    client = AsyncOpenAI(api_key=api_key)
 
-    generated: list[GeneratedTask] = []
-    for task_title, task_level, level_desc, task_desc in task_items:
+    import asyncio, time, logging
+    semaphore = asyncio.Semaphore(10)
+
+    async def _generate_one(task_title: str, task_level: int, level_desc: str | None, task_desc: str | None) -> GeneratedTask | None:
         user_prompt = (
             f"Цель пользователя: {trajectory.goal}" + profile_block +
             f"\nНавык: {target.skills.name}"
@@ -804,27 +805,31 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
             f"\nОписание задания: {task_desc or ''}"
         )
 
-        print(user_prompt)
-        # Choose system prompt based on level
         sys_prompt = prompt_level2
         if task_level == 3:
             sys_prompt = prompt_level3 or prompt_level2
         elif task_level == 4:
             sys_prompt = prompt_level4 or prompt_level2
 
+        start_t = time.perf_counter()
         try:
-            import asyncio
-            comp = await asyncio.to_thread(
-                client.chat.completions.create,
-                model="gpt-5-chat-latest",
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
+            async with semaphore:
+                comp = await client.chat.completions.create(
+                    model="gpt-5-chat-latest",
+                    messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                )
             content = comp.choices[0].message.content if comp.choices else ""
         except Exception:
             content = ""
+        try:
+            logging.getLogger("uvicorn.error").info(
+                "generate_tasks LLM '%s' (L%d) in %.3f s", task_title, task_level, time.perf_counter() - start_t
+            )
+        except Exception:
+            pass
 
         # For level 2: try to parse structured JSON from updated task_generation_system
         if task_level == 2:
@@ -932,19 +937,21 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
                         if tq and options:
                             tests_out.append(Tests(question=tq, options=options, correct=correct, hint=hint, explanation=expl))
 
-            generated.append(
-                GeneratedTask(
-                    title=title_out,
-                    level=task_level,
-                    content_md=content_md_out,
-                    questions_to_consider=q_consider,
-                    tests=tests_out,
-                    passed=False,
-                )
+            return GeneratedTask(
+                title=title_out,
+                level=task_level,
+                content_md=content_md_out,
+                questions_to_consider=q_consider,
+                tests=tests_out,
+                passed=False,
             )
-        else:
-            # 3.0/4.0 keep legacy behavior
-            generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False))
+
+        # 3.0/4.0 keep legacy behavior
+        return GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False)
+
+    coros = [_generate_one(t, lvl, ld, td) for (t, lvl, ld, td) in task_items]
+    results = await asyncio.gather(*coros, return_exceptions=True)
+    generated: list[GeneratedTask] = [r for r in results if isinstance(r, GeneratedTask)]
 
     # After generating all tasks, append a synthetic Level 2 test built from 5 random Level 2 tests
     try:
@@ -2071,43 +2078,51 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
         set_tasks(chat_id, cache_key, resp.dict())
         return resp
 
-    from openai import OpenAI  # type: ignore
-    client = OpenAI(api_key=api_key)
+    from openai import AsyncOpenAI  # type: ignore
+    client = AsyncOpenAI(api_key=api_key)
 
-    generated: list[GeneratedTask] = []
-    for task_title, task_level, level_desc, task_desc in task_items:
+    import asyncio, time, logging
+    semaphore = asyncio.Semaphore(10)
+
+    async def _generate_one(task_title: str, task_level: int, level_desc: str | None, task_desc: str | None) -> GeneratedTask | None:
         user_prompt = (
-            f"Цель пользователя: {goal_text}" + profile_block +
-            f"\nНавык: {target.skills.name}" +
-            f"\nТема: {target.title}" +
-            f"\nОписание темы: {target.description or ''}" +
-            f"\nУровень задания: {task_level}.0" +
-            f"\nОписание уровня: {level_desc or ''}" +
-            f"\nНазвание задания: {task_title}" +
+            f"Цель пользователя: {trajectory.goal}" + profile_block +
+            f"\nНавык: {target.skills.name}"
+            f"\nТема: {target.title}"
+            f"\nОписание темы: {target.description or ''}"
+            f"\nУровень задания: {task_level}.0"
+            f"\nОписание уровня: {level_desc or ''}"
+            f"\nНазвание задания: {task_title}"
             f"\nОписание задания: {task_desc or ''}"
         )
 
-        # choose system prompt
         sys_prompt = prompt_level2
         if task_level == 3:
             sys_prompt = prompt_level3 or prompt_level2
         elif task_level == 4:
             sys_prompt = prompt_level4 or prompt_level2
 
+        start_t = time.perf_counter()
         try:
-            import asyncio
-            comp = await asyncio.to_thread(
-                client.chat.completions.create,
-                model="gpt-5-chat-latest",
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
+            async with semaphore:
+                comp = await client.chat.completions.create(
+                    model="gpt-5-chat-latest",
+                    messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                )
             content = comp.choices[0].message.content if comp.choices else ""
         except Exception:
             content = ""
+        try:
+            logging.getLogger("uvicorn.error").info(
+                "generate_tasks LLM '%s' (L%d) in %.3f s", task_title, task_level, time.perf_counter() - start_t
+            )
+        except Exception:
+            pass
 
+        # For level 2: try to parse structured JSON from updated task_generation_system
         if task_level == 2:
             import json as _json, re as _re
             payload: dict | None = None
@@ -2132,9 +2147,11 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
             tests_out: list[Tests] = []
 
             if isinstance(payload, dict):
+                # title/content
                 tval = payload.get("title")
                 if isinstance(tval, str) and tval.strip():
                     title_out = tval.strip()
+                # accept various casings / aliases
                 cval = (
                     payload.get("content_md")
                     or payload.get("contentMd")
@@ -2144,12 +2161,14 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                 if isinstance(cval, str) and cval.strip():
                     content_md_out = cval.strip()
 
+                # questions_to_consider (robust for both latin/cyrillic 'c')
                 q_list = payload.get("questions_to_consider")
                 if not isinstance(q_list, list):
-                    q_list = payload.get("questions_to_сonsider")
+                    q_list = payload.get("questions_to_сonsider")  # cyrillic 'с'
                 if not isinstance(q_list, list):
                     q_list = payload.get("questionsToConsider")
                 if not isinstance(q_list, list):
+                    # sometimes nested under items
                     items = payload.get("items")
                     if isinstance(items, dict):
                         q_list = items.get("questions_to_consider") or items.get("questionsToConsider")
@@ -2161,6 +2180,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                             if qs:
                                 q_consider.append(QuestionsToConsider(question=qs, answer=ans))
 
+                # tests
                 t_list = payload.get("tests")
                 if not isinstance(t_list, list):
                     t_list = payload.get("test")
@@ -2205,22 +2225,26 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                         if tq and options:
                             tests_out.append(Tests(question=tq, options=options, correct=correct, hint=hint, explanation=expl))
 
-            generated.append(
-                GeneratedTask(
-                    title=title_out,
-                    level=task_level,
-                    content_md=content_md_out,
-                    questions_to_consider=q_consider,
-                    tests=tests_out,
-                    passed=False,
-                )
+            return GeneratedTask(
+                title=title_out,
+                level=task_level,
+                content_md=content_md_out,
+                questions_to_consider=q_consider,
+                tests=tests_out,
+                passed=False,
             )
-        else:
-            generated.append(GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False))
 
-    # Synthetic Level 2 test
+        # 3.0/4.0 keep legacy behavior
+        return GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False)
+
+    coros = [_generate_one(t, lvl, ld, td) for (t, lvl, ld, td) in task_items]
+    results = await asyncio.gather(*coros, return_exceptions=True)
+    generated: list[GeneratedTask] = [r for r in results if isinstance(r, GeneratedTask)]
+
+    # After generating all tasks, append a synthetic Level 2 test built from 5 random Level 2 tests
     try:
         import random as _random
+        # collect all tests from already generated level-2 tasks
         level2_tests: list[Tests] = []
         for t in generated:
             try:
@@ -2229,6 +2253,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                         if isinstance(q, Tests):
                             level2_tests.append(q)
                         elif isinstance(q, dict):
+                            # tolerate dict shape
                             tq = str(q.get("question", "")).strip()
                             opts = q.get("options") or []
                             corr = q.get("correct") or []
@@ -2238,6 +2263,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                                 level2_tests.append(Tests(question=tq, options=[str(o) for o in opts], correct=[int(x) for x in corr if isinstance(x, (int, float, str)) and str(x).strip().isdigit()], hint=hint, explanation=expl))
             except Exception:
                 continue
+        # choose up to 5 random unique tests
         if level2_tests:
             try:
                 selected = _random.sample(level2_tests, k=min(5, len(level2_tests)))
@@ -2252,6 +2278,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                     tests=selected,
                     passed=False,
                 )
+                # find the first index where level >= 3 to insert before it
                 insert_idx = None
                 for idx, t in enumerate(generated):
                     try:
@@ -2270,7 +2297,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
     except Exception:
         pass
 
-    # Sanitize content
+    # sanitize content_md: remove lines like \n\n---\n\n (and with surrounding whitespace)
     import re as _re
     for t in generated:
         try:
