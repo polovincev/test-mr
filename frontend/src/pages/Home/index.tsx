@@ -65,7 +65,7 @@ const Home = () => {
                     }
                   }}
                 />
-                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal", firstUserPrompt: message.trim() || undefined } })}>
+                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "direct", firstUserPrompt: message.trim() || undefined } })}>
                   <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
                 </button>
               </div>

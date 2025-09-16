@@ -132,9 +132,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
         await repo.add_message(chat.id, ChatMessage(role="assistant", content=assistant_start, suggestions=suggestions))
 
     elif data.mode == "direct" and data.first_user_prompt:
-        # Первое сообщение от пользователя, потом 2 ответа ассистента:
-        # 1) подробный ответ на запрос без запуска функций
-        # 2) старт работы по единому промту (GOAL -> PROFILE)
+        # Первое сообщение пользователя учитывается и сразу запускается единый промт (GOAL -> PROFILE)
         await repo.add_message(chat.id, ChatMessage(role="user", content=data.first_user_prompt))
         try:
             import os
@@ -147,30 +145,6 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
 
             client = OpenAI(api_key=api_key)
 
-            # 1) Подробный ответ на пользовательский запрос без запуска функций
-            import asyncio
-            first_completion = await asyncio.to_thread(
-                client.chat.completions.create,
-                model="gpt-5-chat-latest",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Ты полезный ассистент. Ответь подробно на первое сообщение пользователя. Не начинай функции GOAL и PROFILE и не добавляй технические теги, в приветствии добавляй имя Николай.",
-                    },
-                    {"role": "user", "content": data.first_user_prompt},
-                ],
-            )
-            first_reply = (
-                first_completion.choices[0].message.content.strip()
-                if first_completion.choices and first_completion.choices[0].message.content
-                else None
-            )
-            if not first_reply:
-                raise RuntimeError("empty completion (first reply)")
-            first_suggestions = _build_suggestions("direct", first_reply)
-            await repo.add_message(chat.id, ChatMessage(role="assistant", content=first_reply, suggestions=first_suggestions))
-
-            # 2) Старт работы по системному промту c порядком GOAL -> PROFILE
             system_prompt = load_prompt("goal_system")
             order_text = "Сначала выполни функцию GOAL, затем PROFILE."
 
@@ -180,12 +154,13 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 {"role": m.role, "content": m.content} for m in updated_chat.messages
             ]
 
+            # Инструкция о порядке выполняется на уровне system; история содержит первое сообщение пользователя
+            import asyncio
             second_completion = await asyncio.to_thread(
                 client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": "Теперь начни вести диалог согласно системному промту. " + order_text},
+                    {"role": "system", "content": system_prompt + "\n" + "Начни вести диалог согласно системному промту. В приветствии добавляй имя Николай. " + order_text},
                 ]
                 + updated_history,
             )
