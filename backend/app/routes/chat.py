@@ -160,7 +160,7 @@ async def create_chat(data: ChatCreateIn, repo: ChatRepository = Depends(get_cha
                 client.chat.completions.create,
                 model="gpt-5-chat-latest",
                 messages=[
-                    {"role": "system", "content": system_prompt + "\n" + "Начни вести диалог согласно системному промту. В приветствии добавляй имя Николай. " + order_text},
+                    {"role": "system", "content": system_prompt + "\n" + "Начни вести диалог согласно системному промту, со второго шага, в системном промте для функции GOAL, в приветствии добавляй имя Николай. " + order_text},
                 ]
                 + updated_history,
             )
