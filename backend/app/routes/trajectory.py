@@ -4,6 +4,8 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
+import logging
+import time
 
 
 router = APIRouter(prefix="/trajectory", tags=["trajectory"])
@@ -1726,6 +1728,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
             ],
         )
         skills_content = skills_resp.choices[0].message.content if skills_resp.choices else None
+    
         if not skills_content:
             return TrajectoryResponse(goal=goal_text, items=[])
 
@@ -2028,6 +2031,359 @@ async def update_by_topic_goal_level(payload: TopicGoalLevelUpdate) -> Trajector
     return resp
 
 
+@router.post("/by_topic", response_model=TrajectoryResponse)
+async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> TrajectoryResponse:
+    """Generate single-item trajectory seeded by a requested skill/topic.
+
+    Mirrors get_trajectory_list logic, but:
+    - Uses SYSTEM_SKILLS_ONE and injects the requested topic into the skills prompt
+    - Caches by (chat_id, topic) using get_topic_trajectory/set_topic_trajectory
+    - Returns only the first generated item
+    """
+    from app.repositories.context_store import (
+        get_context,
+        get_topic_trajectory,
+        set_topic_trajectory,
+    )  # type: ignore
+    from app.prompts.loader import load_prompt  # type: ignore
+    import os, json
+
+    chat_id = int(req.chat_id)
+    topic = str(req.topic).strip()
+
+    # Cache check
+    cached = get_topic_trajectory(chat_id, topic)
+    if isinstance(cached, dict):
+        try:
+            return TrajectoryResponse(**cached)
+        except Exception:
+            pass
+    elif cached is not None:
+        try:
+            return cached  # type: ignore[return-value]
+        except Exception:
+            pass
+
+    ctx = get_context(chat_id)
+    goal_text = (str(ctx.get("goal")).strip() if isinstance(ctx, dict) and ctx.get("goal") else USER_GOAL)
+    profile_block = ""
+    try:
+        prof = ctx.get("profile") if isinstance(ctx, dict) else None
+        if isinstance(prof, dict) and any(bool(v) for v in prof.values()):
+            profile_json = json.dumps(prof, ensure_ascii=False)
+            profile_block = "\nПрофиль пользователя: " + profile_json
+    except Exception:
+        profile_block = ""
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return TrajectoryResponse(goal=goal_text, items=[])
+
+    try:
+        from openai import OpenAI  # type: ignore
+
+        client = OpenAI(api_key=api_key)
+
+        # 1) Skills
+        skills_prompt = load_prompt("skills_system_one")
+        traj_prompt = load_prompt(SYSTEM_TRAJECTORY)
+        tasks_prompt = load_prompt(SYSTEM_TASK_LIST)
+        skills_resp = client.chat.completions.create(
+            model="gpt-5-chat-latest",
+            messages=[
+                {"role": "system", "content": skills_prompt},
+                {"role": "user", "content": "Цель пользователя: " + goal_text + profile_block + f"\nНавык: {topic}"},
+            ],
+        )
+        skills_content = skills_resp.choices[0].message.content if skills_resp.choices else None
+        if not skills_content:
+            return TrajectoryResponse(goal=goal_text, items=[])
+
+        def parse_skills(txt: str) -> list[dict]:
+            try:
+                data = json.loads(txt)
+                raw_list: list[dict] | None = None
+                if isinstance(data, dict) and isinstance(data.get("skills"), list):
+                    raw_list = data["skills"]  # type: ignore[assignment]
+                elif isinstance(data, list):
+                    raw_list = data  # type: ignore[assignment]
+                if not raw_list:
+                    return []
+                result: list[dict] = []
+                for s in raw_list:  # type: ignore[assignment]
+                    if not isinstance(s, dict):
+                        continue
+                    name = str(s.get("name", "")).strip()
+                    if not name:
+                        continue
+                    rec_txt = str(s.get("recommended_level", "")).strip() or None
+                    try:
+                        rec_int = int(float(rec_txt)) if rec_txt else None
+                    except Exception:
+                        rec_int = None
+                    # levels
+                    levels_list: list[LevelInfo] = []
+                    descs = s.get("descriptions")
+                    if isinstance(descs, list):
+                        for d in descs:
+                            if not isinstance(d, dict):
+                                continue
+                            lv_txt = str(d.get("level", "")).strip()
+                            try:
+                                lv_int = int(float(lv_txt)) if lv_txt else None
+                            except Exception:
+                                lv_int = None
+                            levels_list.append(
+                                LevelInfo(
+                                    level=lv_int or 0,
+                                    level_name=(str(d.get("level_name")) if d.get("level_name") else None),
+                                    meta=(str(d.get("meta")) if d.get("meta") else None),
+                                    description=(str(d.get("description")) if d.get("description") else None),
+                                )
+                            )
+                    result.append(
+                        {
+                            "name": name,
+                            "recommended_level": rec_int or 0,
+                            "recommended_level_text": rec_txt,
+                            "levels": levels_list,
+                        }
+                    )
+                return result
+            except Exception:
+                return []
+
+        skills_list = parse_skills(skills_content)
+        skills_lines = []
+        for item in skills_list:
+            name = str(item.get("name", "")).strip()
+            level = str(item.get("level", "")).strip()
+            if name:
+                skills_lines.append(f"- {name}: {level}")
+        levels_help = (
+            "Расшифровка уровней: 2.0 — базовый уровень освоения; 3.0 — уверенный уровень освоения; 4.0 — продвинутый уровень освоения."
+        )
+
+        # 2) Trajectory
+        trajectory_user = (
+            (f"Цель пользователя: {goal_text}\n" if goal_text else "")
+            + "Список целевых навыков и уровней:\n" + "\n".join(skills_lines) + "\n" + levels_help
+        )
+        traj_resp = client.chat.completions.create(
+            model="gpt-5-chat-latest",
+            messages=[
+                {"role": "system", "content": traj_prompt},
+                {"role": "user", "content": trajectory_user},
+            ],
+        )
+        traj_content = traj_resp.choices[0].message.content if traj_resp.choices else None
+        if not traj_content:
+            return TrajectoryResponse(goal=goal_text, items=[])
+
+        def parse_traj(txt: str) -> list[dict]:
+            try:
+                data = json.loads(txt)
+                if isinstance(data, list):
+                    return data
+                if isinstance(data, dict):
+                    if "items" in data and isinstance(data["items"], list):
+                        return data["items"]
+                    if "modules" in data and isinstance(data["modules"], list):
+                        return data["modules"]
+            except Exception:
+                return []
+            return []
+
+        traj_items_raw = parse_traj(traj_content)
+
+        # 3) Build items and map skills (keep only first)
+        items: list[TrajectoryItem] = []
+        for it in traj_items_raw:
+            title = str(it.get("title", "")).strip()
+            if not title:
+                continue
+            description = str(it.get("description", "")).strip() or None
+            tags_raw = it.get("tags")
+            tags_str: str | None = None
+            if isinstance(tags_raw, list):
+                try:
+                    joined = " ".join(str(t).strip() for t in tags_raw if str(t).strip())
+                    tags_str = joined or None
+                except Exception:
+                    tags_str = None
+            elif isinstance(tags_raw, str):
+                tags_str = tags_raw.strip() or None
+
+            chosen_skill = skills_list[0] if skills_list else None
+            if chosen_skill is None:
+                sr = SkillRequirement(name="Навык", recommended_level=1)
+            else:
+                lvl_raw = chosen_skill.get("recommended_level") or chosen_skill.get("level")
+                try:
+                    lvl_int = int(float(str(lvl_raw)))
+                except Exception:
+                    lvl_int = 1
+                sr = SkillRequirement(
+                    name=str(chosen_skill.get("name", "Навык")),
+                    recommended_level=lvl_int,
+                    recommended_level_text=(str(chosen_skill.get("recommended_level_text")) if chosen_skill.get("recommended_level_text") else None),
+                    levels=(chosen_skill.get("levels") or []),
+                )
+
+            items.append(TrajectoryItem(title=title, description=description, tags=tags_str, skills=sr))
+
+        if not items:
+            return TrajectoryResponse(goal=goal_text, items=[])
+        items = [items[0]]
+
+        # 4) Tasks per levels for the single item
+        def parse_tasks(txt: str) -> dict[str, list[TaskInfo]]:
+            import json as _json
+            try:
+                data = _json.loads(txt)
+                if not isinstance(data, dict):
+                    return {}
+                result: dict[str, list[TaskInfo]] = {}
+                for key in ["2.0", "3.0", "4.0"]:
+                    arr = data.get(key)
+                    tasks: list[TaskInfo] = []
+                    if isinstance(arr, list):
+                        for t in arr:
+                            if isinstance(t, dict):
+                                title_v = t.get("title")
+                                desc_v = t.get("description")
+                                if isinstance(title_v, str) and title_v.strip():
+                                    tasks.append(TaskInfo(title=title_v.strip(), description=(str(desc_v) if isinstance(desc_v, str) else None)))
+                    result[key] = tasks
+                return result
+            except Exception:
+                return {}
+
+        it = items[0]
+        try:
+            ensure_levels(it.skills)
+            user_msg = (
+                (f"Цель пользователя: {goal_text}\n" if goal_text else "")
+                + (f"{profile_block}\n" if profile_block else "")
+                + f"Навык: {it.skills.name}\nТема: {it.title}"
+            )
+            tasks_resp = client.chat.completions.create(
+                model="gpt-5-chat-latest",
+                messages=[
+                    {"role": "system", "content": tasks_prompt},
+                    {"role": "user", "content": user_msg},
+                ],
+            )
+            tasks_content = tasks_resp.choices[0].message.content if tasks_resp.choices else None
+            if tasks_content:
+                mapping = parse_tasks(tasks_content)
+                map_tasks_to_levels(it.skills, mapping)
+            else:
+                for lv in it.skills.levels:
+                    lv.tasks = []
+                compute_meta_for_skill(it.skills)
+        except Exception:
+            try:
+                for lv in it.skills.levels:
+                    lv.tasks = []
+                compute_meta_for_skill(it.skills)
+            except Exception:
+                pass
+
+        # 5) Image
+        await enrich_items_with_images(items)
+
+        # 6) passedCount
+        try:
+            tasks_by_topic = (ctx or {}).get("tasks") or {}
+            try:
+                passed_sum = 0
+                if isinstance(tasks_by_topic, dict):
+                    for k, v in tasks_by_topic.items():
+                        if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                            for t in v.get("tasks", []):
+                                try:
+                                    try:
+                                        _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
+                                    except Exception:
+                                        _title = ""
+                                    if "тест по базовому уровню" in _title:
+                                        continue
+                                    if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
+                                        passed_sum += 1
+                                except Exception:
+                                    continue
+                setattr(it, "passedCount", int(passed_sum))
+            except Exception:
+                setattr(it, "passedCount", 0)
+        except Exception:
+            pass
+
+        resp = TrajectoryResponse(goal=goal_text, items=items)
+        try:
+            set_topic_trajectory(chat_id, topic, resp)
+        except Exception:
+            pass
+        return resp
+    except Exception:
+        return TrajectoryResponse(goal=goal_text, items=[])
+
+
+# --- Update goal level for single-item trajectory (by_topic) --------------
+class TopicGoalLevelUpdate(BaseModel):
+    chat_id: int
+    topic: str
+    level: float
+
+
+@router.post("/by_topic/goal_level", response_model=TrajectoryResponse)
+async def update_by_topic_goal_level(payload: TopicGoalLevelUpdate) -> TrajectoryResponse:
+    """Update goal_level for a cached single-item trajectory generated via /by_topic.
+
+    Expects chat_id, topic and level; updates the first item's skills.goal_level
+    and returns the updated single-item trajectory response.
+    """
+    from app.repositories.context_store import get_topic_trajectory, set_topic_trajectory  # type: ignore
+
+    try:
+        chat_id = int(payload.chat_id)
+    except Exception:
+        return TrajectoryResponse(goal="", items=[])
+    topic = str(payload.topic).strip()
+    if not topic:
+        return TrajectoryResponse(goal="", items=[])
+
+    cached = get_topic_trajectory(chat_id, topic)
+    resp: TrajectoryResponse
+    if isinstance(cached, dict):
+        try:
+            resp = TrajectoryResponse(**cached)
+        except Exception:
+            resp = TrajectoryResponse(goal="", items=[])
+    elif isinstance(cached, TrajectoryResponse):
+        resp = cached
+    else:
+        resp = TrajectoryResponse(goal="", items=[])
+
+    if not resp.items:
+        return resp
+
+    try:
+        v = float(payload.level)
+    except Exception:
+        v = 0.1
+    if v < 0.1:
+        v = 0.1
+    resp.items[0].skills.goal_level = v
+
+    try:
+        set_topic_trajectory(chat_id, topic, resp)
+    except Exception:
+        pass
+
+    return resp
+
+
 # -------- Generate tasks for a single-item trajectory (by_topic) ----------
 @router.post("/by_topic/generate_tasks", response_model=GenerateTasksResponse)
 async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksResponse:
@@ -2144,18 +2500,18 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
 
     client = get_async_openai_client()
 
-    import asyncio, time, logging
+    import asyncio
     semaphore = asyncio.Semaphore(20)
 
     async def _generate_one(task_title: str, task_level: int, level_desc: str | None, task_desc: str | None) -> GeneratedTask | None:
         user_prompt = (
             f"Цель пользователя: {goal_text}" + profile_block +
-            f"\nНавык: {target.skills.name}"
-            f"\nТема: {target.title}"
-            f"\nОписание темы: {target.description or ''}"
-            f"\nУровень задания: {task_level}.0"
-            f"\nОписание уровня: {level_desc or ''}"
-            f"\nНазвание задания: {task_title}"
+            f"\nНавык: {target.skills.name}" +
+            f"\nТема: {target.title}" +
+            f"\nОписание темы: {target.description or ''}" +
+            f"\nУровень задания: {task_level}.0" +
+            f"\nОписание уровня: {level_desc or ''}" +
+            f"\nНазвание задания: {task_title}" +
             f"\nОписание задания: {task_desc or ''}"
         )
 
@@ -2185,7 +2541,6 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
         except Exception:
             pass
 
-        # For level 2: try to parse structured JSON from updated task_generation_system
         if task_level == 2:
             import json as _json, re as _re
             payload: dict | None = None
@@ -2210,11 +2565,9 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
             tests_out: list[Tests] = []
 
             if isinstance(payload, dict):
-                # title/content
                 tval = payload.get("title")
                 if isinstance(tval, str) and tval.strip():
                     title_out = tval.strip()
-                # accept various casings / aliases
                 cval = (
                     payload.get("content_md")
                     or payload.get("contentMd")
@@ -2224,14 +2577,12 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                 if isinstance(cval, str) and cval.strip():
                     content_md_out = cval.strip()
 
-                # questions_to_consider (robust for both latin/cyrillic 'c')
                 q_list = payload.get("questions_to_consider")
                 if not isinstance(q_list, list):
-                    q_list = payload.get("questions_to_сonsider")  # cyrillic 'с'
+                    q_list = payload.get("questions_to_сonsider")
                 if not isinstance(q_list, list):
                     q_list = payload.get("questionsToConsider")
                 if not isinstance(q_list, list):
-                    # sometimes nested under items
                     items = payload.get("items")
                     if isinstance(items, dict):
                         q_list = items.get("questions_to_consider") or items.get("questionsToConsider")
@@ -2243,7 +2594,6 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                             if qs:
                                 q_consider.append(QuestionsToConsider(question=qs, answer=ans))
 
-                # tests
                 t_list = payload.get("tests")
                 if not isinstance(t_list, list):
                     t_list = payload.get("test")
@@ -2297,17 +2647,15 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                 passed=False,
             )
 
-        # 3.0/4.0 keep legacy behavior
         return GeneratedTask(title=task_title, level=task_level, content_md=str(content or "").strip(), passed=False)
 
     coros = [_generate_one(t, lvl, ld, td) for (t, lvl, ld, td) in task_items]
     results = await asyncio.gather(*coros, return_exceptions=True)
     generated: list[GeneratedTask] = [r for r in results if isinstance(r, GeneratedTask)]
 
-    # After generating all tasks, append a synthetic Level 2 test built from 5 random Level 2 tests
+    # Synthetic Level 2 test
     try:
         import random as _random
-        # collect all tests from already generated level-2 tasks
         level2_tests: list[Tests] = []
         for t in generated:
             try:
@@ -2316,7 +2664,6 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                         if isinstance(q, Tests):
                             level2_tests.append(q)
                         elif isinstance(q, dict):
-                            # tolerate dict shape
                             tq = str(q.get("question", "")).strip()
                             opts = q.get("options") or []
                             corr = q.get("correct") or []
@@ -2326,7 +2673,6 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                                 level2_tests.append(Tests(question=tq, options=[str(o) for o in opts], correct=[int(x) for x in corr if isinstance(x, (int, float, str)) and str(x).strip().isdigit()], hint=hint, explanation=expl))
             except Exception:
                 continue
-        # choose up to 5 random unique tests
         if level2_tests:
             try:
                 selected = _random.sample(level2_tests, k=min(5, len(level2_tests)))
@@ -2341,7 +2687,6 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
                     tests=selected,
                     passed=False,
                 )
-                # find the first index where level >= 3 to insert before it
                 insert_idx = None
                 for idx, t in enumerate(generated):
                     try:
@@ -2360,7 +2705,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
     except Exception:
         pass
 
-    # sanitize content_md: remove lines like \n\n---\n\n (and with surrounding whitespace)
+    # Sanitize content
     import re as _re
     for t in generated:
         try:
