@@ -46,8 +46,9 @@ const LevelSelect = () => {
             if (fromRelated) {
                 const topicParam = item?.skills?.name || "";
                 try { await updateByTopicGoalLevel(chatId, topicParam, chosenLevel); } catch {}
+                const nextItem: TrajectoryItem = { ...(item as TrajectoryItem), skills: { ...(item!.skills), goal_level: chosenLevel } } as TrajectoryItem;
                 navigate(`/tasks?chat_id=${chatId}${topicParam ? `&topic=${encodeURIComponent(topicParam)}` : ""}` as string, {
-                    state: { item, chatId, fromRelated: true }
+                    state: { item: nextItem, chatId, fromRelated: true }
                 });
                 return;
             }
@@ -65,8 +66,9 @@ const LevelSelect = () => {
                 current[findIndex] = chosenLevel;
             }
             await updateGoalLevels(chatId, current);
+            const nextItem: TrajectoryItem = { ...(item as TrajectoryItem), skills: { ...(item!.skills), goal_level: chosenLevel } } as TrajectoryItem;
             navigate(`/tasks?chat_id=${chatId}${topicMain ? `&topic=${encodeURIComponent(topicMain)}` : ""}` as string, {
-                state: { item, chatId }
+                state: { item: nextItem, chatId }
             });
         } finally {
             setSaving(false);

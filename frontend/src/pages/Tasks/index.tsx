@@ -18,6 +18,8 @@ const Tasks: React.FC = () => {
   const urlParams = new URLSearchParams(location.search);
   const chatIdParam = urlParams.get("chat_id");
   const topicParam = urlParams.get("topic") || undefined;
+  console.log(location.state)
+  
   return (
     <TasksInner chatId={chatIdParam ? Number(chatIdParam) : undefined} topic={topicParam} navigate={navigate} location={location} />
   );
@@ -80,6 +82,78 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const finalTopic = topic || topicState || "";
   const skillNameState = itemState?.skills?.name as string | undefined;
   const requestTopic = fromRelated ? (skillNameState || finalTopic) : finalTopic;
+  const goalLevelFromState = (() => {
+    const gl = Number(itemState?.skills?.goal_level ?? 0);
+    if (gl >= 4) return 4;
+    if (gl >= 3) return 3;
+    if (gl >= 2) return 2;
+    return 0; // not selected
+  })();
+  const allowedLevels = goalLevelFromState === 4 ? [2, 3, 4] : goalLevelFromState === 3 ? [2, 3] : goalLevelFromState === 2 ? [2] : [];
+  const fallbackMenuTitles: string[] = (() => {
+    try {
+      const lvls = Array.isArray(itemState?.skills?.levels) ? (itemState.skills.levels as any[]) : [];
+      const l2: string[] = [];
+      const l3: string[] = [];
+      const l4: string[] = [];
+      for (const lv of lvls) {
+        const lvlNum = Number(lv?.level);
+        if (!allowedLevels.includes(lvlNum)) continue;
+        const arr = Array.isArray(lv?.tasks) ? (lv.tasks as any[]) : [];
+        for (const t of arr) {
+          const title = String((t as any)?.title || "").trim();
+          if (!title) continue;
+          if (lvlNum === 2) l2.push(title);
+          else if (lvlNum === 3) l3.push(title);
+          else if (lvlNum === 4) l4.push(title);
+        }
+      }
+      const out: string[] = [];
+      if (allowedLevels.includes(2)) {
+        out.push(...l2);
+        out.push("Тест по базовому уровню");
+      }
+      if (allowedLevels.includes(3)) out.push(...l3);
+      if (allowedLevels.includes(4)) out.push(...l4);
+      return out;
+    } catch {
+      return [];
+    }
+  })();
+  // Build mapping of visible indices from tasks with ordering: L2 (no base test) -> Base Test -> L3 -> L4
+  const visibleIndices: number[] = (() => {
+    try {
+      const arr = Array.isArray(tasks) ? tasks : [];
+      const isBaseTest = (t: any) => String(t?.title || "").toLowerCase().includes("тест по базовому уровню");
+      const idxBase = arr.findIndex((t: any) => isBaseTest(t));
+      const lvl2: number[] = [];
+      const lvl3: number[] = [];
+      const lvl4: number[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const t: any = arr[i];
+        const lvl = Number(t?.level || 0);
+        if (!allowedLevels.includes(lvl)) continue;
+        if (lvl === 2) {
+          if (i !== idxBase) lvl2.push(i);
+        } else if (lvl === 3) {
+          lvl3.push(i);
+        } else if (lvl === 4) {
+          lvl4.push(i);
+        }
+      }
+      const out: number[] = [];
+      if (allowedLevels.includes(2)) {
+        out.push(...lvl2);
+        if (idxBase >= 0) out.push(idxBase);
+      }
+      if (allowedLevels.includes(3)) out.push(...lvl3);
+      if (allowedLevels.includes(4)) out.push(...lvl4);
+      return out;
+    } catch {
+      return [];
+    }
+  })();
+  const visibleTasks = Array.isArray(tasks) ? visibleIndices.map((i) => (tasks as any[])[i] as any) : [];
   const lastKeyRef = useRef<string>("");
   const fetchedRef = useRef<boolean>(false);
 
@@ -195,22 +269,35 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
       <div className={styles.container}>
         <div className={styles.sidebar}>
           <ul className={styles.sidebarList}>
-            {(tasks || []).map((t, i) => (
-              <li
-                key={`toc-${i}`}
-                className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
-                onClick={() => setSelected(i)}
-              >
-                {t.passed ? <span className={styles.sidebarOk} /> : null}
-                {t.title}
-              </li>
-            ))}
+            {(() => {
+              if (Array.isArray(tasks) && tasks.length > 0) {
+                return visibleTasks.map((t: any, i: number) => (
+                  <li
+                    key={`toc-${i}-${String(t?.title || '')}`}
+                    className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
+                    onClick={() => setSelected(i)}
+                  >
+                    {t.passed ? <span className={styles.sidebarOk} /> : null}
+                    {t.title}
+                  </li>
+                ));
+              }
+              return fallbackMenuTitles.map((title, i) => (
+                <li
+                  key={`toc-fallback-${i}-${title}`}
+                  className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
+                  onClick={() => setSelected(i)}
+                >
+                  {title}
+                </li>
+              ));
+            })()}
           </ul>
         </div>
         <div className={styles.content}>
           {(() => {
             if (Array.isArray(tasks) && tasks.length > 0) {
-              const filtered = tasks.filter((t) => {
+              const filtered = visibleTasks.filter((t: any) => {
                 const title = String((t as any)?.title || "").toLowerCase();
                 return !title.includes("тест по базовому уровню");
               });
@@ -244,8 +331,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                 </div>
               ) : (
                 <>
-                  {!current && <p>Задания не найдены.</p>}
-                  {current && (
+                  {(() => {
+                    const hasTasks = Array.isArray(tasks) && visibleIndices.length > 0;
+                    const currentIndex = hasTasks ? visibleIndices[Math.min(selected, visibleIndices.length - 1)] : -1;
+                    const current = hasTasks && currentIndex >= 0 ? (tasks as any[])[currentIndex] : null;
+                    if (!current) return <p>Задания не найдены.</p>;
+                    return (
                     <div className={styles.card}>
                       <div className={styles.levelBadge}>
                         {current.level === 2 && "Базовый уровень • " + finalTopic}
@@ -301,8 +392,8 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             return title.includes("тест по теме") || title.includes("тест по базовому уровню");
                           })()}
                           onSkip={() => {
-                            if (tasks && selected < (tasks.length - 1)) {
-                              setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                            if (Array.isArray(tasks) && selected < (visibleIndices.length - 1)) {
+                              setSelected((s) => Math.min(s + 1, (visibleIndices.length - 1)));
                             }
                           }}
                           onFailChange={(v) => setTestFailed(Boolean(v))}
@@ -345,7 +436,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           const isTest = Array.isArray((current as any).tests) && (current as any).tests.length > 0;
                           const titleLc = String((current as any)?.title || "").toLowerCase();
                           const isBaseTest = isTest && titleLc.includes("тест по базовому уровню");
-                          const hasNext = tasks && selected < (tasks.length - 1);
+                          const hasNext = Array.isArray(tasks) && selected < (visibleIndices.length - 1);
 
                           // LEVEL 2 TESTS (including base test)
                           if (isTest && current.level === 2) {
@@ -374,12 +465,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                         }
                                         packed = answers;
                                       } catch {}
-                                      try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true, packed); } catch {}
+                                      try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), currentIndex, true, packed); } catch {}
                                     }
                                     setTasks((prev) => {
                                       if (!prev) return prev;
                                       const next = prev.slice();
-                                      if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                      if (typeof currentIndex === 'number' && next[currentIndex]) next[currentIndex] = { ...next[currentIndex], passed: true } as any;
                                       return next;
                                     });
                                   }
@@ -412,15 +503,15 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                                     }
                                     packed = answers;
                                   } catch {}
-                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true, packed); } catch {}
+                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), currentIndex, true, packed); } catch {}
                                 }
                                 setTasks((prev) => {
                                   if (!prev) return prev;
                                   const next = prev.slice();
-                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                  if (typeof currentIndex === 'number' && next[currentIndex]) next[currentIndex] = { ...next[currentIndex], passed: true } as any;
                                   return next;
                                 });
-                                setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                                setSelected((s) => Math.min(s + 1, (visibleIndices.length - 1)));
                               }}>Далее</button>
                             ) : null; // last item handled by ToMyBtn
                           }
@@ -430,15 +521,15 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                             return (
                               <button type="button" className={styles.testBtn} onClick={async () => {
                                 if (typeof chatId === 'number') {
-                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), selected, true); } catch {}
+                                  try { await updateTaskPassed(chatId, (fromRelated ? requestTopic : finalTopic), currentIndex, true); } catch {}
                                 }
                                 setTasks((prev) => {
                                   if (!prev) return prev;
                                   const next = prev.slice();
-                                  if (next[selected]) next[selected] = { ...next[selected], passed: true } as any;
+                                  if (typeof currentIndex === 'number' && next[currentIndex]) next[currentIndex] = { ...next[currentIndex], passed: true } as any;
                                   return next;
                                 });
-                                if (hasNext) setSelected((s) => Math.min(s + 1, (tasks || []).length - 1));
+                                if (hasNext) setSelected((s) => Math.min(s + 1, (visibleIndices.length - 1)));
                               }}>Загрузить ответ</button>
                             );
                           }
@@ -447,7 +538,8 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                         })()}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                 </>
               )}
             </div>
@@ -668,3 +760,4 @@ const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options
       </>
     );
   };
+
