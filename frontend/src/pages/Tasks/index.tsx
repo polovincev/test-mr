@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import LoaderOverlay from "../../components/LoaderOverlay";
 import { generateTasks, generateTasksByTopic, type GeneratedTask, getTrajectory, updateTaskPassed, type TestAnswerPayload } from "../../services/api";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -28,11 +27,42 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<GeneratedTask[] | null>(null);
   const [selected, setSelected] = useState<number>(0);
+  const loadingPhrases = [
+    "Подбираю идеальные задачки...",
+    "Перелопачиваю тонны теорий…",
+    "Собираю пазл знаний…",
+    "Сканирую архивы Вселенной…",
+    "Тестирую законы физики на прочность…",
+    "Варю зелье из формул и теорем…",
+    "Рисую карту сокровищ вашего прогресса…",
+    "Собираю урожай самых полезных знаний…",
+    "Разминаю интеллектуальные мышцы…",
+    "Собираю урожай самых полезных знаний…",
+    "Разжигаю костёр любопытства…",
+    "Листаю ленту мемов про историю…",
+    "Делаю всё, кроме вашего домашнего задания…",
+    "Генерирую не только контент, но и твою будущую пятёрку… ",
+  ];
+  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * (loadingPhrases.length || 1)));
   const processorRef = useRef<any>();
   const testCheckRef = useRef<(() => boolean) | null>(null);
   const checkBusyRef = useRef<boolean>(false);
   const [testFinished, setTestFinished] = useState(false);
   const [testFailed, setTestFailed] = useState(false);
+  useEffect(() => {
+    if (!loading) return;
+    const id = window.setInterval(() => {
+      setMsgIdx((prev) => {
+        if (loadingPhrases.length <= 1) return prev;
+        let next = prev;
+        while (next === prev) {
+          next = Math.floor(Math.random() * loadingPhrases.length);
+        }
+        return next;
+      });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [loading]);
   if (!processorRef.current) {
     processorRef.current = unified()
       .use(remarkParse)
@@ -161,46 +191,59 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
 
   return (
     <div className={styles.page}>
-      {loading && <LoaderOverlay text="Формирую задания для изучения…" />}
-      {!loading && (
-        <>
-          <button className={styles.backButton} onClick={() => navigate(`/trajectory${chatId ? `?chat_id=${chatId}` : ""}`)}>← Назад</button>
-          <div className={styles.container}>
-            <div className={styles.sidebar}>
-              <ul className={styles.sidebarList}>
-                {(tasks || []).map((t, i) => (
-                  <li
-                    key={`toc-${i}`}
-                    className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
-                    onClick={() => setSelected(i)}
-                  >
-                    {t.passed ? <span className={styles.sidebarOk} /> : null}
-                    {t.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className={styles.content}>
-              {Array.isArray(tasks) && tasks.length > 0 && (
-                (() => {
-                  const filtered = tasks.filter((t) => {
-                    const title = String((t as any)?.title || "").toLowerCase();
-                    return !title.includes("тест по базовому уровню");
-                  });
-                  const total = filtered.length;
-                  const done = filtered.reduce((acc, t) => acc + ((t as any).passed ? 1 : 0), 0);
-                  return (
-                    <div className={styles.progressRow}>
-                      <span className={styles.taskProgressText}>Готово {done} из {total}</span>
-                      <div className={styles.taskProgressBar}>
-                        <div className={styles.taskProgressInner} style={{ width: `${total ? Math.min(100, Math.round((done / total) * 100)) : 0}%` }} />
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-              <div className={styles.contentCard} ref={contentRef}>
-                <div className={styles.innerWidth}>
+      <button className={styles.backButton} onClick={() => navigate(`/trajectory${chatId ? `?chat_id=${chatId}` : ""}`)}>← Назад</button>
+      <div className={styles.container}>
+        <div className={styles.sidebar}>
+          <ul className={styles.sidebarList}>
+            {(tasks || []).map((t, i) => (
+              <li
+                key={`toc-${i}`}
+                className={`${styles.sidebarItem} ${i === selected ? styles.sidebarItemActive : ""}`}
+                onClick={() => setSelected(i)}
+              >
+                {t.passed ? <span className={styles.sidebarOk} /> : null}
+                {t.title}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className={styles.content}>
+          {(() => {
+            if (Array.isArray(tasks) && tasks.length > 0) {
+              const filtered = tasks.filter((t) => {
+                const title = String((t as any)?.title || "").toLowerCase();
+                return !title.includes("тест по базовому уровню");
+              });
+              const total = filtered.length;
+              const done = filtered.reduce((acc, t) => acc + ((t as any).passed ? 1 : 0), 0);
+              const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+              return (
+                <div className={styles.progressRow}>
+                  <span className={styles.taskProgressText}>Готово {done} из {total}</span>
+                  <div className={styles.taskProgressBar}>
+                    <div className={styles.taskProgressInner} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className={styles.progressRow}>
+                <span className={styles.taskProgressText}>Готовлю список заданий…</span>
+                <div className={styles.taskProgressBar}>
+                  <div className={styles.taskProgressInner} style={{ width: `0%` }} />
+                </div>
+              </div>
+            );
+          })()}
+          <div className={styles.contentCard} ref={contentRef}>
+            <div className={styles.innerWidth}>
+              {loading ? (
+                <div className={styles.contentLoader}>
+                  <img className={styles.contentLoaderImg} src={new URL("../../icon/tr_load.gif", import.meta.url).href} alt="loading" />
+                  <div className={styles.contentLoaderText}>{loadingPhrases[msgIdx]}</div>
+                </div>
+              ) : (
+                <>
                   {!current && <p>Задания не найдены.</p>}
                   {current && (
                     <div className={styles.card}>
@@ -405,12 +448,13 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
+                </>
+              )}
             </div>
-            <div className={styles.empty}></div>
           </div>
-        </>)}
+        </div>
+        <div className={styles.empty}></div>
+      </div>
     </div>
   );
 };
