@@ -39,6 +39,12 @@ const Home = () => {
     localStorage.removeItem("activeChatId");
   }, []);
 
+  useEffect(() => {
+    // Auto-fetch fact of the day on home open
+    handleGetFact();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <div className={styles.home}>
@@ -59,7 +65,7 @@ const Home = () => {
                     }
                   }}
                 />
-                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "direct", firstUserPrompt: message.trim() || undefined } })}>
+                <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal", firstUserPrompt: message.trim() || undefined } })}>
                   <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />
                 </button>
               </div>
@@ -67,7 +73,7 @@ const Home = () => {
             <div className="col-12 col-lg-8 mx-auto">
               <div className={styles.actionsContainer}>
                 <div className={styles.actions}>
-                  <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "profile_goal" } })}>Рассказать о себе</button>
+                  {/* <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "profile_goal" } })}>Рассказать о себе</button> */}
                   <button className={styles.actionButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "goal" } })}>Как поставить цель моего обучения</button>
                 </div>
               </div>
