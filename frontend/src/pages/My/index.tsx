@@ -491,7 +491,7 @@ const My: React.FC = () => {
     const goalHalf = measuredGoalHalf; // half width of center node
     const topicWidth = 280; // approx width of topic node
     const baseGap = Math.max(120, Math.min(280, Math.round(viewportW * 0.08)));
-    const leftX = anchorCenterX - goalHalf / 2 - baseGap - topicWidth;
+    const leftX = anchorCenterX - goalHalf / 2 - baseGap - topicWidth - 50; // shift left column slightly further left
     const rightX = anchorCenterX + goalHalf + baseGap;
     // independent vertical spacing for left and right columns (center-based)
     const childGap = 80; // vertical gap between compact nodes
@@ -599,7 +599,7 @@ const My: React.FC = () => {
         const id = `${i + 1}-e${idx + 1}`;
         const expOffsetX = isLeft
           ? -(topicWidth / 2 + Math.max(140, baseGap))
-          : topicWidth + Math.max(140, baseGap);
+          : topicWidth + Math.max(140, baseGap) + 30; // shift right-side expansions further right
         const exX = x + expOffsetX;
         const exY = ys[idx];
         const isActiveRelated = Boolean(
@@ -633,9 +633,9 @@ const My: React.FC = () => {
           const ys2 = ex2.map((_, kk) =>
             Math.round(exY + (kk - (ex2.length - 1) / 2) * childGap2)
           );
-          const ex2OffsetX = isLeft
+        const ex2OffsetX = isLeft
             ? -(topicWidth / 2 + Math.max(120, baseGap))
-            : topicWidth / 2 + Math.max(120, baseGap);
+            : topicWidth / 2 + Math.max(120, baseGap) + 80; // shift right-side second-level expansions further right
           ex2.forEach((t2, j) => {
             const id2 = `${id}-g${j + 1}`;
             nodes.push({
