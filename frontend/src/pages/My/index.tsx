@@ -32,7 +32,6 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import styles from "./index.module.css";
-import LoaderOverlay from "../../components/LoaderOverlay";
 import plusIcon from "../../icon/plus.svg";
 import minusIcon from "../../icon/minus.svg";
 import collapseIcon from "../../icon/collapse.svg";
@@ -252,6 +251,23 @@ const My: React.FC = () => {
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | undefined>(
     trajectoryInit as any
   );
+  const loadingMessages = [
+    "Прокладываю образовательный маршрут…",
+    "Составляю карту твоих знаний...",
+    "Строю мост от незнания к мастерству…",
+    "Рисую навигационную карту твоего обучения…",
+    "Расставляю образовательные вехи…",
+    "Выстраиваю траекторию полёта к цели…",
+    "Сверяюсь с картой твоих сильных сторон…",
+    "Кастомизирую путь под твой стиль обучения…",
+    "Подбираю идеальный темп движения для тебя…",
+    "Определяю самые живописные образовательные тропы…",
+    "Интегрирую твои интересы в учебный план…",
+    "Заряжаю твой старт к успеху…",
+    "Формирую твой личный чек-лист прогресса…",
+    "Собираю твой персональный образовательный плейлист…",
+  ];
+  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * (loadingMessages.length || 1)));
   const trajFetchedRef = useRef<boolean>(Boolean(trajectoryInit));
   const fetchingRef = useRef<boolean>(false);
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
@@ -320,6 +336,22 @@ const My: React.FC = () => {
     fetchAll();
     // No cleanup needed; we intentionally allow async to finish even after unmount (StrictMode first pass)
   }, [chatId]);
+
+  // rotate loading message while loading
+  useEffect(() => {
+    if (!loading) return;
+    const id = window.setInterval(() => {
+      setMsgIdx((prev) => {
+        if (loadingMessages.length <= 1) return prev;
+        let next = prev;
+        while (next === prev) {
+          next = Math.floor(Math.random() * loadingMessages.length);
+        }
+        return next;
+      });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [loading]);
 
   // Force layout/resize and fit graph on initial mount
   useEffect(() => {
@@ -871,7 +903,16 @@ const My: React.FC = () => {
     selectedIdx !== null ? trajectory?.items?.[selectedIdx] : undefined;
 
   if (loading) {
-    return <LoaderOverlay text="Формирую тематические связи..." />;
+    return (
+      <div className={styles.loadingCenter}>
+        <img
+          className={styles.loadingImg}
+          src={new URL("../../icon/tr_load.gif", import.meta.url).href}
+          alt="loading"
+        />
+        <div className={styles.loadingText}>{loadingMessages[msgIdx]}</div>
+      </div>
+    );
   }
 
   return (

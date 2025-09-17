@@ -4,6 +4,31 @@
   height: calc(100vh - 0px);
 }
 
+.loadingCenter {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #F9FAFF;
+}
+
+.loadingImg {
+  width: 400px;
+}
+
+.loadingText {
+  color: var(--text-text-secondary, #656C94);
+  font-family: var(--family-onest, Onest);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: var(--weight-regular, 400);
+  line-height: 24px;
+  text-align: center;
+  margin-top: 8px;
+}
+
 /* React Flow built-in controls customization */
 :global(.react-flow__controls) {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
