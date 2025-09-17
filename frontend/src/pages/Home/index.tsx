@@ -56,7 +56,7 @@ const Home = () => {
                 <textarea
                   className={styles.textarea}
                   rows={5}
-                  placeholder="Например, объясни, как решать квадратные уравнения"
+                  placeholder="Например, хочу узнать, как устроен человеческий мозг"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => {

@@ -376,6 +376,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
                           key={selected}
                           processor={processorRef.current}
                           tests={(current as any).tests}
+                          persistKey={`${chatId || 0}|${fromRelated ? 1 : 0}|${requestTopic}|task:${currentIndex}`}
                           initialAnswers={(() => {
                             try {
                               const list = (current as any).tests as any[];
@@ -601,18 +602,49 @@ const RenderedMarkdown: React.FC<{ processor: any; content: string }> = ({ proce
   );
 };
 
-const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string; answer?: number[] }[]; onAttachCheckHandler?: (fn: () => boolean) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void; initialAnswers?: Record<number, number[]>; initialChecked?: boolean }>
-  = ({ processor, tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset, initialAnswers, initialChecked }) => {
+const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options: string[]; correct: number[]; hint?: string; explanation?: string; answer?: number[] }[]; onAttachCheckHandler?: (fn: () => boolean) => void; onChecked?: () => void; suppressExplanation?: boolean; onSkip?: () => void; onFailChange?: (failed: boolean) => void; enableFailPanel?: boolean; onReset?: () => void; initialAnswers?: Record<number, number[]>; initialChecked?: boolean; persistKey?: string }>
+  = ({ processor, tests, onAttachCheckHandler, onChecked, suppressExplanation, onSkip, onFailChange, enableFailPanel, onReset, initialAnswers, initialChecked, persistKey }) => {
+    const storageKey = String(persistKey || "");
+    const loadPersisted = (): { answers?: Record<number, number[]>; checked?: boolean } | null => {
+      if (!storageKey) return null;
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        return parsed as any;
+      } catch { return null; }
+    };
+    const persisted = loadPersisted();
     const [answers, setAnswers] = useState<Record<number, Set<number>>>(() => {
       const map: Record<number, Set<number>> = {};
       try {
-        if (initialAnswers) {
-          Object.keys(initialAnswers).forEach((k) => { map[Number(k)] = new Set(initialAnswers[Number(k)] || []); });
+        const fromPersist = persisted && persisted.answers ? persisted.answers : undefined;
+        const src = fromPersist || initialAnswers;
+        if (src) {
+          Object.keys(src).forEach((k) => { map[Number(k)] = new Set((src as Record<number, number[]>)[Number(k)] || []); });
         }
       } catch { /* ignore */ }
       return map;
     });
-    const [checked, setChecked] = useState(Boolean(initialChecked));
+    const [checked, setChecked] = useState<boolean>(() => {
+      if (persisted && typeof persisted.checked === "boolean") return Boolean(persisted.checked);
+      return Boolean(initialChecked);
+    });
+    const serializeAnswers = (src: Record<number, Set<number>>): Record<number, number[]> => {
+      const out: Record<number, number[]> = {};
+      try {
+        Object.keys(src).forEach((k) => { out[Number(k)] = Array.from(src[Number(k)] || []); });
+      } catch { /* ignore */ }
+      return out;
+    };
+    useEffect(() => {
+      if (!storageKey) return;
+      try {
+        const payload = { answers: serializeAnswers(answers), checked } as any;
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      } catch { /* ignore */ }
+    }, [answers, checked, storageKey]);
     const [correctCount, setCorrectCount] = useState<number>(0);
     const [failed, setFailed] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -682,6 +714,7 @@ const TestsBlock: React.FC<{ processor?: any; tests: { question: string; options
       setFailed(false);
       try { onFailChange && onFailChange(false); } catch {}
       try { onReset && onReset(); } catch {}
+      try { if (storageKey) localStorage.removeItem(storageKey); } catch { /* ignore */ }
     };
     return (
       <>
