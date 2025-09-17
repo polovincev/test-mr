@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.css";
 import RadarChart from "../../components/RadarChart";
 import LoaderOverlay from "../../components/LoaderOverlay";
-import { getTrajectory, updateGoalLevels, type TrajectoryItem, type TrajectoryResponse } from "../../services/api";
+import {
+  getTrajectory,
+  updateGoalLevels,
+  type TrajectoryItem,
+  type TrajectoryResponse,
+} from "../../services/api";
 import AgentButton from "../../components/AgentButton";
 import ChatModal from "../../components/ChatModal";
 
@@ -19,14 +24,23 @@ const Trajectory = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
-  const levels = (skillLevels?: { level_name?: string | null; meta?: string | null; description?: string | null }[]) => {
-    const present = Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
+  const levels = (
+    skillLevels?: {
+      level_name?: string | null;
+      meta?: string | null;
+      description?: string | null;
+    }[]
+  ) => {
+    const present =
+      Array.isArray(skillLevels) && skillLevels.length > 0 ? skillLevels : [];
     // хотим отобразить 3 карточки: уровни 2,3,4 если есть
     const wanted = [2, 3, 4];
     return wanted.map((lvl) => {
       const li = present.find((x: any) => x && Number(x.level) === lvl) as any;
       return {
-        title: li?.level_name || (lvl === 2 ? "Базовый" : lvl === 3 ? "Уверенный" : "Продвинутый"),
+        title:
+          li?.level_name ||
+          (lvl === 2 ? "Базовый" : lvl === 3 ? "Уверенный" : "Продвинутый"),
         meta: li?.meta || "",
         text: li?.description || "",
       };
@@ -45,22 +59,27 @@ const Trajectory = () => {
   // progress is provided by backend via item.passedCount; no client fetch needed
 
   const loadingMessages = [
-    "Прокладываю образовательный маршрут…",
-    "Составляю карту твоих знаний...",
-    "Строю мост от незнания к мастерству…",
-    "Рисую навигационную карту твоего обучения…",
-    "Расставляю образовательные вехи…",
-    "Выстраиваю траекторию полёта к цели…",
-    "Сверяюсь с картой твоих сильных сторон…",
-    "Кастомизирую путь под твой стиль обучения…",
-    "Подбираю идеальный темп движения для тебя…",
-    "Определяю самые живописные образовательные тропы…",
-    "Интегрирую твои интересы в учебный план…",
-    "Заряжаю твой старт к успеху…",
-    "Формирую твой личный чек-лист прогресса…",
-    "Собираю твой персональный образовательный плейлист…",
+    "Рисую твой персональный путь к пятерке...",
+    "Собираю твой учебный план как конструктор...",
+    "Разрабатываю маршрут от «не знаю» до «сдал»...",
+    "Считаю, сколько шагов осталось до твоей цели...",
+    "Соединяю темы в идеальной последовательности...",
+    "Создаю чек-лист твоего успеха...",
+    "Продумываю, как обойти сложные места...",
+    "Подбираю только то, что точно пригодится…",
+    "Разбиваю большую цель на маленькие и легкие шаги...",
+    "Создаю для тебя режим максимального эффективного обучения...",
+    "Составляю таймлайн твоей подготовки...",
+    "Прорабатываю запасные пути на случай затруднений...",
+    "Смотрю, какие темы надо подтянуть…",
+    "Упаковываю весь курс в твой персональный интенсив...",
+    "Собираю твой учебный трек, как плейлист...",
+    "Анализирую, как ты думаешь…",
+    "Создаю алгоритм для твоей цели...",
   ];
-  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * (loadingMessages.length || 1)));
+  const [msgIdx, setMsgIdx] = useState(() =>
+    Math.floor(Math.random() * (loadingMessages.length || 1))
+  );
   useEffect(() => {
     if (!effectiveLoading) return;
     const id = window.setInterval(() => {
@@ -113,7 +132,9 @@ const Trajectory = () => {
       if (!done) setContentVisible(true);
     }, 1200);
     return () => {
-      try { el.removeEventListener("transitionend", onEnd as any); } catch {}
+      try {
+        el.removeEventListener("transitionend", onEnd as any);
+      } catch {}
       window.clearTimeout(t);
     };
   }, [effectiveLoading]);
@@ -136,7 +157,6 @@ const Trajectory = () => {
 
   // removed client-side generateTasks calls; use item.passedCount from trajectory
 
-
   useEffect(() => {
     const draw = () => {
       const container = containerRef.current;
@@ -154,7 +174,7 @@ const Trajectory = () => {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = 2
+      ctx.lineWidth = 2;
       ctx.strokeStyle = "rgba(186, 189, 210, 1)";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -172,8 +192,16 @@ const Trajectory = () => {
         const aRect = a.getBoundingClientRect();
         const bRect = b.getBoundingClientRect();
         const startX = aRect.right - containerRect.left + container.scrollLeft;
-        const startY = aRect.top - containerRect.top + container.scrollTop + aRect.height / 1.35;
-        const endX = bRect.left - containerRect.left + container.scrollLeft + bRect.width / 3;
+        const startY =
+          aRect.top -
+          containerRect.top +
+          container.scrollTop +
+          aRect.height / 1.35;
+        const endX =
+          bRect.left -
+          containerRect.left +
+          container.scrollLeft +
+          bRect.width / 3;
         const endY = bRect.top - containerRect.top + container.scrollTop - 4;
         const midX = startX - (startX - endX); // horizontal offset
         const radius = 40;
@@ -197,8 +225,16 @@ const Trajectory = () => {
         const aRect = a.getBoundingClientRect();
         const bRect = b.getBoundingClientRect();
         const startX = aRect.left - containerRect.left + container.scrollLeft; // left edge of right card
-        const startY = aRect.top - containerRect.top + container.scrollTop + aRect.height / 1.4;
-        const endX = bRect.left - containerRect.left + container.scrollLeft + bRect.width / 1.5;
+        const startY =
+          aRect.top -
+          containerRect.top +
+          container.scrollTop +
+          aRect.height / 1.4;
+        const endX =
+          bRect.left -
+          containerRect.left +
+          container.scrollLeft +
+          bRect.width / 1.5;
         const endY = bRect.top - containerRect.top + container.scrollTop - 4;
         const horOffset = startX - endX;
         const midX = startX - horOffset; // current elbow X
@@ -224,7 +260,9 @@ const Trajectory = () => {
     const onResize = () => draw();
     const onScroll = () => draw();
     window.addEventListener("resize", onResize);
-    containerRef.current?.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
+    containerRef.current?.addEventListener("scroll", onScroll, {
+      passive: true,
+    } as AddEventListenerOptions);
     // draw after mount and after a tick (to wait images)
     draw();
     const id = window.setTimeout(draw, 50);
@@ -246,13 +284,17 @@ const Trajectory = () => {
 
   // Redraw when trajectory content changes (e.g., goal levels updated affects card content/height)
   useEffect(() => {
-    try { drawRef.current && drawRef.current(); } catch {}
+    try {
+      drawRef.current && drawRef.current();
+    } catch {}
   }, [traj]);
 
   // Draw once content becomes visible
   useEffect(() => {
     if (contentVisible) {
-      try { drawRef.current && drawRef.current(); } catch {}
+      try {
+        drawRef.current && drawRef.current();
+      } catch {}
     }
   }, [contentVisible]);
 
@@ -261,7 +303,7 @@ const Trajectory = () => {
   const hasAnyPassed = (() => {
     try {
       return (traj?.items || []).some((it: any) => {
-        if (typeof it?.passedCount === 'number') {
+        if (typeof it?.passedCount === "number") {
           return it.passedCount > 0; // backend already excludes basic test
         }
         // Fallback: scan tasks up to any level; exclude "Тест по базовому уровню"
@@ -269,8 +311,11 @@ const Trajectory = () => {
         for (const lv of lvls) {
           const tasks = Array.isArray(lv?.tasks) ? lv.tasks : [];
           for (const t of tasks) {
-            const title = String((t as any)?.title || '').toLowerCase();
-            if (!title.includes('тест по базовому уровню') && Boolean((t as any)?.passed)) {
+            const title = String((t as any)?.title || "").toLowerCase();
+            if (
+              !title.includes("тест по базовому уровню") &&
+              Boolean((t as any)?.passed)
+            ) {
               return true;
             }
           }
@@ -286,108 +331,190 @@ const Trajectory = () => {
     <div className={styles.page}>
       <div className={styles.layout}>
         <div className={leftClass} ref={leftRef}>
-          <div className={effectiveLoading ? styles.trContainerLoading : styles.trContainer} ref={containerRef}>
+          <div
+            className={
+              effectiveLoading ? styles.trContainerLoading : styles.trContainer
+            }
+            ref={containerRef}
+          >
             <div className={styles.topRow}>
-              <button className={styles.backBtn} onClick={() => navigate(`/chat`, { state: { fromTrajectory: true, chatId: chatIdParam } })}>← Назад</button>
+              <button
+                className={styles.backBtn}
+                onClick={() =>
+                  navigate(`/chat`, {
+                    state: { fromTrajectory: true, chatId: chatIdParam },
+                  })
+                }
+              >
+                ← Назад
+              </button>
             </div>
             {contentVisible && traj?.goal && (
               <>
                 <div className={styles.header}>{traj.goal}</div>
                 <button
                   className={styles.metaLinkBtn}
-                  onClick={() => navigate('/my', { state: { trajectory: traj, chatId } })}
+                  onClick={() =>
+                    navigate("/my", { state: { trajectory: traj, chatId } })
+                  }
                 >
                   В метаучебник
                 </button>
               </>
             )}
-            {contentVisible && <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />}
+            {contentVisible && (
+              <canvas
+                ref={canvasRef}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  zIndex: 0,
+                }}
+              />
+            )}
             {effectiveLoading && (
               <div className={styles.loadingCenter}>
-                <img className={styles.loadingImg} src={new URL("../../icon/tr_load.gif", import.meta.url).href} alt="loading" />
-                <div className={styles.loadingText}>{loadingMessages[msgIdx]}</div>
+                <img
+                  className={styles.loadingImg}
+                  src={new URL("../../icon/tr_load.gif", import.meta.url).href}
+                  alt="loading"
+                />
+                <div className={styles.loadingText}>
+                  {loadingMessages[msgIdx]}
+                </div>
               </div>
             )}
             {!effectiveLoading && !contentVisible && (
               <div className={styles.loadingPlaceholder} />
             )}
             {contentVisible && (
-            <div className={styles.cards}>
-              {(traj?.items ?? []).map((t, idx) => {
-                const alignLeft = idx % 2 === 0;
-                const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
-                const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
-                const baseStyle = alignLeft ? { marginLeft: `${offset}px` } : { marginRight: `${offset}px` };
-                const goalSelected = (typeof t.skills.goal_level === "number" && t.skills.goal_level > 0.1);
-                const style = goalSelected ? { ...baseStyle, cursor: "pointer" } : baseStyle;
-                // calculate tasks count up to goal level (if any)
-                let totalTasks = 0;
-                let doneTasks = (typeof (t as any).passedCount === 'number') ? (t as any).passedCount : 0;
-                if (goalSelected && Array.isArray(t.skills.levels)) {
-                  const maxLevel = Math.round(t.skills.goal_level || 0);
-                  for (const li of t.skills.levels) {
-                    if (li.level <= maxLevel) {
-                      const arr = Array.isArray(li.tasks) ? li.tasks : [];
-                      totalTasks += arr.length;
+              <div className={styles.cards}>
+                {(traj?.items ?? []).map((t, idx) => {
+                  const alignLeft = idx % 2 === 0;
+                  const pairIndex = Math.floor(idx / 2) % 2; // 0 for pairs 1-2, 2 pairs pattern repeating
+                  const offset = pairIndex === 0 ? 50 : 70; // 1-2:80px, 3-4:96px, then repeat
+                  const baseStyle = alignLeft
+                    ? { marginLeft: `${offset}px` }
+                    : { marginRight: `${offset}px` };
+                  const goalSelected =
+                    typeof t.skills.goal_level === "number" &&
+                    t.skills.goal_level > 0.1;
+                  const style = goalSelected
+                    ? { ...baseStyle, cursor: "pointer" }
+                    : baseStyle;
+                  // calculate tasks count up to goal level (if any)
+                  let totalTasks = 0;
+                  let doneTasks =
+                    typeof (t as any).passedCount === "number"
+                      ? (t as any).passedCount
+                      : 0;
+                  if (goalSelected && Array.isArray(t.skills.levels)) {
+                    const maxLevel = Math.round(t.skills.goal_level || 0);
+                    for (const li of t.skills.levels) {
+                      if (li.level <= maxLevel) {
+                        const arr = Array.isArray(li.tasks) ? li.tasks : [];
+                        totalTasks += arr.length;
+                      }
                     }
                   }
-                }
-                const faded = hoverIndex !== null && hoverIndex !== idx;
-                return (
-                  <div
-                    key={`${t.title}-${idx}`}
-                    className={`${styles.card} ${alignLeft ? styles.cardLeft : styles.cardRight} ${faded ? styles.faded : ""}`}
-                    style={style}
-                    ref={(el) => (cardRefs.current[idx] = el)}
-                    onMouseEnter={() => { if (!goalSelected) setHoverIndex(idx); }}
-                    onMouseLeave={() => { if (!goalSelected) setHoverIndex((v) => (v === idx ? null : v)); }}
-                    onClick={() => {
-                      if (goalSelected) {
-                        navigate(`/tasks${chatIdParam ? `?chat_id=${chatIdParam}` : ""}`, { state: { item: t, chatId: chatIdParam } });
-                      }
-                    }}
-                  >
-                    <div className={styles.cardImageContainer}>
-                      <div className={styles.cardImageWrapper}>
-                        <img className={styles.cardImage} src={t.image_url ?? ""} alt="" />
+                  const faded = hoverIndex !== null && hoverIndex !== idx;
+                  return (
+                    <div
+                      key={`${t.title}-${idx}`}
+                      className={`${styles.card} ${
+                        alignLeft ? styles.cardLeft : styles.cardRight
+                      } ${faded ? styles.faded : ""}`}
+                      style={style}
+                      ref={(el) => (cardRefs.current[idx] = el)}
+                      onMouseEnter={() => {
+                        if (!goalSelected) setHoverIndex(idx);
+                      }}
+                      onMouseLeave={() => {
+                        if (!goalSelected)
+                          setHoverIndex((v) => (v === idx ? null : v));
+                      }}
+                      onClick={() => {
+                        if (goalSelected) {
+                          navigate(
+                            `/tasks${
+                              chatIdParam ? `?chat_id=${chatIdParam}` : ""
+                            }`,
+                            { state: { item: t, chatId: chatIdParam } }
+                          );
+                        }
+                      }}
+                    >
+                      <div className={styles.cardImageContainer}>
+                        <div className={styles.cardImageWrapper}>
+                          <img
+                            className={styles.cardImage}
+                            src={t.image_url ?? ""}
+                            alt=""
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className={styles.cardBody}>
-                      <div className={styles.cardTitle}>{t.title}</div>
-                      <div className={styles.cardText}>{t.description ?? ""}</div>
-                      {goalSelected && totalTasks > 0 && (
-                        <div style={{ marginTop: 14 }}>
-                          <div className={styles.cardProgressText}>{doneTasks} из {totalTasks} заданий</div>
-                          <div className={styles.cardProgressBar}>
-                            <div className={styles.cardProgressInner} style={{ width: `${Math.min(100, Math.round((doneTasks / totalTasks) * 100))}%` }} />
+                      <div className={styles.cardBody}>
+                        <div className={styles.cardTitle}>{t.title}</div>
+                        <div className={styles.cardText}>
+                          {t.description ?? ""}
+                        </div>
+                        {goalSelected && totalTasks > 0 && (
+                          <div style={{ marginTop: 14 }}>
+                            <div className={styles.cardProgressText}>
+                              {doneTasks} из {totalTasks} заданий
+                            </div>
+                            <div className={styles.cardProgressBar}>
+                              <div
+                                className={styles.cardProgressInner}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.round((doneTasks / totalTasks) * 100)
+                                  )}%`,
+                                }}
+                              />
+                            </div>
                           </div>
+                        )}
+                      </div>
+                      {!goalSelected && hoverIndex === idx && (
+                        <div className={styles.overlay} style={{ left: 210 }}>
+                          {levels(t.skills.levels).map((lv, i) => (
+                            <div
+                              key={i}
+                              className={styles.levelCard}
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(
+                                  `/level-select${
+                                    chatIdParam ? `?chat_id=${chatIdParam}` : ""
+                                  }` as string,
+                                  {
+                                    state: {
+                                      item: t,
+                                      index: idx,
+                                      chatId: chatIdParam,
+                                    },
+                                  }
+                                );
+                              }}
+                            >
+                              <div className={styles.levelTitle}>
+                                {lv.title}
+                              </div>
+                              <div className={styles.levelMeta}>{lv.meta}</div>
+                              <div className={styles.levelText}>{lv.text}</div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
-                    {!goalSelected && hoverIndex === idx && (
-                      <div className={styles.overlay} style={{ left: 210 }}>
-                        {levels(t.skills.levels).map((lv, i) => (
-                          <div
-                            key={i}
-                            className={styles.levelCard}
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/level-select${chatIdParam ? `?chat_id=${chatIdParam}` : ""}` as string, { state: { item: t, index: idx, chatId: chatIdParam } });
-                            }}
-                          >
-                            <div className={styles.levelTitle}>{lv.title}</div>
-                            <div className={styles.levelMeta}>{lv.meta}</div>
-                            <div className={styles.levelText}>{lv.text}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -415,12 +542,16 @@ const Trajectory = () => {
                 series={[
                   {
                     name: "ИИ",
-                    data: traj.items.map((t) => (useAI ? t.skills.recommended_level : 0)),
+                    data: traj.items.map((t) =>
+                      useAI ? t.skills.recommended_level : 0
+                    ),
                     color: "#503AE0",
                     // 5 уровней (0..4) × N осей — заполняем по уровням, берём из skills.levels если есть
                     nodeInfo: Array.from({ length: 5 }, (_, level) =>
                       traj.items.map((t) => {
-                        const li = (t.skills.levels || []).find((x) => x.level === level);
+                        const li = (t.skills.levels || []).find(
+                          (x) => x.level === level
+                        );
                         return {
                           title: li?.level_name || "Неизвестно",
                           meta: li?.meta || "",
@@ -431,15 +562,23 @@ const Trajectory = () => {
                   },
                   {
                     name: "Достигнутый уровень",
-                    data: traj.items.map((t) => (typeof t.skills.user_level === "number" ? t.skills.user_level : 0)),
+                    data: traj.items.map((t) =>
+                      typeof t.skills.user_level === "number"
+                        ? t.skills.user_level
+                        : 0
+                    ),
                     color: "#37C5F0",
                     draggable: false,
                   },
                   {
                     name: "Мой уровень",
-                    data: traj.items.map((t) => (typeof t.skills.goal_level === "number" ? t.skills.goal_level : 0.1)),
+                    data: traj.items.map((t) =>
+                      typeof t.skills.goal_level === "number"
+                        ? t.skills.goal_level
+                        : 0.1
+                    ),
                     color: "#503AE0",
-                    draggable: true
+                    draggable: true,
                   },
                 ]}
                 pointsOnly={useAI}
@@ -455,10 +594,13 @@ const Trajectory = () => {
                   // update local traj copy for immediate UI
                   setTraj((prev) => {
                     if (!prev) return prev;
-                    const next: TrajectoryResponse = { ...prev, items: prev.items.map((it, i) => ({
-                      ...it,
-                      skills: { ...it.skills, goal_level: normalized[i] }
-                    })) };
+                    const next: TrajectoryResponse = {
+                      ...prev,
+                      items: prev.items.map((it, i) => ({
+                        ...it,
+                        skills: { ...it.skills, goal_level: normalized[i] },
+                      })),
+                    };
                     return next;
                   });
                   // persist to backend context
@@ -467,18 +609,67 @@ const Trajectory = () => {
                   }
                   // redraw canvas connections after layout may change
                   try {
-                    requestAnimationFrame(() => { try { drawRef.current && drawRef.current(); } catch {} });
-                    setTimeout(() => { try { drawRef.current && drawRef.current(); } catch {} }, 60);
+                    requestAnimationFrame(() => {
+                      try {
+                        drawRef.current && drawRef.current();
+                      } catch {}
+                    });
+                    setTimeout(() => {
+                      try {
+                        drawRef.current && drawRef.current();
+                      } catch {}
+                    }, 60);
                   } catch {}
                 }}
               />
-              <div style={{ marginTop: 10, display: "flex", gap: 14, alignItems: "center", fontFamily: "Onest", fontSize: 13, color: "#656C94" }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 2, background: "#37C5F0", opacity: 0.6, border: "1px solid #37C5F0" }}></span>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  gap: 14,
+                  alignItems: "center",
+                  fontFamily: "Onest",
+                  fontSize: 13,
+                  color: "#656C94",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      borderRadius: 2,
+                      background: "#37C5F0",
+                      opacity: 0.6,
+                      border: "1px solid #37C5F0",
+                    }}
+                  ></span>
                   достигнутый уровень
                 </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 2, background: "#503AE022", border: "1px solid #503AE022" }}></span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      borderRadius: 2,
+                      background: "#503AE022",
+                      border: "1px solid #503AE022",
+                    }}
+                  ></span>
                   целевой уровень
                 </span>
               </div>
@@ -487,11 +678,13 @@ const Trajectory = () => {
         </div>
       </div>
       {hasAnyPassed && <AgentButton onClick={() => setChatOpen(true)} />}
-      <ChatModal open={chatOpen} onClose={() => setChatOpen(false)} chatId={chatId} />
+      <ChatModal
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        chatId={chatId}
+      />
     </div>
   );
 };
 
 export default Trajectory;
-
-
