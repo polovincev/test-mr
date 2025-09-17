@@ -1446,13 +1446,14 @@ const My: React.FC = () => {
                       </div>
                       <div className={styles.modalGoalLevel}>
                         Целевой уровень темы:
-                        <select
-                          className={styles.goalSelect}
-                          value={
-                            gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
-                          }
-                          required
-                          onChange={(e) => {
+                        <span className={styles.goalSelectWrap}>
+                          <select
+                            className={styles.goalSelect}
+                            value={
+                              gl === 2 || gl === 3 || gl === 4 ? String(gl) : ""
+                            }
+                            required
+                            onChange={(e) => {
                             try {
                               const raw = Number(e.target.value);
                               const chosen: any =
@@ -1482,15 +1483,17 @@ const My: React.FC = () => {
                                 } catch {}
                               }
                             } catch {}
-                          }}
-                        >
-                          <option value="" disabled hidden>
-                            Не выбран
-                          </option>
-                          <option value="2">⭐ Базовый</option>
-                          <option value="3">⭐⭐ Уверенный</option>
-                          <option value="4">⭐⭐⭐ Продвинутый</option>
-                        </select>
+                            }}
+                          >
+                            <option value="" disabled hidden>
+                              Не выбран
+                            </option>
+                            <option value="2">⭐ Базовый</option>
+                            <option value="3">⭐⭐ Уверенный</option>
+                            <option value="4">⭐⭐⭐ Продвинутый</option>
+                          </select>
+                          <span className={styles.goalSelectArrow}></span>
+                        </span>
                       </div>
                     </div>
                     {it?.description && (
