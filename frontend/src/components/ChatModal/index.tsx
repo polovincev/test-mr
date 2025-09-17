@@ -24,8 +24,8 @@ function formatMessageHtml(text: string): string {
   // Italic *text* or _text_
   s = s.replace(/\*(?!\*)([^*]+)\*/g, "<em>$1</em>");
   s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
-  // Line breaks
-  s = s.replace(/\n/g, "<br/>");
+  // Line breaks: collapse multiple newlines into a single <br/>
+  s = s.replace(/(?:\r?\n)+/g, "<br/>");
   return s;
 }
 
