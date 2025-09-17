@@ -924,7 +924,7 @@ const My: React.FC = () => {
     <>
       <div className={styles.wrapper}>
         <div className={styles.headerWrap}>
-          <button onClick={() => navigate(-1)} className={styles.backButton}>
+          <button onClick={() => navigate(`/trajectory${typeof chatId === 'number' ? `?chat_id=${chatId}` : ''}` as string)} className={styles.backButton}>
             ← В траекторию
           </button>
           {trajectory?.goal && (
