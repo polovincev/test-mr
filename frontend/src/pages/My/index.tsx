@@ -920,7 +920,7 @@ const My: React.FC = () => {
       <div className={styles.wrapper}>
         <div className={styles.headerWrap}>
           <button onClick={() => navigate(-1)} className={styles.backButton}>
-            ← Назад
+            ← В траекторию
           </button>
           {trajectory?.goal && (
             <div className={styles.goalBlock}>
