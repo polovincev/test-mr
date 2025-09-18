@@ -924,9 +924,21 @@ const My: React.FC = () => {
     <>
       <div className={styles.wrapper}>
         <div className={styles.headerWrap}>
-          <button onClick={() => navigate(`/trajectory${typeof chatId === 'number' ? `?chat_id=${chatId}` : ''}` as string)} className={styles.backButton}>
-            ← В траекторию
-          </button>
+          {fromChatMode ? (
+            <button
+              onClick={() => navigate(`/chat` as string, { state: { fromMy: true, chatId } })}
+              className={styles.backButton}
+            >
+              ← Назад
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(`/trajectory${typeof chatId === 'number' ? `?chat_id=${chatId}` : ''}` as string)}
+              className={styles.backButton}
+            >
+              ← В траекторию
+            </button>
+          )}
           {trajectory?.goal && (
             <div className={styles.goalBlock}>
               <div className={styles.goalText}>{trajectory.goal}</div>
