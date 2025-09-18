@@ -270,9 +270,7 @@ const My: React.FC = () => {
     "Анализирую, как ты думаешь…",
     "Создаю алгоритм для твоей цели...",
   ];
-  const [msgIdx, setMsgIdx] = useState(() =>
-    Math.floor(Math.random() * (loadingMessages.length || 1))
-  );
+  const [msgIdx, setMsgIdx] = useState(0);
   const trajFetchedRef = useRef<boolean>(Boolean(trajectoryInit));
   const fetchingRef = useRef<boolean>(false);
   const [expansions, setExpansions] = useState<Record<string, string[]>>({});
@@ -342,21 +340,17 @@ const My: React.FC = () => {
     // No cleanup needed; we intentionally allow async to finish even after unmount (StrictMode first pass)
   }, [chatId]);
 
-  // rotate loading message while loading
+  // rotate loading message while loading (sequential loop)
   useEffect(() => {
     if (!loading) return;
     const id = window.setInterval(() => {
       setMsgIdx((prev) => {
-        if (loadingMessages.length <= 1) return prev;
-        let next = prev;
-        while (next === prev) {
-          next = Math.floor(Math.random() * loadingMessages.length);
-        }
-        return next;
+        const total = loadingMessages.length || 1;
+        return total > 1 ? (prev + 1) % total : prev;
       });
     }, 3000);
     return () => window.clearInterval(id);
-  }, [loading]);
+  }, [loading, loadingMessages.length]);
 
   // Force layout/resize and fit graph on initial mount
   useEffect(() => {

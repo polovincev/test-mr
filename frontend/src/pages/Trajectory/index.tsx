@@ -77,24 +77,17 @@ const Trajectory = () => {
     "Анализирую, как ты думаешь…",
     "Создаю алгоритм для твоей цели...",
   ];
-  const [msgIdx, setMsgIdx] = useState(() =>
-    Math.floor(Math.random() * (loadingMessages.length || 1))
-  );
+  const [msgIdx, setMsgIdx] = useState(0);
   useEffect(() => {
     if (!effectiveLoading) return;
     const id = window.setInterval(() => {
       setMsgIdx((prev) => {
-        if (loadingMessages.length <= 1) return prev;
-        let next = prev;
-        // pick a different random index
-        while (next === prev) {
-          next = Math.floor(Math.random() * loadingMessages.length);
-        }
-        return next;
+        const total = loadingMessages.length || 1;
+        return total > 1 ? (prev + 1) % total : prev;
       });
     }, 3000);
     return () => window.clearInterval(id);
-  }, [effectiveLoading]);
+  }, [effectiveLoading, loadingMessages.length]);
 
   // After loading finishes, wait for left panel transition to end, then reveal content
   useEffect(() => {

@@ -48,7 +48,7 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     "Сканирую тему на наличие подводных камней...",
     "Создаю навигатор по теме..."
   ];
-  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * (loadingPhrases.length || 1)));
+  const [msgIdx, setMsgIdx] = useState(0);
   const processorRef = useRef<any>();
   const testCheckRef = useRef<(() => boolean) | null>(null);
   const checkBusyRef = useRef<boolean>(false);
@@ -58,16 +58,12 @@ const TasksInner: React.FC<{ chatId?: number; topic?: string; navigate: any; loc
     if (!loading) return;
     const id = window.setInterval(() => {
       setMsgIdx((prev) => {
-        if (loadingPhrases.length <= 1) return prev;
-        let next = prev;
-        while (next === prev) {
-          next = Math.floor(Math.random() * loadingPhrases.length);
-        }
-        return next;
+        const total = loadingPhrases.length || 1;
+        return total > 1 ? (prev + 1) % total : prev;
       });
     }, 3000);
     return () => window.clearInterval(id);
-  }, [loading]);
+  }, [loading, loadingPhrases.length]);
   if (!processorRef.current) {
     processorRef.current = unified()
       .use(remarkParse)
