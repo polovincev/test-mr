@@ -1,6 +1,6 @@
 """Database setup for development/testing: SQLite in-memory shared across threads."""
 
-from sqlalchemy import Column, Integer, String, Text, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pathlib import Path
 
@@ -21,12 +21,6 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
-
-# Models are now defined in `backend/app/models/` to keep schema separate.
-
-# ---------------------------------------------------------------------------
-# Dependency helper
-# ---------------------------------------------------------------------------
 
 def get_db() -> Session:
     """Yield a database session (FastAPI dependency)."""

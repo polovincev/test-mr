@@ -15,32 +15,28 @@ The function :func:`load_prompt` returns a tuple ``(system_prompt, user_prompt)`
 that can be passed directly to an OpenAI chat completion call.
 """
 
+# Lazy import to avoid circular deps at startup
 from functools import lru_cache
 from pathlib import Path
 
-# Compute project root (…/backend) then append ``promts`` directory
-_BASE_DIR = Path(__file__).resolve().parents[2]
-_PROMTS_DIR = _BASE_DIR / "promts"
+# Try to import DB session & model lazily to avoid circular deps at import time
+try:
+    from ..database import SessionLocal  # type: ignore
+    from ..models import Prompt  # type: ignore
+except Exception:  # pragma: no cover
+    SessionLocal = None  # type: ignore
+    Prompt = None  # type: ignore
 
 
-@lru_cache(maxsize=None)
 def load_prompt(name: str) -> str:
-    """Return *system* prompt text stored in ``promts/{name}.txt``.
+    """Return prompt text by *name* stored in database (column ``current_text``).
 
-    The text file must contain one or more non-empty lines comprising the
-    *system* prompt.  No *user* prompt is stored in these files any longer.
+    Raises FileNotFoundError if record is missing so callers can handle absent
+    prompts explicitly.
     """
-    path = (_PROMTS_DIR / f"{name}.txt").resolve()
-    if not path.exists():
-        raise FileNotFoundError(f"Prompt file not found: {path}")
 
-    with path.open(encoding="utf-8") as fp:
-        # Strip whitespace and skip blank lines
-        lines = [ln.strip() for ln in fp if ln.strip()]
-
-    if not lines:
-        raise ValueError(f"Prompt file {path} is empty")
-
-    # Join multiple non-empty lines with spaces to form a single prompt string
-    system_prompt = " ".join(lines)
-    return system_prompt
+    with SessionLocal() as db:  # type: ignore
+        row = db.query(Prompt).filter_by(name=name).first()
+        if not row:
+            raise FileNotFoundError(f"Prompt '{name}' not found in database")
+        return row.current_text  # type: ignore[attr-defined]

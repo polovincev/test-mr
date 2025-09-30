@@ -4,3 +4,5 @@ pydantic
 openai
 python-dotenv
 httpx[http2]
+SQLAlchemy
+sqlalchemy2-stubs

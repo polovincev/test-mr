@@ -12,6 +12,7 @@ from .routes.summary_chat import router as summary_chat_router
 from .routes.meta import router as meta_router
 from .routes.admin import router as admin_router
 from .database import Base, engine, SessionLocal
+from .models import *  # noqa: F401,F403 ensure tables are registered
 from .prompt_migration import migrate_prompts
 
 app = FastAPI(title="Mriya API")
