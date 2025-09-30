@@ -7,19 +7,16 @@ from pydantic import BaseModel
 
 from ..entities.chat import Chat, ChatMessage, Suggestion
 from ..repositories.chat_repository import ChatRepository
-from ..repositories.in_memory_chat_repository import InMemoryChatRepository
+from ..repositories.sqlalchemy_chat_repository import SqlAlchemyChatRepository
+from ..database import get_db
 from ..repositories.context_store import upsert_goal, upsert_profile
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-async def get_chat_repo() -> ChatRepository:
-    # In a real app use DI container; here we create a singleton-ish instance
-    # and keep it on the router object
-    if not hasattr(router, "_repo"):
-        router._repo = InMemoryChatRepository()  # type: ignore[attr-defined]
-    return router._repo  # type: ignore[attr-defined]
+def get_chat_repo(db=Depends(get_db)) -> ChatRepository:  # type: ignore
+    return SqlAlchemyChatRepository(db)
 
 
 class ChatOut(BaseModel):
