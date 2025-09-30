@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMessage, getFact } from "../../services/api";
+import { getFact } from "../../services/api";
 import styles from "./index.module.css";
 import Header from "../../components/Header";
 
@@ -9,17 +9,6 @@ const Home = () => {
   const [fact, setFact] = useState<string>("");
   const [isFactLoading, setIsFactLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-
-  const handleClick = async () => {
-    try {
-      const data = await getMessage();
-      setMessage(data.content);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(error);
-      setMessage("Ошибка при получении сообщения");
-    }
-  };
 
   const handleGetFact = async () => {
     try {
@@ -59,11 +48,6 @@ const Home = () => {
                   placeholder="Например, хочу узнать, как устроен человеческий мозг"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      void handleClick();
-                    }
-                  }}
                 />
                 <button className={styles.sendButton} onClick={() => navigate("/chat", { state: { createNew: true, mode: "direct", firstUserPrompt: message.trim() || undefined } })}>
                   <img src={new URL("../../icon/arrow_up.svg", import.meta.url).href} alt="" className={styles.sendIcon} />

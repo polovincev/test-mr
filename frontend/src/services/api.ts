@@ -1,17 +1,5 @@
 import { API_URL } from "../config";
 
-export interface MessageResponse {
-  content: string;
-}
-
-export async function getMessage(): Promise<MessageResponse> {
-  const response = await fetch(`${API_URL}/message`);
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  }
-  return (await response.json()) as MessageResponse;
-}
-
 export interface FactResponse {
   content: string;
 }
@@ -75,22 +63,6 @@ export async function listChats(): Promise<ChatSummary[]> {
   return (await res.json()) as ChatSummary[];
 }
 
-// -------- Skills API --------
-export interface SkillPoint {
-  name: string;
-  level: number;
-  description?: string;
-}
-
-export interface SkillsResponse {
-  items: SkillPoint[];
-}
-
-export async function getSkills(): Promise<SkillsResponse> {
-  const res = await fetch(`${API_URL}/skills/`);
-  if (!res.ok) throw new Error("Failed to load skills");
-  return (await res.json()) as SkillsResponse;
-}
 // -------- Trajectory API --------
 export interface SkillLevelInfo {
   level: number;
