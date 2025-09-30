@@ -11,6 +11,8 @@ from .routes.skills import router as skills_router
 from .routes.summary_chat import router as summary_chat_router
 from .routes.meta import router as meta_router
 from .routes.admin import router as admin_router
+from .database import Base, engine, SessionLocal
+from .prompt_migration import migrate_prompts
 
 app = FastAPI(title="Mriya API")
 
@@ -51,3 +53,11 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
+
+@app.on_event("startup")
+def on_startup():
+    """Create tables and migrate prompts."""
+    Base.metadata.create_all(bind=engine)
+
+    with SessionLocal() as db:
+        migrate_prompts(db)
