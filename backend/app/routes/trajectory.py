@@ -204,7 +204,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
     Если ключа нет или что-то пошло не так — возвращает пустой список.
     """
     import os, json
-    from app.repositories.context_store import get_context  # type: ignore
+    from ..repositories.context_store_sql import get_context  # type: ignore
 
     from app.prompts.loader import load_prompt  # type: ignore
 
@@ -287,7 +287,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         resp = TrajectoryResponse(goal=USER_GOAL, items=items)
         # enrich with passedCount from context tasks
         try:
-            from app.repositories.context_store import get_context  # type: ignore
+            from ..repositories.context_store_sql import get_context  # type: ignore
             ctx = get_context(int(chat_id) if chat_id is not None else -1)
             tasks_by_topic = (ctx or {}).get("tasks") or {}
             for it in resp.items:
@@ -644,7 +644,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
 
         resp = TrajectoryResponse(goal=goal_text, items=items)
         if chat_id is not None:
-            from app.repositories.context_store import set_trajectory  # type: ignore
+            from ..repositories.context_store_sql import set_trajectory  # type: ignore
             set_trajectory(chat_id, resp)
         return resp
     except Exception as e:
@@ -665,7 +665,7 @@ class GoalLevelsUpdate(BaseModel):
 async def update_goal_levels(payload: GoalLevelsUpdate) -> TrajectoryResponse:
     """Update goal_level for each item in cached trajectory for given chat_id."""
     try:
-        from app.repositories.context_store import get_context, set_trajectory  # type: ignore
+        from ..repositories.context_store_sql import get_context, set_trajectory  # type: ignore
     except Exception:
         # If context store is unavailable just return empty
         return TrajectoryResponse(goal="", items=[])
@@ -754,7 +754,7 @@ async def generate_tasks(req: GenerateTasksRequest) -> GenerateTasksResponse:
        skill name, topic title, level, and the task topic/title.
     4) Cache by (chat_id, topic) and return cached on subsequent calls.
     """
-    from app.repositories.context_store import get_context, get_tasks, set_tasks  # type: ignore
+    from ..repositories.context_store_sql import get_context, get_tasks, set_tasks  # type: ignore
     from app.prompts.loader import load_prompt  # type: ignore
     import os, json
 
@@ -1093,7 +1093,7 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
 
     Reads tasks from context store (same cache as generate_tasks), updates flag, saves back and returns updated payload.
     """
-    from app.repositories.context_store import get_tasks, set_tasks  # type: ignore
+    from ..repositories.context_store_sql import get_tasks, set_tasks  # type: ignore
 
     chat_id = int(req.chat_id)
     topic = str(req.topic).strip()
@@ -1143,7 +1143,7 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
 
     # --- Progression rules → update user_level in trajectory stored in context ---
     try:
-        from app.repositories.context_store import get_context, set_trajectory  # type: ignore
+        from ..repositories.context_store_sql import get_context, set_trajectory  # type: ignore
         ctx = get_context(chat_id)
         tr = ctx.get("trajectory") if isinstance(ctx, dict) else None
         # normalize trajectory model
@@ -1154,7 +1154,7 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
                 tr = None
         if tr is not None and isinstance(tr, TrajectoryResponse):
             # gather all cached tasks for this topic across possible keys
-            from app.repositories.context_store import get_tasks as _get_tasks  # type: ignore
+            from ..repositories.context_store_sql import get_tasks as _get_tasks  # type: ignore
             all_tasks: list[GeneratedTask] = []
             for k in [f"{req.topic}::L2", f"{req.topic}::L3", f"{req.topic}::L4", f"{req.topic}"]:
                 cached_any = _get_tasks(chat_id, k)
@@ -1269,7 +1269,7 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
     - Calls LLM with system prompt from meta_expand_system.txt and the user prompt as that list
     - Caches result in context (ctx["meta_expand"]) and returns cached value if present
     """
-    from app.repositories.context_store import get_context  # type: ignore
+    from ..repositories.context_store_sql import get_context  # type: ignore
     from app.prompts.loader import load_prompt  # type: ignore
     import os
 
@@ -1397,7 +1397,7 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
 
     # save to context
     try:
-        from app.repositories.context_store import get_context as _get_ctx  # type: ignore
+        from ..repositories.context_store_sql import get_context as _get_ctx  # type: ignore
         c = _get_ctx(chat_id)
         if isinstance(c, dict):
             c["meta_expand"] = {"chat_id": chat_id, "items": [it.dict() for it in items_out]}
@@ -1425,7 +1425,7 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
     4) Merge LLM result with existing context data, deduplicate, and return updated items
     5) Save updated meta_expand back to context
     """
-    from app.repositories.context_store import get_context  # type: ignore
+    from ..repositories.context_store_sql import get_context  # type: ignore
     from app.prompts.loader import load_prompt  # type: ignore
     import os
     import json as _json
@@ -1674,7 +1674,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
     - Caches by (chat_id, topic) using get_topic_trajectory/set_topic_trajectory
     - Returns only the first generated item
     """
-    from app.repositories.context_store import (
+    from ..repositories.context_store_sql import (
         get_context,
         get_topic_trajectory,
         set_topic_trajectory,
@@ -1990,7 +1990,7 @@ async def update_by_topic_goal_level(payload: TopicGoalLevelUpdate) -> Trajector
     Expects chat_id, topic and level; updates the first item's skills.goal_level
     and returns the updated single-item trajectory response.
     """
-    from app.repositories.context_store import get_topic_trajectory, set_topic_trajectory  # type: ignore
+    from ..repositories.context_store_sql import get_topic_trajectory, set_topic_trajectory  # type: ignore
 
     try:
         chat_id = int(payload.chat_id)
@@ -2040,7 +2040,7 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
     - Caches by (chat_id, topic) using get_topic_trajectory/set_topic_trajectory
     - Returns only the first generated item
     """
-    from app.repositories.context_store import (
+    from ..repositories.context_store_sql import (
         get_context,
         get_topic_trajectory,
         set_topic_trajectory,
@@ -2343,7 +2343,7 @@ async def update_by_topic_goal_level(payload: TopicGoalLevelUpdate) -> Trajector
     Expects chat_id, topic and level; updates the first item's skills.goal_level
     and returns the updated single-item trajectory response.
     """
-    from app.repositories.context_store import get_topic_trajectory, set_topic_trajectory  # type: ignore
+    from ..repositories.context_store_sql import get_topic_trajectory, set_topic_trajectory  # type: ignore
 
     try:
         chat_id = int(payload.chat_id)
@@ -2393,7 +2393,7 @@ async def generate_tasks_by_topic(req: GenerateTasksRequest) -> GenerateTasksRes
     Response: GenerateTasksResponse (tasks for the selected topic/level)
     Caching: uses the same tasks cache (get_tasks/set_tasks) by key "{topic}::L{level}".
     """
-    from app.repositories.context_store import (
+    from ..repositories.context_store_sql import (
         get_context,
         get_topic_trajectory,
         get_tasks,
