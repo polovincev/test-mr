@@ -204,7 +204,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
     Если ключа нет или что-то пошло не так — возвращает пустой список.
     """
     import os, json
-    from ..repositories.context_store_sql import get_context  # type: ignore
+    from ..repositories.context_store_sql import get_context, get_meta_expand, set_meta_expand  # type: ignore
 
     from app.prompts.loader import load_prompt  # type: ignore
 
@@ -1269,22 +1269,27 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
     - Calls LLM with system prompt from meta_expand_system.txt and the user prompt as that list
     - Caches result in context (ctx["meta_expand"]) and returns cached value if present
     """
-    from ..repositories.context_store_sql import get_context  # type: ignore
+    from ..repositories.context_store_sql import get_context, get_meta_expand, set_meta_expand  # type: ignore
     from app.prompts.loader import load_prompt  # type: ignore
     import os
 
     chat_id = int(req.chat_id)
     ctx = get_context(chat_id)
-    cached = None
-    if isinstance(ctx, dict):
-        cached = ctx.get("meta_expand")
+    # try read cached from DB first
+    try:
+        cached = get_meta_expand(chat_id)
         if isinstance(cached, dict) and int(cached.get("chat_id", 0)) == chat_id and isinstance(cached.get("items"), list):
-            try:
-                items_cached = [MetaExpandItem(**it) if isinstance(it, dict) else None for it in cached.get("items", [])]
-                items_cached = [it for it in items_cached if it is not None]
-                return MetaExpandResponse(chat_id=chat_id, items=items_cached)  # type: ignore[arg-type]
-            except Exception:
-                pass
+            items_cached = []
+            for it in cached.get("items", []):
+                try:
+                    if isinstance(it, dict):
+                        items_cached.append(MetaExpandItem(**it))
+                except Exception:
+                    continue
+            if items_cached:
+                return MetaExpandResponse(chat_id=chat_id, items=items_cached)
+    except Exception:
+        pass
 
     trajectory = ctx.get("trajectory") if isinstance(ctx, dict) else None
     titles: list[str] = []
@@ -1395,12 +1400,9 @@ async def meta_expand(req: MetaExpandRequest) -> MetaExpandResponse:
     except Exception:
         items_out = [MetaExpandItem(title=t, expansions=[] ) for t in titles]
 
-    # save to context
+    # persist to DB
     try:
-        from ..repositories.context_store_sql import get_context as _get_ctx  # type: ignore
-        c = _get_ctx(chat_id)
-        if isinstance(c, dict):
-            c["meta_expand"] = {"chat_id": chat_id, "items": [it.dict() for it in items_out]}
+        set_meta_expand(chat_id, {"chat_id": chat_id, "items": [it.dict() for it in items_out]})
     except Exception:
         pass
 
@@ -1425,7 +1427,11 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
     4) Merge LLM result with existing context data, deduplicate, and return updated items
     5) Save updated meta_expand back to context
     """
-    from ..repositories.context_store_sql import get_context  # type: ignore
+    from ..repositories.context_store_sql import (
+        get_context,
+        get_meta_expand,
+        set_meta_expand,
+    )  # type: ignore
     from app.prompts.loader import load_prompt  # type: ignore
     import os
     import json as _json
@@ -1461,10 +1467,12 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
 
     disallowed = [t for t in titles if t != topic]
 
-    # 2) Existing meta_expand from context
+    # 2) Existing meta_expand from DB (fallback to context if needed)
     existing_map: dict[str, list[str]] = {}
     try:
-        mx = ctx.get("meta_expand") if isinstance(ctx, dict) else None
+        mx = get_meta_expand(chat_id)
+        if not isinstance(mx, dict) and isinstance(ctx, dict):
+            mx = ctx.get("meta_expand")
         if isinstance(mx, dict) and isinstance(mx.get("items"), list):
             for it in mx.get("items", []):
                 try:
@@ -1614,44 +1622,30 @@ async def meta_extend(req: MetaExtendRequest) -> MetaExpandResponse:
                 merged.append(x)
         return merged
 
-    # 6) Save back to context under meta_expand
+    # 6) Persist merged result in DB under meta_expand and return unified items
     try:
-        if isinstance(ctx, dict):
-            items_ctx: list[dict] = []
-            try:
-                mx = ctx.get("meta_expand") or {}
-                arr = mx.get("items") if isinstance(mx, dict) else []
-                if isinstance(arr, list):
-                    items_ctx = [it for it in arr if isinstance(it, dict)]
-            except Exception:
-                items_ctx = []
-            # convert current list to map for merging
-            ctx_map: dict[str, list[str]] = {}
-            for it in items_ctx:
-                try:
-                    ctx_map[str(it.get("title", "")).strip()] = list(it.get("expansions") or [])
-                except Exception:
-                    continue
-            # union keys and rebuild list (ensure requested topic key exists)
-            all_titles = set(ctx_map.keys()) | (set(new_map.keys()) if new_map else set())
-            if topic:
-                all_titles.add(topic)
-            if not all_titles:
-                all_titles = {topic}
-            items_ctx = []
-            for t in all_titles:
-                old_list = ctx_map.get(t, [])
-                new_list = new_map.get(t, [])
-                items_ctx.append({"title": t, "expansions": merge_lists(t, old_list, new_list)})
-            ctx["meta_expand"] = {"chat_id": chat_id, "items": items_ctx}
+        # start from existing map and overlay new_map
+        merged_map: dict[str, list[str]] = {}
+        for t in set(list(existing_map.keys()) + list(new_map.keys()) + ([topic] if topic else [])):
+            old_list = existing_map.get(t, [])
+            new_list = new_map.get(t, [])
+            merged_map[t] = merge_lists(t, old_list, new_list)
+
+        # build items list
+        items_ctx = [{"title": t, "expansions": merged_map.get(t, [])} for t in merged_map.keys()]
+        set_meta_expand(chat_id, {"chat_id": chat_id, "items": items_ctx})
     except Exception:
         pass
 
-    # 7) Build response from context state
+    # 7) Build response from DB state
     try:
-        items_out = [MetaExpandItem(title=str(it.get("title")), expansions=list(it.get("expansions") or [])) for it in ctx.get("meta_expand", {}).get("items", [])]
+        persisted = get_meta_expand(chat_id)
+        if isinstance(persisted, dict) and isinstance(persisted.get("items"), list):
+            items_out = [MetaExpandItem(title=str(it.get("title")), expansions=list(it.get("expansions") or [])) for it in persisted.get("items", [])]
+        else:
+            raise ValueError("no persisted")
     except Exception:
-        # fall back to new_map or empty
+        # fall back
         if new_map:
             items_out = [MetaExpandItem(title=k, expansions=v) for k, v in new_map.items()]
         else:
