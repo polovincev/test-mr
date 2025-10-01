@@ -6,12 +6,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.prompts.loader import load_prompt
-from app.repositories.context_store import (
+# Use SQL-backed context store instead of in-memory
+from app.repositories.context_store_sql import (
     get_trajectory,
     get_context,
     get_summary_messages,
     append_summary_message,
     clear_summary_messages,
+    get_tasks,
 )
 
 router = APIRouter(prefix="/summary_chat", tags=["summary_chat"])
@@ -38,28 +40,55 @@ def _build_user_context_block(chat_id: int) -> str:
         goal_text = ""
 
     passed_titles: List[str] = []
-    # 1) From cached tasks in context
+
+    # Helper to extract titles from tasks list structure
+    def _extract_passed(tasks: list):
+        for t in tasks:
+            try:
+                title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else ""))
+                is_passed = bool(getattr(t, "passed", False) or (t.get("passed") if isinstance(t, dict) else False))
+                if is_passed and title and "тест по базовому уровню" not in title.lower():
+                    passed_titles.append(title)
+            except Exception:
+                continue
+
+    # 1) From tasks cached under individual keys {topic::Lx}
     try:
-        tasks_by_topic = ctx.get("tasks") if isinstance(ctx, dict) else None
-        if isinstance(tasks_by_topic, dict):
-            for _, payload in tasks_by_topic.items():
+        from sqlalchemy import select
+        from ..models.context_kv import ChatContextKV  # type: ignore
+        from ..database import SessionLocal  # type: ignore
+
+        with SessionLocal() as db:
+            rows = db.execute(
+                select(ChatContextKV.key, ChatContextKV.value).where(ChatContextKV.chat_id == chat_id)
+            ).all()
+        for key, val in rows:
+            if "::L" in key:
                 try:
-                    tasks = (payload or {}).get("tasks") if isinstance(payload, dict) else None
-                    if isinstance(tasks, list):
-                        for t in tasks:
-                            try:
-                                title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else ""))
-                                is_passed = bool(getattr(t, "passed", False) or (t.get("passed") if isinstance(t, dict) else False))
-                                if is_passed and title and "тест по базовому уровню" not in title.lower():
-                                    passed_titles.append(title)
-                            except Exception:
-                                continue
+                    import json as _json
+                    data = _json.loads(val)
+                    if isinstance(data, dict) and isinstance(data.get("tasks"), list):
+                        _extract_passed(data["tasks"])
                 except Exception:
                     continue
     except Exception:
         pass
 
-    # 2) Fallback: from trajectory object if nothing in cache
+    # 2) Fallback old aggregated tasks map in context (if exists)
+    try:
+        tasks_by_topic = ctx.get("tasks") if isinstance(ctx, dict) else None
+        if isinstance(tasks_by_topic, dict):
+            for payload in tasks_by_topic.values():
+                try:
+                    tasks = (payload or {}).get("tasks") if isinstance(payload, dict) else None
+                    if isinstance(tasks, list):
+                        _extract_passed(tasks)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    # 3) Fallback: from trajectory object if nothing in cache
     if not passed_titles:
         traj = get_trajectory(chat_id)
         try:

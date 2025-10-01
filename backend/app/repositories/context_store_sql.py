@@ -166,3 +166,28 @@ def get_meta_expand_new(chat_id: int):
 
 def set_meta_expand_new(chat_id: int, payload):
     _set_value(chat_id, "meta_expand_new", _to_json(payload))
+
+# summary chat -------------------------------------------------------------
+
+
+def get_summary_messages(chat_id: int) -> list[dict]:
+    val = _get_value(chat_id, "summary_chat_messages")
+    if not val:
+        return []
+    try:
+        msgs = json.loads(val)
+        if isinstance(msgs, list):
+            return msgs  # type: ignore[return-value]
+    except Exception:
+        pass
+    return []
+
+
+def append_summary_message(chat_id: int, role: str, content: str) -> None:
+    msgs = get_summary_messages(chat_id)
+    msgs.append({"role": str(role), "content": str(content)})
+    _set_value(chat_id, "summary_chat_messages", _to_json(msgs))
+
+
+def clear_summary_messages(chat_id: int) -> None:
+    _set_value(chat_id, "summary_chat_messages", _to_json([]))
