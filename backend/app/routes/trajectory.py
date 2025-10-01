@@ -285,36 +285,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         except Exception:
             pass
         resp = TrajectoryResponse(goal=USER_GOAL, items=items)
-        # enrich with passedCount from context tasks
-        try:
-            from ..repositories.context_store_sql import get_context  # type: ignore
-            ctx = get_context(int(chat_id) if chat_id is not None else -1)
-            tasks_by_topic = (ctx or {}).get("tasks") or {}
-            for it in resp.items:
-                try:
-                    # tasks cached under keys like "{title}::L{level}", so sum across all levels
-                    passed_sum = 0
-                    if isinstance(tasks_by_topic, dict):
-                        for k, v in tasks_by_topic.items():
-                            if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
-                                for t in v.get("tasks", []):
-                                    try:
-                                        # exclude base-level test from passedCount
-                                        try:
-                                            _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
-                                        except Exception:
-                                            _title = ""
-                                        if "тест по базовому уровню" in _title:
-                                            continue
-                                        if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
-                                            passed_sum += 1
-                                    except Exception:
-                                        continue
-                    setattr(it, "passedCount", int(passed_sum))
-                except Exception:
-                    setattr(it, "passedCount", 0)
-        except Exception:
-            pass
+        # Просто возвращаем, не пересчитывая passedCount — используем сохранённые в БД значения
         return resp
 
     api_key = os.getenv("OPENAI_API_KEY")
@@ -327,37 +298,7 @@ async def get_trajectory_list(mock: bool = Query(False), chat_id: int | None = Q
         try:
             tr_raw = ctx["trajectory"]
             resp = TrajectoryResponse(**tr_raw) if isinstance(tr_raw, dict) else tr_raw
-            # recompute passedCount from cached tasks
-            try:
-                tasks_by_topic = (ctx or {}).get("tasks") or {}
-                for it in resp.items:
-                    try:
-                        passed_sum = 0
-                        if isinstance(tasks_by_topic, dict):
-                            for k, v in tasks_by_topic.items():
-                                if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
-                                    for t in v.get("tasks", []):
-                                        try:
-                                            try:
-                                                _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
-                                            except Exception:
-                                                _title = ""
-                                            if "тест по базовому уровню" in _title:
-                                                continue
-                                            if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
-                                                passed_sum += 1
-                                        except Exception:
-                                            continue
-                        it.passedCount = int(passed_sum)
-                    except Exception:
-                        it.passedCount = 0
-            except Exception:
-                pass
-            # save back enriched trajectory
-            try:
-                set_trajectory(int(chat_id), resp)
-            except Exception:
-                pass
+            # Возвращаем как есть, passedCount не пересчитываем
             return resp
         except Exception:
             return ctx["trajectory"]  # type: ignore [return-value]
@@ -1200,6 +1141,21 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
             l3_done, l3_total = level_passed(3)
             l4_done, l4_total = level_passed(4)
 
+            # compute passedCount for this topic (excluding base-level summary test)
+            try:
+                passed_sum_for_topic = 0
+                for t in all_tasks:
+                    try:
+                        lvl = int(getattr(t, "level", 0))
+                    except Exception:
+                        lvl = 0
+                    if lvl == 2 and _is_base_test(t):
+                        continue
+                    if bool(getattr(t, "passed", False)):
+                        passed_sum_for_topic += 1
+            except Exception:
+                passed_sum_for_topic = 0
+
             # пройден ли тест по базовому уровню (уровень 2, название содержит), passed=true
             l2_test_passed = any(
                 int(getattr(t, "level", 0)) == 2
@@ -1230,6 +1186,10 @@ async def update_task_passed(req: UpdateTaskPassedRequest) -> GenerateTasksRespo
                     if str(it.title).strip() == str(req.topic).strip():
                         try:
                             it.skills.user_level = float(new_user_level)
+                        except Exception:
+                            pass
+                        try:
+                            it.passedCount = int(passed_sum_for_topic)
                         except Exception:
                             pass
                         break
@@ -1936,27 +1896,26 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
 
         # 6) passedCount
         try:
-            tasks_by_topic = (ctx or {}).get("tasks") or {}
-            try:
-                passed_sum = 0
-                if isinstance(tasks_by_topic, dict):
-                    for k, v in tasks_by_topic.items():
-                        if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
-                            for t in v.get("tasks", []):
+            from ..repositories.context_store_sql import get_tasks as _get_tasks  # type: ignore
+            for it in resp.items:
+                try:
+                    passed_sum = 0
+                    for key in [f"{it.title}::L2", f"{it.title}::L3", f"{it.title}::L4", f"{it.title}"]:
+                        v = _get_tasks(chat_id, key)
+                        if isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                            for t in v["tasks"]:
                                 try:
-                                    try:
-                                        _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
-                                    except Exception:
-                                        _title = ""
-                                    if "тест по базовому уровню" in _title:
-                                        continue
-                                    if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
-                                        passed_sum += 1
+                                    lvl = int(getattr(t, "level", t.get("level", 0)))
                                 except Exception:
+                                    lvl = 0
+                                _tl = str(getattr(t, "title", t.get("title", ""))).lower()
+                                if lvl == 2 and "тест по базовому уровню" in _tl:
                                     continue
-                setattr(it, "passedCount", int(passed_sum))
-            except Exception:
-                setattr(it, "passedCount", 0)
+                                if bool(getattr(t, "passed", t.get("passed", False))):
+                                    passed_sum += 1
+                    it.passedCount = int(passed_sum)
+                except Exception:
+                    it.passedCount = 0
         except Exception:
             pass
 
@@ -2289,27 +2248,26 @@ async def generate_trajectory_by_topic(req: TopicTrajectoryRequest) -> Trajector
 
         # 6) passedCount
         try:
-            tasks_by_topic = (ctx or {}).get("tasks") or {}
-            try:
-                passed_sum = 0
-                if isinstance(tasks_by_topic, dict):
-                    for k, v in tasks_by_topic.items():
-                        if isinstance(k, str) and it.title.strip() in k and isinstance(v, dict) and isinstance(v.get("tasks"), list):
-                            for t in v.get("tasks", []):
+            from ..repositories.context_store_sql import get_tasks as _get_tasks  # type: ignore
+            for it in resp.items:
+                try:
+                    passed_sum = 0
+                    for key in [f"{it.title}::L2", f"{it.title}::L3", f"{it.title}::L4", f"{it.title}"]:
+                        v = _get_tasks(chat_id, key)
+                        if isinstance(v, dict) and isinstance(v.get("tasks"), list):
+                            for t in v["tasks"]:
                                 try:
-                                    try:
-                                        _title = str(getattr(t, "title", "") or (t.get("title") if isinstance(t, dict) else "")).lower()
-                                    except Exception:
-                                        _title = ""
-                                    if "тест по базовому уровню" in _title:
-                                        continue
-                                    if bool(getattr(t, "passed", False)) or bool((isinstance(t, dict) and t.get("passed"))):
-                                        passed_sum += 1
+                                    lvl = int(getattr(t, "level", t.get("level", 0)))
                                 except Exception:
+                                    lvl = 0
+                                _tl = str(getattr(t, "title", t.get("title", ""))).lower()
+                                if lvl == 2 and "тест по базовому уровню" in _tl:
                                     continue
-                setattr(it, "passedCount", int(passed_sum))
-            except Exception:
-                setattr(it, "passedCount", 0)
+                                if bool(getattr(t, "passed", t.get("passed", False))):
+                                    passed_sum += 1
+                    it.passedCount = int(passed_sum)
+                except Exception:
+                    it.passedCount = 0
         except Exception:
             pass
 
