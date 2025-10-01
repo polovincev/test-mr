@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.prompts.loader import load_prompt
-from app.repositories.context_store import get_context, get_meta_central, set_meta_central
+from app.repositories.context_store_sql import get_context, get_meta_central, set_meta_central
 
 
 router = APIRouter(prefix="/meta", tags=["meta"])

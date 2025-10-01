@@ -70,6 +70,22 @@ def upsert_goal(chat_id: int, goal_text: str) -> None:
 def upsert_profile(chat_id: int, profile: dict) -> None:
     _set_value(chat_id, "profile", json.dumps(profile, ensure_ascii=False))
 
+# meta central --------------------------------------------------------------
+
+
+def get_meta_central(chat_id: int):
+    val = _get_value(chat_id, "meta_central")
+    if val is None:
+        return None
+    try:
+        return json.loads(val)
+    except Exception:
+        return val
+
+
+def set_meta_central(chat_id: int, payload):
+    _set_value(chat_id, "meta_central", _to_json(payload))
+
 
 def get_context(chat_id: int) -> dict[str, Any]:
     """Return full context for chat as dict[key]=value (attempt JSON decode)."""
@@ -120,3 +136,33 @@ def get_topic_trajectory(chat_id: int, topic: str):
 
 def set_topic_trajectory(chat_id: int, topic: str, payload):
     _set_value(chat_id, _topic_key("topic_traj", topic), _to_json(payload))
+
+# meta expand ---------------------------------------------------------------
+
+
+def get_meta_expand(chat_id: int):
+    val = _get_value(chat_id, "meta_expand")
+    if val is None:
+        return None
+    try:
+        return json.loads(val)
+    except Exception:
+        return val
+
+
+def set_meta_expand(chat_id: int, payload):
+    _set_value(chat_id, "meta_expand", _to_json(payload))
+
+
+def get_meta_expand_new(chat_id: int):
+    val = _get_value(chat_id, "meta_expand_new")
+    if val is None:
+        return None
+    try:
+        return json.loads(val)
+    except Exception:
+        return val
+
+
+def set_meta_expand_new(chat_id: int, payload):
+    _set_value(chat_id, "meta_expand_new", _to_json(payload))
