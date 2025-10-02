@@ -44,7 +44,7 @@
   width: 100%;
 }
 
-button {
+.fullWidth button {
   width: 100%;
   border-radius: var(--Component-Large-Radius, 16px);
   background: var(--Color-Surface-Accent, #0087CD);
