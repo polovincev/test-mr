@@ -41,12 +41,13 @@ app.add_middleware(
 
 common_deps = [Depends(current_user)]
 
-app.include_router(fact_router, dependencies=common_deps)
-app.include_router(chat_router, dependencies=common_deps)
-app.include_router(trajectory_router, dependencies=common_deps)
-app.include_router(summary_chat_router, dependencies=common_deps)
-app.include_router(meta_router, dependencies=common_deps)
-app.include_router(admin_router, dependencies=common_deps)
+prefix = "/api"
+app.include_router(fact_router, prefix=prefix, dependencies=common_deps)
+app.include_router(chat_router, prefix=prefix, dependencies=common_deps)
+app.include_router(trajectory_router, prefix=prefix, dependencies=common_deps)
+app.include_router(summary_chat_router, prefix=prefix, dependencies=common_deps)
+app.include_router(meta_router, prefix=prefix, dependencies=common_deps)
+app.include_router(admin_router, prefix=prefix, dependencies=common_deps)
 
 # public auth routes
 from .routes.auth import router as auth_router
