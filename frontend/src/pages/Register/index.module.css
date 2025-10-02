@@ -70,7 +70,7 @@ button {
   line-height: 20px; /* 142.857% */
 }
 
-input {
+.field input {
   height: var(--Component-Large-Base-Size, 42px);
   padding: var(--Component-Large-TB-Padding, 16px) var(--Component-Large-LR-Padding-Short, 16px);
   border-radius: var(--Component-Large-Radius, 16px);
@@ -85,11 +85,11 @@ input {
   outline: none;
 }
 
-input:active, input:focus, input:focus-visible {
+.field input:active, .field input:focus, .field input:focus-visible {
   border: 1px solid var(--Color-State-Border-Primary-Active, #0087cd);
 }
 
-a {
+.docLink a {
   font-weight: 500;
   text-decoration: none;
 }
