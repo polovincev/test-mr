@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { authRegister } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import styles from "./index.module.css";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -35,28 +36,30 @@ const Register = () => {
   };
 
   return (
-    <div style={{maxWidth: 420, margin: "80px auto", padding: 24}}>
-      <h2>Регистрация</h2>
-      {error && <div style={{ color: "#b00020", marginBottom: 12 }}>{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div style={{marginBottom: 12}}>
-          <label style={{display: "block", marginBottom: 6}}>Email</label>
-          <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required style={{width: "100%", padding: 8}} />
+    <div className={styles.wrapper}>
+      <div className={styles.card}>
+        <h2 className={styles.title}>Регистрация</h2>
+        {error && <div className={styles.error}>{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <input className={styles.fullWidth} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <div className={styles.field}>
+            <input className={styles.fullWidth} type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          <div className={styles.field}>
+            <input className={styles.fullWidth} type="password" placeholder="Повторите пароль" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+          </div>
+          <button className={styles.fullWidth} type="submit" disabled={loading}>
+            {loading ? "Создаём..." : "Зарегистрироваться"}
+          </button>
+        </form>
+        <div className={styles.doc}>
+          Продолжая, вы принимаете <Link to="/terms" className={styles.docLink}>пользовательское соглашение</Link> и <Link to="/privacy" className={styles.docLink}>положение о конфиденциальности</Link>.
         </div>
-        <div style={{marginBottom: 12}}>
-          <label style={{display: "block", marginBottom: 6}}>Пароль</label>
-          <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required style={{width: "100%", padding: 8}} />
+        <div style={{ marginTop: 12 }}>
+          Уже есть аккаунт? <Link to="/login" state={location.state}>Войти</Link>
         </div>
-        <div style={{marginBottom: 12}}>
-          <label style={{display: "block", marginBottom: 6}}>Повторите пароль</label>
-          <input type="password" value={password2} onChange={(e)=>setPassword2(e.target.value)} required style={{width: "100%", padding: 8}} />
-        </div>
-        <button type="submit" disabled={loading} style={{width: "100%", padding: 10}}>
-          {loading ? "Создаём..." : "Зарегистрироваться"}
-        </button>
-      </form>
-      <div style={{marginTop: 12}}>
-        Уже есть аккаунт? <Link to="/login" state={location.state}>Войти</Link>
       </div>
     </div>
   );

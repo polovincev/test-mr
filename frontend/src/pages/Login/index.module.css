@@ -1,0 +1,105 @@
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #374151;
+}
+
+.card {
+  background: #fff;
+  max-width: 460px;
+  width: 100%;
+  padding: 32px;
+  border-radius: 24px;
+}
+
+.title {
+  color: var(--Color-Text-Primary, #000);
+
+  /* Heading/H2 Desktop */
+  font-family: "Onest";
+  font-size: 28px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 40px; /* 125% */
+  margin: 0 0 22px 0;
+}
+
+.error {
+  color: #b00020;
+  margin-bottom: 12px;
+  /* Caption/Caption Medium */
+  font-family: "Onest";
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+button {
+  width: 100%;
+  border-radius: var(--Component-Large-Radius, 16px);
+  background: var(--Color-Surface-Accent, #0087CD);
+  color: var(--Color-White, #FFF);
+  /* Caption/Caption Medium */
+  font-family: "Onest";
+  font-size: 16px;
+  font-weight: 100;
+  line-height: 20px; /* 142.857% */
+  outline: none;
+  border: none;
+  cursor: pointer;
+  height: var(--Component-Large-Base-Size, 42px);
+}
+
+.registerLink {
+  margin-top: 16px;
+  color: var(--Color-Black, #000);
+  /* Caption/Caption Medium */
+  font-family: "Onest";
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */
+}
+
+input {
+  height: var(--Component-Large-Base-Size, 42px);
+  padding: var(--Component-Large-TB-Padding, 16px) var(--Component-Large-LR-Padding-Short, 16px);
+  border-radius: var(--Component-Large-Radius, 16px);
+  border: 1px solid var(--Color-Border-Primary, #D1D5DB);
+  background: var(--Color-Surface-Primary, #fff);
+  color: var(--Color-Black, #000);
+  /* Caption/Caption Medium */
+  font-family: "Onest";
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px; /* 142.857% */ 
+  outline: none;
+}
+
+input:active, input:focus, input:focus-visible {
+  border: 1px solid var(--Color-State-Border-Primary-Active, #0087cd);
+}
+
+a {
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.doc {
+  margin-top: 10px;
+  color: var(--Color-Black, #000);
+  /* Caption/Caption Medium */
+  font-family: "Onest";
+  font-size: 12px;
+  font-weight: 200;
+  line-height: 20px; /* 142.857% */
+}
