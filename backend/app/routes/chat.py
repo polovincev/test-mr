@@ -10,7 +10,7 @@ from ..repositories.chat_repository import ChatRepository
 from ..repositories.sqlalchemy_chat_repository import SqlAlchemyChatRepository
 from ..database import get_db
 from ..deps import current_user  # new
-from ..repositories.context_store import upsert_goal, upsert_profile
+from ..repositories.context_store_sql import upsert_goal, upsert_profile
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
