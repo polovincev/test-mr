@@ -9,14 +9,18 @@ from ..entities.chat import Chat, ChatMessage, Suggestion
 from ..repositories.chat_repository import ChatRepository
 from ..repositories.sqlalchemy_chat_repository import SqlAlchemyChatRepository
 from ..database import get_db
+from ..deps import current_user  # new
 from ..repositories.context_store import upsert_goal, upsert_profile
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-def get_chat_repo(db=Depends(get_db)) -> ChatRepository:  # type: ignore
-    return SqlAlchemyChatRepository(db)
+def get_chat_repo(
+    db=Depends(get_db),
+    user=Depends(current_user),
+) -> ChatRepository:  # type: ignore
+    return SqlAlchemyChatRepository(db, user.id)
 
 
 class ChatOut(BaseModel):

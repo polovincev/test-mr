@@ -12,13 +12,14 @@ DEFAULT_USER_ID = 1  # TODO: inject real user later
 
 
 class SqlAlchemyChatRepository(ChatRepository):
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, user_id: int) -> None:
         self._db = db
+        self._uid = user_id
 
     async def list_chats(self) -> List[ChatDTO]:
         rows = (
             self._db.query(ChatDB)
-            .filter(ChatDB.user_id == DEFAULT_USER_ID)
+            .filter(ChatDB.user_id == self._uid)
             .order_by(ChatDB.id.desc())
             .limit(20)
             .all()
@@ -26,7 +27,7 @@ class SqlAlchemyChatRepository(ChatRepository):
         return [ChatDTO(id=r.id, title=r.title, mode=r.mode, messages=[]) for r in rows]
 
     async def create_chat(self, title: str, mode: Literal["goal", "direct", "profile_goal"] = "goal") -> ChatDTO:
-        row = ChatDB(user_id=DEFAULT_USER_ID, title=title, mode=mode)
+        row = ChatDB(user_id=self._uid, title=title, mode=mode)
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)
@@ -34,11 +35,11 @@ class SqlAlchemyChatRepository(ChatRepository):
 
     async def add_message(self, chat_id: int, message: ChatMessageDTO) -> ChatDTO:
         chat = self._db.get(ChatDB, chat_id)
-        if not chat or chat.user_id != DEFAULT_USER_ID:
+        if not chat or chat.user_id != self._uid:
             raise ValueError("Chat not found")
         msg = ChatMessageDB(
             chat_id=chat_id,
-            user_id=DEFAULT_USER_ID,
+            user_id=self._uid,
             role=message.role,
             content=message.content,
         )
@@ -48,7 +49,7 @@ class SqlAlchemyChatRepository(ChatRepository):
 
     async def get_chat(self, chat_id: int) -> Optional[ChatDTO]:
         chat = self._db.get(ChatDB, chat_id)
-        if not chat or chat.user_id != DEFAULT_USER_ID:
+        if not chat or chat.user_id != self._uid:
             return None
         messages = [
             ChatMessageDTO(role=m.role, content=m.content, timestamp=m.created_at)

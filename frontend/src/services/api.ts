@@ -1,11 +1,57 @@
 import { API_URL } from "../config";
 
+// Centralized fetch with auth + 401 redirect
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}, opts?: { noAuth?: boolean }): Promise<Response> {
+  const url = typeof input === "string" ? input : input.toString();
+  const headers = new Headers(init.headers || {});
+  const isAuthCall = url.includes("/auth/login") || url.includes("/auth/register");
+  if (!opts?.noAuth && !isAuthCall) {
+    const token = localStorage.getItem("token");
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401 && !isAuthCall) {
+    try {
+      const current = window.location.pathname + window.location.search;
+      localStorage.setItem("postLoginRedirect", current);
+    } catch {}
+    window.location.href = "/login";
+  }
+  return res;
+}
+
+// Auth API
+export async function authLogin(email: string, password: string): Promise<string> {
+  const res = await apiFetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  }, { noAuth: true });
+  if (!res.ok) throw new Error("Invalid email or password");
+  const data = await res.json() as { token: string };
+  return data.token;
+}
+
+export async function authRegister(email: string, password: string): Promise<string> {
+  const res = await apiFetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  }, { noAuth: true });
+  if (!res.ok) {
+    const msg = res.status === 400 ? "User already exists" : "Registration failed";
+    throw new Error(msg);
+  }
+  const data = await res.json() as { token: string };
+  return data.token;
+}
+
 export interface FactResponse {
   content: string;
 }
 
 export async function getFact(): Promise<FactResponse> {
-  const response = await fetch(`${API_URL}/fact`);
+  const response = await apiFetch(`${API_URL}/fact`);
   if (!response.ok) {
     throw new Error("Network response was not ok");
   }
@@ -32,7 +78,7 @@ export interface ChatSummary {
 }
 
 export async function createChat(title: string, mode: "goal" | "direct" | "profile_goal" = "goal", firstUserPrompt?: string): Promise<Chat> {
-  const res = await fetch(`${API_URL}/chat`, {
+  const res = await apiFetch(`${API_URL}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, mode, first_user_prompt: firstUserPrompt }),
@@ -42,13 +88,13 @@ export async function createChat(title: string, mode: "goal" | "direct" | "profi
 }
 
 export async function getChat(chatId: number): Promise<Chat> {
-  const res = await fetch(`${API_URL}/chat/${chatId}`);
+  const res = await apiFetch(`${API_URL}/chat/${chatId}`);
   if (!res.ok) throw new Error("Failed to get chat");
   return (await res.json()) as Chat;
 }
 
 export async function sendMessage(chatId: number, content: string, role: "user" | "assistant" = "user"): Promise<Chat> {
-  const res = await fetch(`${API_URL}/chat/${chatId}/message`, {
+  const res = await apiFetch(`${API_URL}/chat/${chatId}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role, content }),
@@ -58,7 +104,7 @@ export async function sendMessage(chatId: number, content: string, role: "user" 
 }
 
 export async function listChats(): Promise<ChatSummary[]> {
-  const res = await fetch(`${API_URL}/chat/`);
+  const res = await apiFetch(`${API_URL}/chat/`);
   if (!res.ok) throw new Error("Failed to list chats");
   return (await res.json()) as ChatSummary[];
 }
@@ -96,13 +142,13 @@ export interface TrajectoryResponse {
 
 export async function getTrajectory(chatId?: number): Promise<TrajectoryResponse> {
   const url = `${API_URL}/trajectory/${chatId ? `?chat_id=${chatId}` : ""}`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error("Failed to load trajectory");
   return (await res.json()) as TrajectoryResponse;
 }
 
 export async function updateGoalLevels(chatId: number, levels: number[]): Promise<TrajectoryResponse> {
-  const res = await fetch(`${API_URL}/trajectory/goal_levels`, {
+  const res = await apiFetch(`${API_URL}/trajectory/goal_levels`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, levels }),
@@ -130,7 +176,7 @@ export interface GenerateTasksResponse {
 }
 
 export async function generateTasks(chatId: number, topic: string): Promise<GenerateTasksResponse> {
-  const res = await fetch(`${API_URL}/trajectory/generate_tasks`, {
+  const res = await apiFetch(`${API_URL}/trajectory/generate_tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic }),
@@ -148,7 +194,7 @@ export async function updateTaskPassed(
   passed: boolean,
   answer?: TestAnswerPayload[]
 ): Promise<GenerateTasksResponse> {
-  const res = await fetch(`${API_URL}/trajectory/tasks/passed`, {
+  const res = await apiFetch(`${API_URL}/trajectory/tasks/passed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic, index, passed, ...(Array.isArray(answer) ? { answer } : {}) }),
@@ -162,7 +208,7 @@ export interface MetaExpandItem { title: string; expansions: string[] }
 export interface MetaExpandResponse { chat_id: number; items: MetaExpandItem[] }
 
 export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
-  const res = await fetch(`${API_URL}/trajectory/meta_expand`, {
+  const res = await apiFetch(`${API_URL}/trajectory/meta_expand`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId }),
@@ -173,7 +219,7 @@ export async function metaExpand(chatId: number): Promise<MetaExpandResponse> {
 
 // New extended meta endpoint
 export async function metaExtendNew(chatId: number, topic: string): Promise<MetaExpandResponse> {
-  const res = await fetch(`${API_URL}/trajectory/meta_extend_new`, {
+  const res = await apiFetch(`${API_URL}/trajectory/meta_extend_new`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic }),
@@ -184,7 +230,7 @@ export async function metaExtendNew(chatId: number, topic: string): Promise<Meta
 
 // Single-item trajectory by topic
 export async function getTrajectoryByTopic(chatId: number, topic: string): Promise<TrajectoryResponse> {
-  const res = await fetch(`${API_URL}/trajectory/by_topic`, {
+  const res = await apiFetch(`${API_URL}/trajectory/by_topic`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic })
@@ -194,7 +240,7 @@ export async function getTrajectoryByTopic(chatId: number, topic: string): Promi
 }
 
 export async function updateByTopicGoalLevel(chatId: number, topic: string, level: number): Promise<TrajectoryResponse> {
-  const res = await fetch(`${API_URL}/trajectory/by_topic/goal_level`, {
+  const res = await apiFetch(`${API_URL}/trajectory/by_topic/goal_level`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic, level })
@@ -204,7 +250,7 @@ export async function updateByTopicGoalLevel(chatId: number, topic: string, leve
 }
 
 export async function generateTasksByTopic(chatId: number, topic: string): Promise<GenerateTasksResponse> {
-  const res = await fetch(`${API_URL}/trajectory/by_topic/generate_tasks`, {
+  const res = await apiFetch(`${API_URL}/trajectory/by_topic/generate_tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, topic })
@@ -216,7 +262,7 @@ export async function generateTasksByTopic(chatId: number, topic: string): Promi
 export interface MetaCentralResponse { chat_id: number; content: string }
 
 export async function metaCentral(chatId: number): Promise<MetaCentralResponse> {
-  const res = await fetch(`${API_URL}/meta/central`, {
+  const res = await apiFetch(`${API_URL}/meta/central`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId }),

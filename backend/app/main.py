@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import logging
@@ -12,6 +12,7 @@ from .routes.admin import router as admin_router
 from .database import Base, engine, SessionLocal
 from .models import *  # noqa: F401,F403 ensure tables incl context KV
 from .prompt_migration import migrate_prompts
+from .deps import current_user
 
 app = FastAPI(title="Mriya API")
 
@@ -38,12 +39,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(fact_router)
-app.include_router(chat_router)
-app.include_router(trajectory_router)
-app.include_router(summary_chat_router)
-app.include_router(meta_router)
-app.include_router(admin_router)
+common_deps = [Depends(current_user)]
+
+app.include_router(fact_router, dependencies=common_deps)
+app.include_router(chat_router, dependencies=common_deps)
+app.include_router(trajectory_router, dependencies=common_deps)
+app.include_router(summary_chat_router, dependencies=common_deps)
+app.include_router(meta_router, dependencies=common_deps)
+app.include_router(admin_router, dependencies=common_deps)
+
+# public auth routes
+from .routes.auth import router as auth_router
+app.include_router(auth_router)
 
 # Точка входа для запуска через `python -m backend.app.main`
 if __name__ == "__main__":

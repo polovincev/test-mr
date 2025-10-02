@@ -6,3 +6,7 @@ python-dotenv
 httpx[http2]
 SQLAlchemy
 sqlalchemy2-stubs
+bcrypt
+argon2-cffi
+passlib[argon2,bcrypt]
+PyJWT
