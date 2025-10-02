@@ -51,7 +51,7 @@ app.include_router(admin_router, prefix=prefix, dependencies=common_deps)
 
 # public auth routes
 from .routes.auth import router as auth_router
-app.include_router(auth_router)
+app.include_router(auth_router, prefix=prefix)
 
 # Точка входа для запуска через `python -m backend.app.main`
 if __name__ == "__main__":
