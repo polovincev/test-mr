@@ -72,3 +72,7 @@ npm run dev      # запуск режима разработки
 npm run build    # production-сборка
 npm run preview  # просмотр production-сборки локально
 ```
+
+
+docker build -t mriya-app .  
+docker run -p 80:80 mriya-app
